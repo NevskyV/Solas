@@ -1,29 +1,48 @@
-﻿namespace Core.Components;
+﻿using Core.World;
 
-public class Entity(EntityMetaData metaData)
+namespace Core.Components;
+
+public class Entity(Space currentSpace, EntityMetaData metaData)
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public EntityMetaData MetaData { get; set; } = metaData;
-    private List<IState> States { get; } = [];
-    private List<Behavior> Behaviors { get; } = [];
+    public Space CurrentSpace { get; private set; } = currentSpace;
+    
+    public List<IData> Data { get; } = new();
+    public List<Logic> Logics { get; } = new();
 
-    public void AddState(IState state)
+    //Data Method Group
+    public void AddData(IData state)
     {
-        States.Add(state);
+        Data.Add(state);
+    }
+    
+    public T GetData<T>() where T : IData
+    {
+        return (T)Data.Find(x => x is T);
     }
 
-    public void RemoveState(IState state)
+    public void RemoveData(IData state)
     {
-        States.Remove(state);
+        Data.Remove(state);
     }
 
-    public void AddBehavior(Behavior behavior)
+    //Logic Method Group
+    public void AddLogic<T>() where T : Logic, new()
     {
-        Behaviors.Add(behavior);
+        var newLogic = new T();
+        newLogic.SetupLogic(this, CurrentSpace.Provider);
+        Logics.Add(newLogic);
+        CurrentSpace.Initializer.InitializeLogic(newLogic);
     }
 
-    public void RemoveBehavior(Behavior behavior)
+    public T GetLogic<T>() where T : Logic
     {
-        Behaviors.Remove(behavior);
+        return (T)Logics.Find(x => x is T);
+    }
+    
+    public void RemoveLogic(Logic logic)
+    {
+        Logics.Remove(logic);
     }
 }

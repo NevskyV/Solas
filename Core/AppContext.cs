@@ -1,8 +1,9 @@
 ﻿using Core.Containers;
 using Core.Systems;
+using Core.World;
 
 namespace Core;
 
-public record AppContext(EntityPool EntityPool, Creator Creator, Destroyer Destroyer);
+public record struct AppContext(EntityPool EntityPool, Creator Creator, Destroyer Destroyer, Updater Updater);
 
-public record WorldContext;
+public record struct WorldContext(Space GlobalSpace);

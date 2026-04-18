@@ -1,3 +1,3 @@
 ﻿namespace Core.Components;
 
-public interface IState;
+public interface IData;

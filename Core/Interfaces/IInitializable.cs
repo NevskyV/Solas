@@ -2,5 +2,5 @@
 
 public interface IInitializable
 {
-    public void OnInitialize();
+    public void Initialize();
 }

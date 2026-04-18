@@ -23,19 +23,28 @@ public class Engine
 
     public void Boot()
     {
+        var globalSpaceInitialization = WorldContext.GlobalSpace.Initializer.InitializeDependencies();
+        Task.WaitAll(globalSpaceInitialization);
+        AppContext.Updater.SetupUpdatables(WorldContext.GlobalSpace);
         var newEntity = AppContext.Creator.CreateEntity();
         newEntity.AddData(new TextData("And I'm ready!"));
         newEntity.AddLogic<TextLogic>();
+        AppContext.Updater.Run();
     }
 }
 
 record struct TextData(string Text) : IData;
-public class TextLogic : Logic, IInitializable
+public class TextLogic : Logic, IInitializable, IUpdatable
 {
-    public void OnInitialize()
+    public void Initialize()
     {
         Console.WriteLine($"{nameof(TextLogic)} initialized.");
         Console.WriteLine($"I'm {Entity.MetaData.Name}!");
         Console.WriteLine(Entity.GetData<TextData>().Text);
+    }
+
+    public void Update()
+    {
+        Console.WriteLine($"Update");
     }
 }

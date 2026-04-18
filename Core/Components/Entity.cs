@@ -1,8 +1,9 @@
-﻿using Core.World;
+﻿using Core.Interfaces;
+using Core.World;
 
 namespace Core.Components;
 
-public class Entity(Space currentSpace, EntityMetaData metaData)
+public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 {
     public Guid Id { get; private set; } = Guid.NewGuid();
     public EntityMetaData MetaData { get; set; } = metaData;
@@ -34,6 +35,7 @@ public class Entity(Space currentSpace, EntityMetaData metaData)
         newLogic.SetupLogic(this, CurrentSpace.Provider);
         Logics.Add(newLogic);
         CurrentSpace.Initializer.InitializeLogic(newLogic);
+        Engine.AppContext.Updater.AddUpdatableLogic(newLogic);
     }
 
     public T GetLogic<T>() where T : Logic
@@ -44,5 +46,12 @@ public class Entity(Space currentSpace, EntityMetaData metaData)
     public void RemoveLogic(Logic logic)
     {
         Logics.Remove(logic);
+        Engine.AppContext.Updater.RemoveUpdatableLogic(logic);
+    }
+
+    public void Dispose()
+    {
+        Console.WriteLine("entity disposed");
+        (this as IDestroyable)?.Destroy();
     }
 }

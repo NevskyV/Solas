@@ -2,5 +2,5 @@
 
 public interface IUpdatable
 {
-    public void OnUpdate();
+    public void Update();
 }

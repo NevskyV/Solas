@@ -4,21 +4,23 @@ using Core.World;
 
 namespace Core.Systems;
 
-public class Initializer
+public class Initializer(Space space)
 {
-    public void InitializeDependencies(Space space)
+    public List<Task> InitializeDependencies()
     {
+        List<Task> result = new List<Task>();
         foreach (var entity in space.Entities)
         {
             foreach (var logic in entity.Logics)
             {
-                InitializeLogic(logic);
+                result.Add(InitializeLogic(logic));
             }
         }
+        return result;
     }
 
-    public void InitializeLogic(Logic logic)
+    public async Task InitializeLogic(Logic logic)
     {
-        (logic as IInitializable)?.OnInitialize();
+        (logic as IInitializable)?.Initialize();
     }
 }

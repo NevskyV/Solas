@@ -2,5 +2,5 @@
 
 public interface IDestroyable
 {
-    public void OnDestroy();
+    public void Destroy();
 }

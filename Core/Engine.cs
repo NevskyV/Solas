@@ -1,6 +1,4 @@
-﻿using Core.Components;
-using Core.Containers;
-using Core.Interfaces;
+﻿using Core.Containers;
 using Core.Systems;
 using Core.World;
 
@@ -8,18 +6,17 @@ namespace Core;
 
 public class Engine
 {
+    private readonly Updater _updater = new();
+
     public static readonly AppContext AppContext = new AppContext
     (
-        new EntityPool(),
-        new Creator(),
-        new Destroyer(),
-        new Updater()
+        new EntityPool()
     );
-    
+
     public static readonly WorldContext WorldContext = new WorldContext
     (
         SpaceReader.GetGlobalSpace(),
-        []
+        new()
     );
 
     public GameState State
@@ -59,15 +56,14 @@ public class Engine
     private async void StartUpdate()
     {
         Time.TimeScale = 1;
-        AppContext.Updater.SetupUpdatables(WorldContext.GlobalSpace);
-        AppContext.Updater.Start();
+        _updater.Start();
         while (State != GameState.None)
         {
-            AppContext.Updater.Tick();
+            _updater.Tick();
             await Task.Yield();
         }
     }
-    
+
     private void StopUpdate()
     {
         Console.WriteLine($"Paused.");
@@ -76,28 +72,7 @@ public class Engine
 
     private void StopGame()
     {
-        AppContext.Updater.Stop();
-        AppContext.Destroyer.DestroyAll();
-    }
-}
-
-public record struct TextData(string Text) : IData;
-public class TextLogic : Logic, IInitializable, IFixedUpdatable, IDestroyable
-{
-    public void Initialize()
-    {
-        Console.WriteLine($"{nameof(TextLogic)} initialized.");
-        Console.WriteLine($"I'm {Entity.MetaData.Name}!");
-        Console.WriteLine(Entity.GetData<TextData>().Text);
-    }
-
-    public void FixedUpdate()
-    {
-        Console.WriteLine($"Fixed Update Text Logic.");
-    }
-    
-    public void Destroy()
-    {
-        Console.WriteLine($"TextLogic destroyed.");
+        _updater.Stop();
+        Destroyer.DestroyAll();
     }
 }

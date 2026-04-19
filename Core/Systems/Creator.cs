@@ -3,14 +3,14 @@ using Core.World;
 
 namespace Core.Systems;
 
-public class Creator
+public static class Creator
 {
-    public void CreateAndWriteEntitiesToSpace(Space space)
+    public static void CreateAndWriteEntitiesToSpace(Space space)
     {
         
     }
     
-    public Entity CreateEntity(Space space = null, EntityMetaData entityMetaData = default)
+    public static Entity CreateEntity(Space space = null, EntityMetaData entityMetaData = default)
     {
         //Set default values
         space ??= Engine.WorldContext.GlobalSpace;

@@ -1,7 +1,4 @@
 ﻿using System.Diagnostics;
-using Core.Components;
-using Core.Interfaces;
-using Core.World;
 
 namespace Core.Systems;
 
@@ -16,9 +13,6 @@ public static class Time
 
 public class Updater
 {
-    private readonly List<IUpdatable> _updatables = new();
-    private readonly List<IFixedUpdatable> _fixedUpdatables = new();
-
     private readonly Stopwatch _stopwatch = new();
 
     private double _previousTime;
@@ -51,7 +45,7 @@ public class Updater
 
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
-            foreach (var f in _fixedUpdatables)
+            foreach (var f in Engine.AppContext.EntityPool.FixedUpdatables)
                 f?.FixedUpdate();
 
             _accumulator -= Time.FixedDeltaTime;
@@ -62,37 +56,12 @@ public class Updater
             _accumulator = 0;
         
         Time.Alpha = _accumulator / Time.FixedDeltaTime;
-        foreach (var u in _updatables)
+        foreach (var u in Engine.AppContext.EntityPool.Updatables)
             u?.Update();
     }
 
     public void Stop()
     {
         _stopwatch.Stop();
-    }
-    
-    public void SetupUpdatables(Space space)
-    {
-        foreach (var entity in space.Entities)
-        {
-            foreach (var logic in entity.Logics)
-            {
-                AddUpdatable(logic);
-            }
-        }
-    }
-
-    public void AddUpdatable(object obj)
-    {
-        if (obj is IUpdatable u) _updatables.Add(u);
-        if (obj is IFixedUpdatable f) _fixedUpdatables.Add(f);
-        Console.WriteLine($"{obj} has been added");
-    }
-
-    public void RemoveUpdatable(object obj)
-    {
-        if (obj is IUpdatable u) _updatables.Remove(u);
-        if (obj is IFixedUpdatable f) _fixedUpdatables.Remove(f);
-        Console.WriteLine($"{obj} has been removed");
     }
 }

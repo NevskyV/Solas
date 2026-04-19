@@ -2,9 +2,9 @@
 
 namespace Core.Systems;
 
-public class Destroyer
+public static class Destroyer
 {
-    public void DestroyAll()
+    public static void DestroyAll()
     {
         var allEntities = Engine.WorldContext.GlobalSpace.Entities.ToList();
         foreach (var space in Engine.WorldContext.LocalSpaces)
@@ -18,7 +18,7 @@ public class Destroyer
         }
     }
     
-    public void DestroyEntity(Entity entity)
+    public static void DestroyEntity(Entity entity)
     {
         Engine.AppContext.EntityPool.UnregisterEntityById(entity.Id);
         entity.Dispose();

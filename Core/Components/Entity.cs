@@ -34,8 +34,8 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         var newLogic = new T();
         newLogic.SetupLogic(this, CurrentSpace.Provider);
         Logics.Add(newLogic);
-        CurrentSpace.Initializer.InitializeLogic(newLogic);
-        Engine.AppContext.Updater.AddUpdatable(newLogic);
+        _ = CurrentSpace.Initializer.InitializeLogic(newLogic);
+        Engine.AppContext.EntityPool.AddUpdatable(newLogic);
     }
 
     public T GetLogic<T>() where T : Logic
@@ -46,7 +46,7 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
     public void RemoveLogic(Logic logic)
     {
         Logics.Remove(logic);
-        Engine.AppContext.Updater.RemoveUpdatable(logic);
+        Engine.AppContext.EntityPool.RemoveUpdatable(logic);
     }
 
     public void Dispose()

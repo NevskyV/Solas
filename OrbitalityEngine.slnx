@@ -2,4 +2,5 @@
   <Project Path="Core/Core.csproj" />
   <Project Path="Editor/Editor.csproj" />
   <Project Path="Render/Render.csproj" />
+  <Project Path="SourceGenerators/SourceGenerators.csproj" />
 </Solution>

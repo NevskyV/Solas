@@ -17,8 +17,6 @@ public class Space
     {
         Initializer = new Initializer(this);
         Entities = entities;
-        services.AddSingleton(Engine.AppContext.Creator);
-        services.AddSingleton(Engine.AppContext.Destroyer);
         
         _scope = services.BuildServiceProvider().CreateScope();
     }

@@ -2,7 +2,7 @@
 
 namespace Core.Containers;
 
-public class EntityPool : IDisposable
+public class EntityPool
 {
     private List<Entity> Entities { get; } = [];
 
@@ -14,13 +14,5 @@ public class EntityPool : IDisposable
     public void UnregisterEntityById(Guid id)
     {
         Entities.RemoveAll(entity => entity.Id == id);
-    }
-
-    public void Dispose()
-    {
-        foreach (var entity in Entities)
-        {
-            entity.Dispose();
-        }
     }
 }

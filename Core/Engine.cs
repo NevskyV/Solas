@@ -18,23 +18,71 @@ public class Engine
     
     public static readonly WorldContext WorldContext = new WorldContext
     (
-        SpaceReader.GetGlobalSpace()
+        SpaceReader.GetGlobalSpace(),
+        []
     );
 
-    public void Boot()
+    public GameState State
+    {
+        get;
+        set
+        {
+            field = value;
+            switch (value)
+            {
+                case GameState.Start:
+                    StartGame();
+                    break;
+
+                case GameState.Update:
+                    StartUpdate();
+                    break;
+
+                case GameState.Pause:
+                    StopUpdate();
+                    break;
+
+                case GameState.None:
+                    StopGame();
+                    break;
+            }
+        }
+    }
+
+    private async void StartGame()
     {
         var globalSpaceInitialization = WorldContext.GlobalSpace.Initializer.InitializeDependencies();
-        Task.WaitAll(globalSpaceInitialization);
+        await Task.WhenAll(globalSpaceInitialization);
+        State = GameState.Update;
+    }
+
+    private async void StartUpdate()
+    {
+        Time.TimeScale = 1;
         AppContext.Updater.SetupUpdatables(WorldContext.GlobalSpace);
-        var newEntity = AppContext.Creator.CreateEntity();
-        newEntity.AddData(new TextData("And I'm ready!"));
-        newEntity.AddLogic<TextLogic>();
-        AppContext.Updater.Run();
+        AppContext.Updater.Start();
+        while (State != GameState.None)
+        {
+            AppContext.Updater.Tick();
+            await Task.Yield();
+        }
+    }
+    
+    private void StopUpdate()
+    {
+        Console.WriteLine($"Paused.");
+        Time.TimeScale = 0;
+    }
+
+    private void StopGame()
+    {
+        AppContext.Updater.Stop();
+        AppContext.Destroyer.DestroyAll();
     }
 }
 
-record struct TextData(string Text) : IData;
-public class TextLogic : Logic, IInitializable, IUpdatable
+public record struct TextData(string Text) : IData;
+public class TextLogic : Logic, IInitializable, IFixedUpdatable, IDestroyable
 {
     public void Initialize()
     {
@@ -43,8 +91,13 @@ public class TextLogic : Logic, IInitializable, IUpdatable
         Console.WriteLine(Entity.GetData<TextData>().Text);
     }
 
-    public void Update()
+    public void FixedUpdate()
     {
-        Console.WriteLine($"Update");
+        Console.WriteLine($"Fixed Update Text Logic.");
+    }
+    
+    public void Destroy()
+    {
+        Console.WriteLine($"TextLogic destroyed.");
     }
 }

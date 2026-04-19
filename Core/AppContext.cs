@@ -6,4 +6,4 @@ namespace Core;
 
 public record struct AppContext(EntityPool EntityPool, Creator Creator, Destroyer Destroyer, Updater Updater);
 
-public record struct WorldContext(Space GlobalSpace);
+public record struct WorldContext(Space GlobalSpace, Space[] LocalSpaces);

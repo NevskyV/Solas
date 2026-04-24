@@ -54,13 +54,13 @@ public class Engine
     async void Test()
     {
         await Task.Delay(500);
-        var newEntity = Engine.Context.Creator.CreateEntity();
+        var newEntity = Context.Creator.CreateEntity();
         newEntity.AddData(new TextData("And I'm a bitch!"));
         newEntity.AddLogic<TextLogic>();
         await Task.Delay(1000);
         Context.SpaceSystem.SaveGlobalSpace();
         Instance.State = GameState.Pause;
-        var gotEntity = Engine.Context.EntityPool.GetEntityWith(Engine.WorldContext.GlobalSpace,
+        var gotEntity = Context.EntityPool.GetEntityWith(WorldContext.GlobalSpace,
             new[] { typeof(TextLogic), typeof(TextData) });
         Console.WriteLine(gotEntity.MetaData);
         await Task.Delay(1000);
@@ -88,11 +88,12 @@ public class Engine
     private void StartUpdate()
     {
         Time.TimeScale = 1;
-        _updater.Start();
+        _updater.Start(_context.EntityPool);
     }
 
     private void StopUpdate()
     {
+        Console.WriteLine("Pause.");
         Time.TimeScale = 0;
     }
 

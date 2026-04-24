@@ -14,7 +14,6 @@ public class Creator
     {
         //Set default values
         space ??= Engine.WorldContext.GlobalSpace;
-        Console.WriteLine($"{space.Name}");
         entityMetaData = entityMetaData == default? EntityMetaData.CreateDefault() : entityMetaData;
         
         //Create Entity

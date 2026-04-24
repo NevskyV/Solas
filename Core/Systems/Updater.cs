@@ -20,11 +20,20 @@ public class Updater
 
     private const int MaxFixedStepsPerTick = 5;
 
+    private bool _isRunning;
+
     public void Start()
     {
+        if (_isRunning) return;
         _stopwatch.Restart();
         _previousTime = _stopwatch.Elapsed.TotalSeconds;
         _accumulator = 0;
+        _isRunning = true;
+        while (Engine.Instance.State != GameState.None)
+        {
+            Tick();
+        }
+        _isRunning = false;
     }
 
     public void Tick()

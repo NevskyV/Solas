@@ -32,7 +32,6 @@ public class Engine
             switch (value)
             {
                 case GameState.Start:
-                    Test();
                     StartGame();
                     break;
 
@@ -51,12 +50,15 @@ public class Engine
         }
     }
     
-    async void Test()
+    public async void Test()
     {
-        await Task.Delay(500);
-        var newEntity = Context.Creator.CreateEntity();
-        newEntity.AddData(new TextData("And I'm a bitch!"));
-        newEntity.AddLogic<TextLogic>();
+        for (int i = 0; i < 1000000; i++)
+        {
+            var newEntity = Context.Creator.CreateEntity();
+            newEntity.AddData(new TextData("And I'm a bitch!"));
+            newEntity.AddLogic<TextLogic>();
+        }
+        Console.WriteLine("Created Entities");
         await Task.Delay(1000);
         Context.SpaceSystem.SaveGlobalSpace();
         Instance.State = GameState.Pause;
@@ -107,23 +109,23 @@ public class Engine
     
     
     public record struct TextData(string Text) : IData;
-    public class TextLogic : Logic, IInitializable, IFixedUpdatable, IDestroyable
+    public class TextLogic : Logic, IInitializable, ILateUpdatable, IDestroyable
     {
         public void Initialize()
         {
-            Console.WriteLine($"{nameof(TextLogic)} initialized.");
-            Console.WriteLine($"I'm {Entity.MetaData.Name}!");
-            Console.WriteLine(Entity.GetData<TextData>().Text);
+            //Console.WriteLine($"{nameof(TextLogic)} initialized.");
+            //Console.WriteLine($"I'm {Entity.MetaData.Name}!");
+            //Console.WriteLine(Entity.GetData<TextData>().Text);
         }
 
-        public void FixedUpdate()
+        public void LateUpdate()
         {
-            Console.WriteLine($"Fixed Update Text Logic.");
+            //Console.WriteLine($"Late Update Text Logic.");
         }
     
         public void Destroy()
         {
-            Console.WriteLine($"TextLogic destroyed.");
+            //Console.WriteLine($"TextLogic destroyed.");
         }
     }
 }

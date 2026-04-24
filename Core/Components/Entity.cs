@@ -53,7 +53,7 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         foreach (var logic in Logics){
             (logic as IDestroyable)?.Destroy();
         }
-        Console.WriteLine($"{MetaData.Name} disposed.");
+        //Console.WriteLine($"{MetaData.Name} disposed.");
     }
     
     public void UpdateMask<T>()

@@ -7,8 +7,9 @@ namespace Core.Containers;
 public class EntityPool
 {
     public Dictionary<Space, List<Entity>> Entities { get; } = [];
-    public List<IUpdatable> Updatables { get; } = [];
-    public List<IFixedUpdatable> FixedUpdatables { get; } = [];
+    public List<IUpdatable> Updatables { get; } = new();
+    public List<IFixedUpdatable> FixedUpdatables { get; } = new();
+    public List<ILateUpdatable> LateUpdatables { get; } = new();
 
     public void RegisterEntity(Entity entity)
     {
@@ -38,12 +39,14 @@ public class EntityPool
     {
         if (obj is IUpdatable u) Updatables.Add(u);
         if (obj is IFixedUpdatable f) FixedUpdatables.Add(f);
+        if (obj is ILateUpdatable l) LateUpdatables.Add(l);
     }
 
     public void RemoveUpdatable(object obj)
     {
         if (obj is IUpdatable u) Updatables.Remove(u);
         if (obj is IFixedUpdatable f) FixedUpdatables.Remove(f);
+        if (obj is ILateUpdatable l) LateUpdatables.Remove(l);
     }
 
     public IEnumerable<Entity> GetEntitiesWithData<T>(Space space) where T : IData

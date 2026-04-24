@@ -24,7 +24,7 @@ public class Creator
         
         pool.RegisterEntity(newEntity);
         
-        Console.WriteLine($"Created entity {newEntity.Id}");
+        //Console.WriteLine($"Created entity {newEntity.Id}");
         return newEntity;
     }
 }

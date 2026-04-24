@@ -8,13 +8,12 @@ public static class Time
     public static double DeltaTime { get; internal set; }
     public static double FixedDeltaTime { get; set; } = 0.02;
     public static double TimeScale { get; set; } = 1.0;
-
     public static double Alpha { get; internal set; }
 }
 
 public class Updater
 {
-    public float TargetFrameTime { get; set; } =  1.0f / 60.0f;
+    public float TargetFrameTime { get; set; } =  60.0f;
     private readonly Stopwatch _stopwatch = new();
 
     private double _previousTime;
@@ -38,27 +37,42 @@ public class Updater
         _isRunning = true;
 
         var e = Engine.Instance;
-        
-        while (e.State != GameState.None)
+        Stopwatch sw = Stopwatch.StartNew();
+
+        int frames = 0;
+
+        while (frames < 1000)
         {
-            long startTicks = _stopwatch.ElapsedTicks;
+            sw.Restart();
 
             Tick();
 
-            long targetTicks = (long)(TargetFrameTime * Stopwatch.Frequency);
-            long elapsedTicks = _stopwatch.ElapsedTicks - startTicks;
+            sw.Stop();
 
-            long remaining = targetTicks - elapsedTicks;
+            Console.WriteLine($"Frame: {sw.Elapsed.TotalMilliseconds:F4} ms");
+
+            frames++;
+        }
+        /*while (e.State != GameState.None)
+        {
+            double startTicks = _stopwatch.ElapsedTicks;
+
+            Tick();
+
+            double targetTicks = (1.0 / TargetFrameTime * Stopwatch.Frequency);
+            double elapsedTicks = _stopwatch.ElapsedTicks - startTicks;
+
+            double remaining = targetTicks - elapsedTicks;
 
             if (remaining > 0)
             {
                 int ms = (int)(remaining * 1000 / Stopwatch.Frequency);
                 if (ms > 0)
                     Thread.Sleep(ms);
-                while ((_stopwatch.ElapsedTicks - startTicks) < targetTicks)
+                while (e.State != GameState.None && (_stopwatch.ElapsedTicks - startTicks) < targetTicks)
                     Thread.SpinWait(10);
             }
-        }
+        }*/
         _isRunning = false;
     }
 
@@ -102,6 +116,12 @@ public class Updater
         for (int i = 0; i < updatables.Count; i++)
         {
             updatables[i].Update();
+        }
+        
+        var lateUpdatables = _entityPool.LateUpdatables;
+        for (int i = 0; i < lateUpdatables.Count; i++)
+        {
+            lateUpdatables[i].LateUpdate();
         }
     }
 

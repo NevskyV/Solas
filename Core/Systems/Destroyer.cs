@@ -2,14 +2,14 @@
 
 namespace Core.Systems;
 
-public static class Destroyer
+public class Destroyer
 {
-    public static void DestroyAll()
+    public void DestroyAll()
     {
-        var allEntities = Engine.WorldContext.GlobalSpace.Entities.ToList();
+        var allEntities = Engine.GetEntities(Engine.WorldContext.GlobalSpace).ToList();
         foreach (var space in Engine.WorldContext.LocalSpaces)
         {
-            allEntities.AddRange(space.Entities);
+            allEntities.AddRange(Engine.GetEntities(space));
         }
         
         foreach (var entity in allEntities)
@@ -18,9 +18,9 @@ public static class Destroyer
         }
     }
     
-    public static void DestroyEntity(Entity entity)
+    public void DestroyEntity(Entity entity)
     {
-        Engine.AppContext.EntityPool.UnregisterEntityById(entity.Id);
+        Engine.Context.EntityPool.UnregisterEntity(entity);
         entity.Dispose();
     }
 }

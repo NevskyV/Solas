@@ -45,7 +45,7 @@ public class Updater
 
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
-            foreach (var f in Engine.AppContext.EntityPool.FixedUpdatables)
+            foreach (var f in Engine.Context.EntityPool.FixedUpdatables)
                 f?.FixedUpdate();
 
             _accumulator -= Time.FixedDeltaTime;
@@ -56,7 +56,7 @@ public class Updater
             _accumulator = 0;
         
         Time.Alpha = _accumulator / Time.FixedDeltaTime;
-        foreach (var u in Engine.AppContext.EntityPool.Updatables)
+        foreach (var u in Engine.Context.EntityPool.Updatables)
             u?.Update();
     }
 

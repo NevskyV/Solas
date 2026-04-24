@@ -1,23 +1,21 @@
-﻿using Core.Components;
-using Core.Systems;
+﻿using Core.Systems;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Core.World;
 
 public class Space
 {
+    public string Name { get; init; }
     //DI
     private readonly IServiceScope _scope;
     public IServiceProvider Provider => _scope.ServiceProvider;
     public readonly Initializer Initializer;
 
-    public readonly List<Entity> Entities;
-
-    public Space(IServiceCollection services, List<Entity> entities)
+    public Space(string name)
     {
+        Name = name;
         Initializer = new Initializer(this);
-        Entities = entities;
-        
-        _scope = services.BuildServiceProvider().CreateScope();
+        _scope = new ServiceCollection().BuildServiceProvider().CreateScope();
+        Engine.Context.EntityPool.Entities.Add(this, new());
     }
 }

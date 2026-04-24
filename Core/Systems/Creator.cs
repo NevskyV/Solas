@@ -3,25 +3,29 @@ using Core.World;
 
 namespace Core.Systems;
 
-public static class Creator
+public class Creator
 {
-    public static void CreateAndWriteEntitiesToSpace(Space space)
+    public void CreateAndWriteEntitiesToSpace(Space space)
     {
         
     }
     
-    public static Entity CreateEntity(Space space = null, EntityMetaData entityMetaData = default)
+    public Entity CreateEntity(Space space = null, EntityMetaData entityMetaData = default)
     {
         //Set default values
         space ??= Engine.WorldContext.GlobalSpace;
+        Console.WriteLine($"{space.Name}");
         entityMetaData = entityMetaData == default? EntityMetaData.CreateDefault() : entityMetaData;
         
         //Create Entity
         Entity newEntity = new Entity(space, entityMetaData);
         
         //Register & return
-        space.Entities.Add(newEntity);
-        Engine.AppContext.EntityPool.RegisterEntity(newEntity);
+        var pool = Engine.Context.EntityPool;
+        
+        pool.RegisterEntity(newEntity);
+        
+        Console.WriteLine($"Created entity {newEntity.Id}");
         return newEntity;
     }
 }

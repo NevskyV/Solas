@@ -1,4 +1,5 @@
-﻿using Core.Containers;
+﻿using Core.Components;
+using Core.Containers;
 using Core.Systems;
 using Core.World;
 
@@ -6,18 +7,13 @@ namespace Core;
 
 public class Engine
 {
+    public static Engine Instance { get; } = new();
     private readonly Updater _updater = new();
 
-    public static readonly AppContext AppContext = new AppContext
-    (
-        new EntityPool()
-    );
-
-    public static readonly WorldContext WorldContext = new WorldContext
-    (
-        SpaceReader.GetGlobalSpace(),
-        new()
-    );
+    private readonly EngineContext _context;
+    private WorldContext _worldContext;
+    public static EngineContext Context => Instance._context;
+    public static WorldContext WorldContext => Instance._worldContext;
 
     public GameState State
     {
@@ -45,10 +41,30 @@ public class Engine
             }
         }
     }
+    
+    private Engine()
+    {
+        _context = new EngineContext
+        (
+            new Creator(),
+            new Destroyer(),
+            new EntityPool(),
+            new SpaceSystem()
+        );
+    }
+
+    public void CreateWorld()
+    {
+        _worldContext = new WorldContext
+        (
+            _context.SpaceSystem.LoadGlobalSpace(),
+            new()
+        );
+    }
 
     private async void StartGame()
     {
-        var globalSpaceInitialization = WorldContext.GlobalSpace.Initializer.InitializeDependencies();
+        var globalSpaceInitialization = _worldContext.GlobalSpace.Initializer.InitializeDependencies();
         await Task.WhenAll(globalSpaceInitialization);
         State = GameState.Update;
     }
@@ -73,6 +89,8 @@ public class Engine
     private void StopGame()
     {
         _updater.Stop();
-        Destroyer.DestroyAll();
+        Context.Destroyer.DestroyAll();
     }
+
+    public static List<Entity> GetEntities(Space space) => Instance._context.EntityPool.Entities[space];
 }

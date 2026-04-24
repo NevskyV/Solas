@@ -9,7 +9,7 @@ public class Initializer(Space space)
     public List<Task> InitializeDependencies()
     {
         List<Task> result = new List<Task>();
-        foreach (var entity in space.Entities)
+        foreach (var entity in Engine.GetEntities(space))
         {
             foreach (var logic in entity.Logics)
             {

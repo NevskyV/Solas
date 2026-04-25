@@ -5,11 +5,6 @@ namespace Core.Systems;
 
 public class Creator
 {
-    public void CreateAndWriteEntitiesToSpace(Space space)
-    {
-        
-    }
-    
     public Entity CreateEntity(Space space = null, EntityMetaData entityMetaData = default)
     {
         //Set default values

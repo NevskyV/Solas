@@ -37,22 +37,6 @@ public class Updater
         _isRunning = true;
 
         var e = Engine.Instance;
-        //test
-        /*Stopwatch sw = Stopwatch.StartNew();
-
-        int frames = 0;
-        while (frames < 1000)
-        {
-            sw.Restart();
-
-            Tick();
-
-            sw.Stop();
-
-            Console.WriteLine($"Frame: {sw.Elapsed.TotalMilliseconds:F4} ms");
-
-            frames++;
-        }*/
         while (e.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
@@ -128,4 +112,24 @@ public class Updater
     {
         _stopwatch.Stop();
     }
+
+    /*private void TestPerformance()
+    {
+        //test
+        Stopwatch sw = Stopwatch.StartNew();
+
+        int frames = 0;
+        while (frames < 1000)
+        {
+            sw.Restart();
+
+            Tick();
+
+            sw.Stop();
+
+            Console.WriteLine($"Frame: {sw.Elapsed.TotalMilliseconds:F4} ms");
+
+            frames++;
+        }
+    }*/
 }

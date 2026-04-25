@@ -16,44 +16,47 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
     [JsonIgnore] public uint[] MaskChunks = Array.Empty<uint>();
 
     //Data Method Group
-    public void AddData<T>(T state) where T : IData
+    public void AddData<T>(T data) where T : IData
     {
-        Data.Add(state);
+        if (!Data.Add(data)) return;
+        Engine.Context.EntityPool.AddReferences(data, this);
         UpdateMask<T>();
-    } 
-    public void RemoveData(IData state) => Data.Remove(state);
-    
-    public T GetData<T>() where T : IData => (T)Data.First(x => x is T);
-    public IEnumerable<T> GetAllData<T>() where T : IData => Data.OfType<T>();
+    }
 
+    public void RemoveData<T>(T data) where T : IData
+    {
+        Data.Remove(data);
+        Engine.Context.EntityPool.RemoveReferences(data, this);
+        UpdateMask<T>();
+    }
+
+    public T GetData<T>() where T : IData => (T)Data.First(x => x is T);
+    
     //Logic Method Group
     public void AddLogic<T>() where T : Logic, new()
     {
         var newLogic = new T();
         newLogic.SetupLogic(this, CurrentSpace.Provider);
-        Logics.Add(newLogic);
-        CurrentSpace.Initializer.InitializeLogic(newLogic);
-        Engine.Context.EntityPool.AddUpdatable(newLogic);
-
+        if (!Logics.Add(newLogic)) return;
+        
+        Engine.Context.EntityPool.AddReferences(newLogic, this);
         UpdateMask<T>();
     }
     
-    public void RemoveLogic(Logic logic)
+    public void RemoveLogic<T>(T logic) where T : Logic, new()
     {
         Logics.Remove(logic);
-        Engine.Context.EntityPool.RemoveUpdatable(logic);
+        Engine.Context.EntityPool.RemoveReferences(logic, this);
+        UpdateMask<T>();
     }
 
     public T GetLogic<T>() where T : Logic => (T)Logics.First(x => x is T);
-    
-    public IEnumerable<T> GetAllLogic<T>() where T : Logic => Logics.OfType<T>();
 
     public void Dispose()
     {
         foreach (var logic in Logics){
             (logic as IDestroyable)?.Destroy();
         }
-        //Console.WriteLine($"{MetaData.Name} disposed.");
     }
     
     public void UpdateMask<T>()

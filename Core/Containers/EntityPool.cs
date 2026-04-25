@@ -7,16 +7,38 @@ namespace Core.Containers;
 public class EntityPool
 {
     public Dictionary<Space, List<Entity>> Entities { get; } = [];
-    public List<IUpdatable> Updatables { get; } = new();
-    public List<IFixedUpdatable> FixedUpdatables { get; } = new();
-    public List<ILateUpdatable> LateUpdatables { get; } = new();
+    public Dictionary<Type, IComponentPool> ComponentPools { get; } = [];
+
+    public List<IUpdateRunner> UpdateRunners { get; } = [];
+    public List<IUpdateRunner> FixedUpdateRunners { get; } = [];
+    public List<IUpdateRunner> LateUpdateRunners { get; } = [];
+
+    #region Registration
 
     public void RegisterEntity(Entity entity)
     {
-     Entities[entity.CurrentSpace].Add(entity);
+        Entities[entity.CurrentSpace].Add(entity);
         foreach (var logic in entity.Logics)
         {
-            AddUpdatable(logic);
+            AddReferences(logic, entity);
+        }
+
+        foreach (var data in entity.Data)
+        {
+            AddReferences(data, entity);
+        }
+    }
+    
+    public void UnregisterEntity(Entity entity)
+    {
+        Entities[entity.CurrentSpace].Remove(entity);
+        foreach (var logic in entity.Logics)
+        {
+            RemoveReferences(logic, entity);
+        }
+        foreach (var data in entity.Data)
+        {
+            RemoveReferences(data, entity);
         }
     }
     
@@ -26,48 +48,60 @@ public class EntityPool
         if (entity != null) UnregisterEntity(entity);
     }
     
-    public void UnregisterEntity(Entity entity)
+    private void RegisterPipelines<T>(ComponentPool<T> pool)
     {
-        Entities[entity.CurrentSpace].Remove(entity);
-        foreach (var logic in entity.Logics)
+        var type = typeof(T);
+
+        if (typeof(IUpdatable).IsAssignableFrom(type))
         {
-            RemoveUpdatable(logic);
+            var runnerType = typeof(UpdateRunner<>).MakeGenericType(type);
+            UpdateRunners.Add((IUpdateRunner)Activator.CreateInstance(runnerType, pool));
+        }
+
+        if (typeof(IFixedUpdatable).IsAssignableFrom(type))
+        {
+            var runnerType = typeof(FixedUpdateRunner<>).MakeGenericType(type);
+            FixedUpdateRunners.Add((IUpdateRunner)Activator.CreateInstance(runnerType, pool));
+        }
+
+        if (typeof(ILateUpdatable).IsAssignableFrom(type))
+        {
+            var runnerType = typeof(LateUpdateRunner<>).MakeGenericType(type);
+            LateUpdateRunners.Add((IUpdateRunner)Activator.CreateInstance(runnerType, pool));
         }
     }
     
-    public void AddUpdatable(object obj)
+    public void AddReferences<T>(T component, Entity entity)
     {
-        if (obj is IUpdatable u) Updatables.Add(u);
-        if (obj is IFixedUpdatable f) FixedUpdatables.Add(f);
-        if (obj is ILateUpdatable l) LateUpdatables.Add(l);
+        var type = typeof(T);
+
+        if (!ComponentPools.TryGetValue(type, out var rawPool))
+        {
+            var pool = new ComponentPool<T>();
+            ComponentPools[type] = pool;
+
+            RegisterPipelines(pool);
+
+            rawPool = pool;
+        }
+
+        ((ComponentPool<T>)rawPool).Add(component!, entity);
     }
 
-    public void RemoveUpdatable(object obj)
+    public void RemoveReferences<T>(T _, Entity entity)
     {
-        if (obj is IUpdatable u) Updatables.Remove(u);
-        if (obj is IFixedUpdatable f) FixedUpdatables.Remove(f);
-        if (obj is ILateUpdatable l) LateUpdatables.Remove(l);
+        var type = typeof(T);
+
+        if (ComponentPools.TryGetValue(type, out var pool))
+        {
+            pool.Remove(entity);
+        }
     }
 
-    public IEnumerable<Entity> GetEntitiesWithData<T>(Space space) where T : IData
-    {
-        return GetEntitiesBySingleType(space, typeof(T));
-    }
+    #endregion
+
+    #region Search
     
-    public IEnumerable<Entity> GetEntitiesWithLogic<T>(Space space) where T : Logic
-    {
-        return GetEntitiesBySingleType(space, typeof(T));
-    }
-    
-    public Entity GetEntityWithData<T>(Space space) where T : IData
-    {
-        return GetEntitiesWithData<T>(space).FirstOrDefault();
-    }
-    
-    public Entity GetEntityWithLogic<T>(Space space) where T : Logic
-    {
-        return GetEntitiesWithLogic<T>(space).FirstOrDefault();
-    }
 
     public Entity GetEntityWith(Space space, params Type[] types)
     {
@@ -99,24 +133,6 @@ public class EntityPool
         return result;
     }
 
-    private IEnumerable<Entity> GetEntitiesBySingleType(Space space, Type type)
-    {
-        int id = ComponentRegistry.GetId(type);
-        int chunkIdx = id / 32;
-        uint bitMask = 1u << (id % 32);
-
-        foreach (var entity in Entities[space])
-        {
-            if (chunkIdx < entity.MaskChunks.Length)
-            {
-                if ((entity.MaskChunks[chunkIdx] & bitMask) != 0)
-                {
-                    yield return entity;
-                }
-            }
-        }
-    }
-
     private bool IsMatch(uint[] entityMask, ReadOnlySpan<uint> filter)
     {
         for (int i = 0; i < filter.Length; i++)
@@ -129,4 +145,27 @@ public class EntityPool
         }
         return true;
     }
+    
+    private IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
+    {
+        return ((ComponentPool<T>)ComponentPools[typeof(T)]).Entities.Where(e => 
+            e.CurrentSpace == space || e.CurrentSpace == Engine.WorldContext.GlobalSpace);
+    }
+    
+    private IEnumerable<T> GetComponentsBySingleType<T>(Space space)
+    {
+        var result = new List<T>();
+        var pool = (ComponentPool<T>)ComponentPools[typeof(T)];
+        for (int i = 0; i < pool.Entities.Count; i++)
+        {
+            var e = pool.Entities[i];
+            if (e.CurrentSpace == space || e.CurrentSpace == Engine.WorldContext.GlobalSpace)
+            {
+                result.Add(pool.Components[i]);
+            }
+        }
+        return result;
+    }
+
+    #endregion
 }

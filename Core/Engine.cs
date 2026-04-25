@@ -52,18 +52,17 @@ public class Engine
     
     public async void Test()
     {
-        for (int i = 0; i < 1000000; i++)
+        for (int i = 0; i < 100000; i++)
         {
             var newEntity = Context.Creator.CreateEntity();
-            newEntity.AddData(new TextData("And I'm a bitch!"));
+            newEntity.AddData(new TextData("And I'm a unicorn!"));
             newEntity.AddLogic<TextLogic>();
         }
-        Console.WriteLine("Created Entities");
+        Console.WriteLine($"Created Entities");
         await Task.Delay(1000);
         Context.SpaceSystem.SaveGlobalSpace();
         Instance.State = GameState.Pause;
-        var gotEntity = Context.EntityPool.GetEntityWith(WorldContext.GlobalSpace,
-            new[] { typeof(TextLogic), typeof(TextData) });
+        var gotEntity = Context.EntityPool.GetEntityWith(WorldContext.GlobalSpace,typeof(TextLogic), typeof(TextData));
         Console.WriteLine(gotEntity.MetaData);
         await Task.Delay(1000);
         Instance.State = GameState.Update;

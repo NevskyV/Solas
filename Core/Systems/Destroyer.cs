@@ -11,7 +11,8 @@ public class Destroyer
         {
             allEntities.AddRange(Engine.GetEntities(space));
         }
-        
+
+        allEntities.RemoveAll(x => x == null);
         foreach (var entity in allEntities)
         {
             DestroyEntity(entity);

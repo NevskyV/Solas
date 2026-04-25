@@ -37,10 +37,10 @@ public class Updater
         _isRunning = true;
 
         var e = Engine.Instance;
-        Stopwatch sw = Stopwatch.StartNew();
+        //test
+        /*Stopwatch sw = Stopwatch.StartNew();
 
         int frames = 0;
-
         while (frames < 1000)
         {
             sw.Restart();
@@ -52,8 +52,8 @@ public class Updater
             Console.WriteLine($"Frame: {sw.Elapsed.TotalMilliseconds:F4} ms");
 
             frames++;
-        }
-        /*while (e.State != GameState.None)
+        }*/
+        while (e.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
 
@@ -72,7 +72,7 @@ public class Updater
                 while (e.State != GameState.None && (_stopwatch.ElapsedTicks - startTicks) < targetTicks)
                     Thread.SpinWait(10);
             }
-        }*/
+        }
         _isRunning = false;
     }
 
@@ -94,13 +94,12 @@ public class Updater
         }
         
         int steps = 0;
-
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
-            var fixedUpdatables = _entityPool.FixedUpdatables;
+            var fixedUpdatables = _entityPool.FixedUpdateRunners;
             for (int i = 0; i < fixedUpdatables.Count; i++)
             {
-                fixedUpdatables[i].FixedUpdate();
+                fixedUpdatables[i].Run();
             }
 
             _accumulator -= Time.FixedDeltaTime;
@@ -112,16 +111,16 @@ public class Updater
         double invFixedDelta = 1.0 / Time.FixedDeltaTime;
         Time.Alpha = _accumulator * invFixedDelta;
         
-        var updatables = _entityPool.Updatables;
+        var updatables = _entityPool.UpdateRunners;
         for (int i = 0; i < updatables.Count; i++)
         {
-            updatables[i].Update();
+            updatables[i].Run();
         }
         
-        var lateUpdatables = _entityPool.LateUpdatables;
+        var lateUpdatables = _entityPool.LateUpdateRunners;
         for (int i = 0; i < lateUpdatables.Count; i++)
         {
-            lateUpdatables[i].LateUpdate();
+            lateUpdatables[i].Run();
         }
     }
 

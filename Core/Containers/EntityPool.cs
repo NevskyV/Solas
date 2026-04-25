@@ -146,13 +146,13 @@ public class EntityPool
         return true;
     }
     
-    private IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
+    public IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
     {
         return ((ComponentPool<T>)ComponentPools[typeof(T)]).Entities.Where(e => 
             e.CurrentSpace == space || e.CurrentSpace == Engine.WorldContext.GlobalSpace);
     }
     
-    private IEnumerable<T> GetComponentsBySingleType<T>(Space space)
+    public IEnumerable<T> GetComponentsBySingleType<T>(Space space)
     {
         var result = new List<T>();
         var pool = (ComponentPool<T>)ComponentPools[typeof(T)];

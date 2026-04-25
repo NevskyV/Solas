@@ -7,15 +7,18 @@ namespace Core.Components;
 [Serializable]
 public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 {
-    [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
     public EntityMetaData MetaData { get; set; } = metaData;
+    [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
+    [JsonIgnore] public ReactiveProperty<bool> IsEnabled { get; private set; } = new(true);
     [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
 
-    public HashSet<IData> Data { get; init; } = new();
-    public HashSet<Logic> Logics { get; init; } = new();
+    public HashSet<EntityModificator> Modificators { get; init; } = new();
+    public HashSet<IData> Data { get; } = new();
+    public HashSet<Logic> Logics { get; } = new();
     [JsonIgnore] public uint[] MaskChunks = Array.Empty<uint>();
 
-    //Data Method Group
+    #region Data Method Group
+    
     public void AddData<T>(T data) where T : IData
     {
         if (!Data.Add(data)) return;
@@ -32,15 +35,18 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 
     public T GetData<T>() where T : IData => (T)Data.First(x => x is T);
     
-    //Logic Method Group
-    public void AddLogic<T>() where T : Logic, new()
+    #endregion
+    
+    #region Logic Method Group
+    public T AddLogic<T>() where T : Logic, new()
     {
         var newLogic = new T();
         newLogic.SetupLogic(this, CurrentSpace.Provider);
-        if (!Logics.Add(newLogic)) return;
+        if (!Logics.Add(newLogic)) return newLogic;
         
         Engine.Context.EntityPool.AddReferences(newLogic, this);
         UpdateMask<T>();
+        return newLogic;
     }
     
     public void RemoveLogic<T>(T logic) where T : Logic, new()
@@ -59,6 +65,17 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         }
     }
     
+    #endregion
+    
+    #region Modificators Method Group
+
+    public void SetModificator<T>(bool state) where T : EntityModificator
+    {
+        Modificators.First(x => x is T).IsEnabled = state;
+    }
+    
+    #endregion
+    
     public void UpdateMask<T>()
     {
         int id = ComponentRegistry.GetId(typeof(T));
@@ -71,5 +88,16 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         }
 
         MaskChunks[chunkIndex] |= (1u << bitIndex);
+    }
+
+    public async void SwitchState(bool newState, uint setTime = 0)
+    {
+        var oldValue = IsEnabled.Value;
+        IsEnabled.Value = newState;
+        if (setTime > 0)
+        {
+            await Task.Delay((int)setTime);
+            IsEnabled.Value = oldValue;
+        }
     }
 }

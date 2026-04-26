@@ -1,6 +1,9 @@
-﻿namespace Core;
+﻿namespace Orbitality;
 
 public enum GameState
 {
-    None, Start, Update, Pause
+    None,
+    Start,
+    Update,
+    Pause
 }

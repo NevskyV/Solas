@@ -1,24 +1,24 @@
-﻿using Core.Interfaces;
-using Core.World;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using Orbitality.Interfaces;
+using Orbitality.World;
 
-namespace Core.Components;
+namespace Orbitality.Components;
 
 [Serializable]
 public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 {
     public EntityMetaData MetaData { get; set; } = metaData;
+    public ReactiveProperty<bool> IsEnabled { get; private set; } = new(true);
     [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
-    [JsonIgnore] public ReactiveProperty<bool> IsEnabled { get; private set; } = new(true);
     [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
 
-    public HashSet<EntityModificator> Modificators { get; init; } = new();
+    public HashSet<EntityModifier> Modificators { get; init; } = new();
     public HashSet<IData> Data { get; } = new();
     public HashSet<Logic> Logics { get; } = new();
     [JsonIgnore] public uint[] MaskChunks = Array.Empty<uint>();
 
     #region Data Method Group
-    
+
     public void AddData<T>(T data) where T : IData
     {
         if (!Data.Add(data)) return;
@@ -33,61 +33,64 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         UpdateMask<T>();
     }
 
-    public T GetData<T>() where T : IData => (T)Data.First(x => x is T);
-    
+    public T GetData<T>() where T : IData
+    {
+        return (T)Data.First(x => x is T);
+    }
+
     #endregion
-    
+
     #region Logic Method Group
+
     public T AddLogic<T>() where T : Logic, new()
     {
         var newLogic = new T();
         newLogic.SetupLogic(this, CurrentSpace.Provider);
         if (!Logics.Add(newLogic)) return newLogic;
-        
+
         Engine.Context.EntityPool.AddReferences(newLogic, this);
         UpdateMask<T>();
         return newLogic;
     }
-    
+
     public void RemoveLogic<T>(T logic) where T : Logic, new()
     {
         Logics.Remove(logic);
+        IsEnabled.Unsubscribe(logic.OnEntityEnableChange);
         Engine.Context.EntityPool.RemoveReferences(logic, this);
         UpdateMask<T>();
     }
 
-    public T GetLogic<T>() where T : Logic => (T)Logics.First(x => x is T);
+    public T GetLogic<T>() where T : Logic
+    {
+        return (T)Logics.First(x => x is T);
+    }
 
     public void Dispose()
     {
-        foreach (var logic in Logics){
-            (logic as IDestroyable)?.Destroy();
-        }
+        foreach (var logic in Logics) ((IDestroyable)logic)?.Destroy();
     }
-    
+
     #endregion
-    
+
     #region Modificators Method Group
 
-    public void SetModificator<T>(bool state) where T : EntityModificator
+    public void SetModificator<T>(bool state) where T : EntityModifier
     {
         Modificators.First(x => x is T).IsEnabled = state;
     }
-    
+
     #endregion
-    
+
     public void UpdateMask<T>()
     {
-        int id = ComponentRegistry.GetId(typeof(T));
-        int chunkIndex = id / 32;
-        int bitIndex = id % 32;
+        var id = ComponentRegistry.GetId(typeof(T));
+        var chunkIndex = id / 32;
+        var bitIndex = id % 32;
 
-        if (chunkIndex >= MaskChunks.Length)
-        {
-            Array.Resize(ref MaskChunks, chunkIndex + 1);
-        }
+        if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
 
-        MaskChunks[chunkIndex] |= (1u << bitIndex);
+        MaskChunks[chunkIndex] |= 1u << bitIndex;
     }
 
     public async void SwitchState(bool newState, uint setTime = 0)

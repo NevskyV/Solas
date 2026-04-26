@@ -1,28 +1,28 @@
-﻿using System.Text.Json;
-using Core.Components;
-using Core.Systems;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Orbitality.Components;
 using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
-namespace Core.World;
+namespace Orbitality.World;
 
 public class EntityJsonConverter : JsonConverter<Entity>
 {
     public static Space InjectedSpace;
-    public override Entity ReadJson(JsonReader reader, Type objectType, Entity existingValue, bool hasExistingValue, JsonSerializer serializer)
+
+    public override Entity ReadJson(JsonReader reader, Type objectType, Entity existingValue, bool hasExistingValue,
+        JsonSerializer serializer)
     {
-        if (reader.TokenType == (JsonToken)JsonTokenType.Null)
+        if (reader.TokenType == JsonToken.Null)
             return null;
-        JObject jObject = JObject.Load(reader);
-        
-        EntityMetaData metaData = jObject["MetaData"]!.ToObject<EntityMetaData>(serializer);
-        Entity entity = Engine.Context.Creator.CreateEntity(InjectedSpace, metaData);
+        var jObject = JObject.Load(reader);
+
+        var metaData = jObject["MetaData"]!.ToObject<EntityMetaData>(serializer);
+        var entity = Engine.Context.Creator.CreateEntity(InjectedSpace, metaData);
         using (var innerReader = jObject.CreateReader())
         {
             serializer.Populate(innerReader, entity);
         }
-        
+
         var savedLogics = new List<Logic>(entity.Logics);
         entity.Logics.Clear();
 
@@ -38,7 +38,7 @@ public class EntityJsonConverter : JsonConverter<Entity>
                 genericAdd.Invoke(entity, null);
             }
         }
-        
+
         return entity;
     }
 
@@ -49,9 +49,9 @@ public class EntityJsonConverter : JsonConverter<Entity>
             writer.WriteNull();
             return;
         }
-        
+
         var originalConverters = serializer.Converters.ToList();
-        serializer.Converters.Remove(this);   // убираем себя
+        serializer.Converters.Remove(this); // убираем себя
 
         try
         {

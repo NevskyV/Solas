@@ -1,8 +1,13 @@
-﻿using Core.Containers;
-using Core.Systems;
-using Core.World;
+﻿using Orbitality.Containers;
+using Orbitality.Systems;
+using Orbitality.World;
 
-namespace Core;
+namespace Orbitality;
 
-public record struct EngineContext(Creator Creator, Destroyer Destroyer, EntityPool EntityPool, SpaceSystem SpaceSystem);
+public record struct EngineContext(
+    Creator Creator,
+    Destroyer Destroyer,
+    EntityPool EntityPool,
+    SpaceSystem SpaceSystem);
+
 public record struct WorldContext(Space GlobalSpace, HashSet<Space> LocalSpaces);

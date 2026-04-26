@@ -1,15 +1,15 @@
-﻿namespace Core.Components;
+﻿namespace Orbitality.Components;
 
 public class ComponentPool<T> : IComponentPool
 {
     public List<T> Components { get; } = new();
     public List<Entity> Entities { get; } = new();
-    
+
     private Dictionary<Entity, int> _indices = new();
 
     public void Add(object component, Entity entity)
     {
-        int index = Components.Count;
+        var index = Components.Count;
 
         Components.Add((T)component);
         Entities.Add(entity);
@@ -19,16 +19,16 @@ public class ComponentPool<T> : IComponentPool
 
     public void Remove(Entity entity)
     {
-        if (!_indices.TryGetValue(entity, out int index))
+        if (!_indices.TryGetValue(entity, out var index))
             return;
 
-        int lastIndex = Components.Count - 1;
-        
+        var lastIndex = Components.Count - 1;
+
         Components[index] = Components[lastIndex];
         Entities[index] = Entities[lastIndex];
-        
+
         _indices[Entities[index]] = index;
-        
+
         Components.RemoveAt(lastIndex);
         Entities.RemoveAt(lastIndex);
 

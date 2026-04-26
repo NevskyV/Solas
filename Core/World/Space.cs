@@ -1,11 +1,13 @@
-﻿using Core.Systems;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Orbitality.Components;
+using Orbitality.Systems;
 
-namespace Core.World;
+namespace Orbitality.World;
 
 public class Space
 {
     public string Name { get; init; }
+
     //DI
     private readonly IServiceScope _scope;
     public IServiceProvider Provider => _scope.ServiceProvider;
@@ -16,6 +18,6 @@ public class Space
         Name = name;
         Initializer = new Initializer(this);
         _scope = new ServiceCollection().BuildServiceProvider().CreateScope();
-        Engine.Context.EntityPool.Entities.Add(this, new());
+        Engine.Context.EntityPool.Entities.Add(this, new List<Entity>());
     }
 }

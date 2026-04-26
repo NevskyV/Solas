@@ -1,6 +1,5 @@
-﻿namespace Core.Systems;
+﻿namespace Orbitality.Systems;
 
 public class EventBus
 {
-    
 }

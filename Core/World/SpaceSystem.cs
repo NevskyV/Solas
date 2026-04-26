@@ -1,11 +1,19 @@
-﻿using Core.Components;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
+using Orbitality.Components;
 
-namespace Core.World;
+namespace Orbitality.World;
 
-public class SpaceSystem
+public class SpaceSystem()
 {
-    private const string GlobalSpacePath = @"D:\C# Projects\Orbitality\OrbitalityEngine\Core\World\Global.space";
+    private string _globalSpacePath;
+    private string[] _localSpacesPaths;
+
+    public void SetPaths(string globalSpacePath, string localSpacesFolder)
+    {
+        _globalSpacePath = globalSpacePath;
+        _localSpacesPaths = Directory.GetFiles(localSpacesFolder, "*.space", SearchOption.AllDirectories);
+    }
+
     private readonly JsonSerializerSettings _jsonSerializerSettings = new()
     {
         TypeNameHandling = TypeNameHandling.Objects,
@@ -14,13 +22,17 @@ public class SpaceSystem
         ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
         ReferenceLoopHandling = ReferenceLoopHandling.Error,
         TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Simple,
-        Converters = {new EntityJsonConverter()}
+        Converters = { new EntityJsonConverter() }
     };
-    
-    public Space LoadGlobalSpace() => LoadSpace(GlobalSpacePath).Result;
-    public Space LoadLocalSpace(string path)
+
+    public Space LoadGlobalSpace()
     {
-        var space = LoadSpace(path).Result;
+        return LoadSpace(_globalSpacePath).Result;
+    }
+
+    public Space LoadLocalSpace(string name)
+    {
+        var space = LoadSpace(_localSpacesPaths.First(x => Path.GetFileNameWithoutExtension(x) == name)).Result;
         Engine.WorldContext.LocalSpaces.Add(space);
         return space;
     }
@@ -37,8 +49,11 @@ public class SpaceSystem
 
         return space;
     }
-    
-    public void SaveGlobalSpace() => SaveSpace(Engine.WorldContext.GlobalSpace, GlobalSpacePath);
+
+    public void SaveGlobalSpace()
+    {
+        SaveSpace(Engine.WorldContext.GlobalSpace, _globalSpacePath);
+    }
 
     public async void SaveSpace(Space space, string path)
     {

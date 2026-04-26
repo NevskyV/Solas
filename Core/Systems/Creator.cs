@@ -1,7 +1,7 @@
-﻿using Core.Components;
-using Core.World;
+﻿using Orbitality.Components;
+using Orbitality.World;
 
-namespace Core.Systems;
+namespace Orbitality.Systems;
 
 public class Creator
 {
@@ -9,16 +9,16 @@ public class Creator
     {
         //Set default values
         space ??= Engine.WorldContext.GlobalSpace;
-        entityMetaData = entityMetaData == default? EntityMetaData.CreateDefault() : entityMetaData;
-        
+        entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
+
         //Create Entity
-        Entity newEntity = new Entity(space, entityMetaData);
-        
+        var newEntity = new Entity(space, entityMetaData);
+
         //Register & return
         var pool = Engine.Context.EntityPool;
-        
+
         pool.RegisterEntity(newEntity);
-        
+
         //Console.WriteLine($"Created entity {newEntity.Id}");
         return newEntity;
     }

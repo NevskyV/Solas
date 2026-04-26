@@ -1,6 +1,6 @@
-﻿using Core.Interfaces;
+﻿using Orbitality.Interfaces;
 
-namespace Core.Components;
+namespace Orbitality.Components;
 
 public class UpdateRunner<T>(ComponentPool<T> pool) : IUpdateRunner
     where T : IUpdatable
@@ -9,7 +9,7 @@ public class UpdateRunner<T>(ComponentPool<T> pool) : IUpdateRunner
     {
         var components = pool.Components;
 
-        for (int i = 0; i < components.Count; i++)
+        for (var i = 0; i < components.Count; i++)
             components[i].Update();
     }
 }
@@ -21,7 +21,7 @@ public class FixedUpdateRunner<T>(ComponentPool<T> pool) : IUpdateRunner
     {
         var components = pool.Components;
 
-        for (int i = 0; i < components.Count; i++)
+        for (var i = 0; i < components.Count; i++)
             components[i].FixedUpdate();
     }
 }
@@ -33,7 +33,7 @@ public class LateUpdateRunner<T>(ComponentPool<T> pool) : IUpdateRunner
     {
         var components = pool.Components;
 
-        for (int i = 0; i < components.Count; i++)
+        for (var i = 0; i < components.Count; i++)
             components[i].LateUpdate();
     }
 }

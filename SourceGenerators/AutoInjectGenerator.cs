@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace SourceGenerators;
+namespace Orbitality.SourceGenerators;
 
 [Generator]
 public class AutoInjectGenerator : IIncrementalGenerator

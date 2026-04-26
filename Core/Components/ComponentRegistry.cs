@@ -1,4 +1,4 @@
-﻿namespace Core.Components;
+﻿namespace Orbitality.Components;
 
 public static class ComponentRegistry
 {
@@ -13,6 +13,7 @@ public static class ComponentRegistry
             id = _nextIndex++;
             _typeIndices[type] = id;
         }
+
         return id;
     }
 }

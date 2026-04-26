@@ -1,4 +1,4 @@
-﻿namespace Core.Components;
+﻿namespace Orbitality.Components;
 
 public interface IUpdateRunner
 {

@@ -1,7 +1,9 @@
-﻿namespace Core.Components;
+﻿namespace Orbitality.Components;
 
 public record struct EntityMetaData(string Name, string Tag, ushort Icon)
 {
-    public static EntityMetaData CreateDefault() =>
-        new("NewEntity", "Default", 0);
+    public static EntityMetaData CreateDefault()
+    {
+        return new EntityMetaData("NewEntity", "Default", 0);
+    }
 }

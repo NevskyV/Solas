@@ -1,4 +1,4 @@
-﻿namespace Core.Interfaces;
+﻿namespace Orbitality.Interfaces;
 
 public interface ILateUpdatable
 {

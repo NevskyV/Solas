@@ -1,8 +1,10 @@
-﻿namespace Core.Components;
+﻿using Newtonsoft.Json;
+
+namespace Orbitality.Components;
 
 public class ReactiveProperty<T>(T value)
 {
-    private readonly List<Action<T>> _listeners = [];
+    [JsonIgnore] private readonly List<Action<T>> _listeners = [];
 
     public T Value
     {
@@ -16,7 +18,7 @@ public class ReactiveProperty<T>(T value)
 
             if (_listeners == null) return;
 
-            for (int i = 0; i < _listeners.Count; i++)
+            for (var i = 0; i < _listeners.Count; i++)
                 _listeners[i](field);
         }
     } = value;
@@ -25,7 +27,7 @@ public class ReactiveProperty<T>(T value)
     {
         _listeners.Add(listener);
     }
-    
+
     public void Unsubscribe(Action<T> listener)
     {
         _listeners.Remove(listener);

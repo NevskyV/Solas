@@ -1,4 +1,4 @@
-﻿namespace Render;
+﻿namespace Orbitality.Render;
 
 public class Renderer
 {

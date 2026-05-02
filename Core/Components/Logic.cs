@@ -1,4 +1,6 @@
-﻿namespace Orbitality.Components;
+﻿using Orbitality.ComponentUtils;
+
+namespace Orbitality.Components;
 
 public abstract partial class Logic
 {

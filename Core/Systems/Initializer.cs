@@ -9,15 +9,21 @@ public class Initializer(Space space)
     public List<Task> InitializeDependencies()
     {
         var result = new List<Task>();
-        foreach (var entity in Engine.GetEntities(space))
-        foreach (var logic in entity.Logics)
-            result.Add(InitializeLogic(logic));
+        foreach (var entity in Engine.GetEntities(space)) result.AddRange(entity.Logics.Select(InitializeLogic));
 
         return result;
     }
 
-    public async Task InitializeLogic(Logic logic)
+    private Task InitializeLogic(Logic logic)
     {
-        (logic as IInitializable)?.Initialize();
+        try
+        {
+            (logic as IInitializable)?.Initialize();
+            return Task.CompletedTask;
+        }
+        catch (Exception exception)
+        {
+            return Task.FromException(exception);
+        }
     }
 }

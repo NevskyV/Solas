@@ -1,6 +1,6 @@
 ﻿using Orbitality.Interfaces;
 
-namespace Orbitality.Components;
+namespace Orbitality.ComponentUtils;
 
 public class UpdateRunner<T>(ComponentPool<T> pool) : IUpdateRunner
     where T : IUpdatable

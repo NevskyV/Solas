@@ -8,5 +8,6 @@ public class RecordableModifier(Entity entity) : EntityModifier(entity)
 
     protected override void OnDisable()
     {
+        Engine.Context.SpaceSystem.SaveEntity(entity);
     }
 }

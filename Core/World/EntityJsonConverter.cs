@@ -1,7 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Orbitality.Components;
-using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
 namespace Orbitality.World;
 
@@ -51,7 +50,7 @@ public class EntityJsonConverter : JsonConverter<Entity>
         }
 
         var originalConverters = serializer.Converters.ToList();
-        serializer.Converters.Remove(this); // убираем себя
+        serializer.Converters.Remove(this);
 
         try
         {

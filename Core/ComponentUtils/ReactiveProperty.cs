@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Orbitality.Components;
+namespace Orbitality.ComponentUtils;
 
 public class ReactiveProperty<T>(T value)
 {

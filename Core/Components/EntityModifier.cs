@@ -1,6 +1,6 @@
 ﻿namespace Orbitality.Components;
 
-public abstract class EntityModifier(Entity Entity)
+public abstract class EntityModifier(Entity entity)
 {
     public bool IsEnabled
     {

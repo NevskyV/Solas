@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Components;
+﻿namespace Orbitality.ComponentUtils;
 
 public static class ComponentRegistry
 {

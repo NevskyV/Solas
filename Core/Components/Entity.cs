@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Orbitality.ComponentUtils;
 using Orbitality.Interfaces;
 using Orbitality.World;
 
@@ -12,7 +13,7 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
     [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
     [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
 
-    public HashSet<EntityModifier> Modificators { get; init; } = new();
+    public HashSet<EntityModifier> Modifiers { get; init; } = new();
     public HashSet<IData> Data { get; } = new();
     public HashSet<Logic> Logics { get; } = new();
     [JsonIgnore] public uint[] MaskChunks = Array.Empty<uint>();
@@ -68,16 +69,23 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 
     public void Dispose()
     {
-        foreach (var logic in Logics) ((IDestroyable)logic)?.Destroy();
+        foreach (var logic in Logics) (logic as IDestroyable)?.Destroy();
+        foreach (var modifier in Modifiers) modifier.IsEnabled = false;
     }
 
     #endregion
 
     #region Modificators Method Group
 
-    public void SetModificator<T>(bool state) where T : EntityModifier
+    public void AddModifier<T>() where T : EntityModifier
     {
-        Modificators.First(x => x is T).IsEnabled = state;
+        var newModifier = (T)Activator.CreateInstance(typeof(T), this);
+        Modifiers.Add(newModifier);
+    }
+    
+    public void SetModifierState<T>(bool state) where T : EntityModifier
+    {
+        Modifiers.First(x => x is T).IsEnabled = state;
     }
 
     #endregion

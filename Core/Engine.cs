@@ -60,8 +60,13 @@ public class Engine
 
     private async void StartGame()
     {
-        var globalSpaceInitialization = _worldContext.GlobalSpace.Initializer.InitializeDependencies();
-        await Task.WhenAll(globalSpaceInitialization);
+        List<Task> initializationTasks = _worldContext.GlobalSpace.Initializer.InitializeDependencies();
+        foreach (var space in _worldContext.LocalSpaces)
+        {
+            initializationTasks.AddRange(space.Initializer.InitializeDependencies());
+        }
+        await Task.WhenAll(initializationTasks.ToArray());
+        
         State = GameState.Update;
     }
 
@@ -73,7 +78,6 @@ public class Engine
 
     private void StopUpdate()
     {
-        Console.WriteLine("Pause.");
         Time.TimeScale = 0;
     }
 

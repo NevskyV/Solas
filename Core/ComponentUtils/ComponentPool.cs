@@ -1,4 +1,6 @@
-﻿namespace Orbitality.Components;
+﻿using Orbitality.Components;
+
+namespace Orbitality.ComponentUtils;
 
 public class ComponentPool<T> : IComponentPool
 {

@@ -9,5 +9,3 @@ public record struct EngineContext(
     Destroyer Destroyer,
     EntityPool EntityPool,
     SpaceSystem SpaceSystem);
-
-public record struct WorldContext(Space GlobalSpace, HashSet<Space> LocalSpaces);

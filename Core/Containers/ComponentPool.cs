@@ -1,6 +1,6 @@
 ﻿using Orbitality.Components;
 
-namespace Orbitality.ComponentUtils;
+namespace Orbitality.Containers;
 
 public class ComponentPool<T> : IComponentPool
 {

@@ -7,13 +7,23 @@ namespace Orbitality.Containers;
 
 public class EntityPool
 {
-    public Dictionary<Space, List<Entity>> Entities { get; } = [];
+    private Dictionary<Space, List<Entity>> Entities { get; } = [];
     public Dictionary<Type, IComponentPool> ComponentPools { get; } = [];
 
     public List<IUpdateRunner> UpdateRunners { get; } = [];
     public List<IUpdateRunner> FixedUpdateRunners { get; } = [];
     public List<IUpdateRunner> LateUpdateRunners { get; } = [];
 
+    public List<Entity> GetEntitiesIn(Space space)
+    {
+        return Entities[space];
+    }
+
+    public void RegisterNewSpace(Space space)
+    {
+        Entities.Add(space, new List<Entity>());
+    }
+    
     #region Registration
 
     public void RegisterEntity(Entity entity)
@@ -37,27 +47,19 @@ public class EntityPool
         if (entity != null) UnregisterEntity(entity);
     }
 
-    private void RegisterPipelines<T>(ComponentPool<T> pool)
+    public void RegisterRunner(IUpdateRunner runner)
     {
-        var type = typeof(T);
-
-        if (typeof(IUpdatable).IsAssignableFrom(type))
-        {
-            var runnerType = typeof(UpdateRunner<>).MakeGenericType(type);
-            UpdateRunners.Add((IUpdateRunner)Activator.CreateInstance(runnerType, pool));
-        }
-
-        if (typeof(IFixedUpdatable).IsAssignableFrom(type))
-        {
-            var runnerType = typeof(FixedUpdateRunner<>).MakeGenericType(type);
-            FixedUpdateRunners.Add((IUpdateRunner)Activator.CreateInstance(runnerType, pool));
-        }
-
-        if (typeof(ILateUpdatable).IsAssignableFrom(type))
-        {
-            var runnerType = typeof(LateUpdateRunner<>).MakeGenericType(type);
-            LateUpdateRunners.Add((IUpdateRunner)Activator.CreateInstance(runnerType, pool));
-        }
+        UpdateRunners.Add(runner);
+    }
+    
+    public void RegisterFixedRunner(IUpdateRunner runner)
+    {
+        FixedUpdateRunners.Add(runner);
+    }
+    
+    public void RegisterLateRunner(IUpdateRunner runner)
+    {
+        LateUpdateRunners.Add(runner);
     }
 
     public void AddReferences<T>(T component, Entity entity)
@@ -68,9 +70,7 @@ public class EntityPool
         {
             var pool = new ComponentPool<T>();
             ComponentPools[type] = pool;
-
-            RegisterPipelines(pool);
-
+            
             rawPool = pool;
         }
 
@@ -129,7 +129,7 @@ public class EntityPool
     public IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
     {
         return ((ComponentPool<T>)ComponentPools[typeof(T)]).Entities.Where(e =>
-            e.CurrentSpace == space || e.CurrentSpace == Engine.WorldContext.GlobalSpace);
+            e.CurrentSpace == space || e.CurrentSpace == Engine.GlobalSpace);
     }
 
     public IEnumerable<T> GetComponentsBySingleType<T>(Space space)
@@ -139,7 +139,7 @@ public class EntityPool
         for (var i = 0; i < pool.Entities.Count; i++)
         {
             var e = pool.Entities[i];
-            if (e.CurrentSpace == space || e.CurrentSpace == Engine.WorldContext.GlobalSpace)
+            if (e.CurrentSpace == space || e.CurrentSpace == Engine.GlobalSpace)
                 result.Add(pool.Components[i]);
         }
 

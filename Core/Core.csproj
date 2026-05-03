@@ -10,6 +10,9 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0-preview.3.26207.106"/>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.4"/>
+        <ProjectReference Include="D:\C# Projects\Orbitality\OrbitalityEngine\SourceGenerators\SourceGenerators.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
     </ItemGroup>
 
 </Project>

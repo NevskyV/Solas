@@ -9,6 +9,7 @@ public class SpaceSystem()
     private string _globalSpacePath;
     private string _localSpacesFolder;
     private string[] _localSpacesPaths;
+    private readonly HashSet<Space> _localSpaces = [];
 
     public void SetPaths(string globalSpacePath, string localSpacesFolder)
     {
@@ -28,6 +29,16 @@ public class SpaceSystem()
         Converters = { new EntityJsonConverter() }
     };
 
+    public List<Task> InitializeLocalSpaces()
+    {
+        List<Task> result = [];
+        foreach (var space in _localSpaces)
+        {
+            result.AddRange(space.Initializer.InitializeDependencies());
+        }
+        return result;
+    }
+
     public Space LoadGlobalSpace()
     {
         return LoadSpace(_globalSpacePath).Result;
@@ -36,7 +47,7 @@ public class SpaceSystem()
     public Space LoadLocalSpace(string name)
     {
         var space = LoadSpace(_localSpacesPaths.First(x => Path.GetFileNameWithoutExtension(x) == name)).Result;
-        Engine.WorldContext.LocalSpaces.Add(space);
+        _localSpaces.Add(space);
         return space;
     }
 
@@ -49,18 +60,18 @@ public class SpaceSystem()
             EntityJsonConverter.InjectedSpace = space;
             JsonConvert.DeserializeObject<List<Entity>>(await File.ReadAllTextAsync(path), _jsonSerializerSettings);
         }
-
+        Engine.Context.Destroyer.AddSpace(space);
         return space;
     }
 
     public void SaveGlobalSpace()
     {
-        SaveSpace(Engine.WorldContext.GlobalSpace, _globalSpacePath);
+        SaveSpace(Engine.GlobalSpace, _globalSpacePath);
     }
 
     public async void SaveSpace(Space space, string path)
     {
-        var text = JsonConvert.SerializeObject(Engine.GetEntities(space), _jsonSerializerSettings);
+        var text = JsonConvert.SerializeObject(Engine.GetEntitiesIn(space), _jsonSerializerSettings);
         await File.WriteAllTextAsync(path, text);
     }
 
@@ -77,14 +88,12 @@ public class SpaceSystem()
             allSpaces.Add(_globalSpacePath);
             string originalPath = allSpaces.First(x => x.EndsWith(entity.CurrentSpace.Name + ".space"));
             
-            Console.WriteLine(originalPath);
             using (var sr = new StreamReader(originalPath))
             using (var jReader = new JsonTextReader(sr))
             using (var sw = new StreamWriter(tempPath))
             using (var jWriter = new JsonTextWriter(sw))
             {
                 jWriter.Formatting = Formatting.Indented;
-                Console.WriteLine(jReader.LineNumber);
                 while (jReader.Read())
                 {
                     if (jReader.TokenType == JsonToken.StartObject)
@@ -108,6 +117,7 @@ public class SpaceSystem()
                 }
             }
             File.Replace(tempPath, originalPath, null);
+            File.Delete(tempPath);
         }
         catch (Exception ex)
         {

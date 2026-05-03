@@ -8,7 +8,7 @@ public class Creator
     public Entity CreateEntity(Space space = null, EntityMetaData entityMetaData = default)
     {
         //Set default values
-        space ??= Engine.WorldContext.GlobalSpace;
+        space ??= Engine.GlobalSpace;
         entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
 
         //Create Entity

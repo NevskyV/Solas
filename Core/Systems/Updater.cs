@@ -36,6 +36,8 @@ public class Updater
         _accumulator = 0;
         _isRunning = true;
 
+        Stopwatch sw = Stopwatch.StartNew();
+        
         var e = Engine.Instance;
         while (e.State != GameState.None)
         {

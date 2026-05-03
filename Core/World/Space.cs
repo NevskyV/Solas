@@ -18,6 +18,6 @@ public class Space
         Name = name;
         Initializer = new Initializer(this);
         _scope = new ServiceCollection().BuildServiceProvider().CreateScope();
-        Engine.Context.EntityPool.Entities.Add(this, new List<Entity>());
+        Engine.Context.EntityPool.RegisterNewSpace(this);
     }
 }

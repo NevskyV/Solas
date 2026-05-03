@@ -1,19 +1,29 @@
 ﻿using Orbitality.Components;
+using Orbitality.World;
 
 namespace Orbitality.Systems;
 
 public class Destroyer
 {
+    private readonly HashSet<Space> _loadedSpaces = [];
+    public void AddSpace(Space space) => _loadedSpaces.Add(space);
+
+    public void DestroyIn(Space space)
+    {
+        var entities =  Engine.GetEntitiesIn(space).ToArray();
+        foreach (var entity in entities) 
+            DestroyEntity(entity);
+    }
+    
     public void DestroyAll()
     {
-        var allEntities = Engine.GetEntities(Engine.WorldContext.GlobalSpace).ToList();
-        foreach (var space in Engine.WorldContext.LocalSpaces) allEntities.AddRange(Engine.GetEntities(space));
-
-        allEntities.RemoveAll(x => x == null);
-        foreach (var entity in allEntities) DestroyEntity(entity);
+        foreach (var loadedSpace in _loadedSpaces)
+        {
+            DestroyIn(loadedSpace);
+        }
     }
 
-    public void DestroyEntity(Entity entity)
+    private void DestroyEntity(Entity entity)
     {
         Engine.Context.EntityPool.UnregisterEntity(entity);
         entity.Dispose();

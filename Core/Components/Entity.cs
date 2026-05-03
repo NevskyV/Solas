@@ -9,7 +9,7 @@ namespace Orbitality.Components;
 public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 {
     public EntityMetaData MetaData { get; set; } = metaData;
-    public ReactiveProperty<bool> IsEnabled { get; private set; } = new(true);
+    public ReactiveProperty<bool> IsEnabled { get; set; } = new(true);
     [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
     [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
 

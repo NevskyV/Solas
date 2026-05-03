@@ -17,9 +17,9 @@ public class Engine
         new SpaceSystem()
     );
 
-    private WorldContext _worldContext;
+    private Space _globalSpace;
     public static EngineContext Context => Instance._context;
-    public static WorldContext WorldContext => Instance._worldContext;
+    public static Space GlobalSpace => Instance._globalSpace;
 
     public GameState State
     {
@@ -51,20 +51,13 @@ public class Engine
     public void CreateWorld(string globalSpacePath, string localSpacesFolder)
     {
         Context.SpaceSystem.SetPaths(globalSpacePath, localSpacesFolder);
-        _worldContext = new WorldContext
-        (
-            _context.SpaceSystem.LoadGlobalSpace(),
-            new HashSet<Space>()
-        );
+        _globalSpace = _context.SpaceSystem.LoadGlobalSpace();
     }
 
     private async void StartGame()
     {
-        List<Task> initializationTasks = _worldContext.GlobalSpace.Initializer.InitializeDependencies();
-        foreach (var space in _worldContext.LocalSpaces)
-        {
-            initializationTasks.AddRange(space.Initializer.InitializeDependencies());
-        }
+        List<Task> initializationTasks = _globalSpace.Initializer.InitializeDependencies();
+        initializationTasks.AddRange(_context.SpaceSystem.InitializeLocalSpaces());
         await Task.WhenAll(initializationTasks.ToArray());
         
         State = GameState.Update;
@@ -87,8 +80,8 @@ public class Engine
         Context.Destroyer.DestroyAll();
     }
 
-    public static List<Entity> GetEntities(Space space)
+    public static List<Entity> GetEntitiesIn(Space space)
     {
-        return Instance._context.EntityPool.Entities[space];
+        return Instance._context.EntityPool.GetEntitiesIn(space);
     }
 }

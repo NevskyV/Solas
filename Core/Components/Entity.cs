@@ -57,7 +57,6 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
     public void RemoveLogic<T>(T logic) where T : Logic, new()
     {
         Logics.Remove(logic);
-        IsEnabled.Unsubscribe(logic.OnEntityEnableChange);
         Engine.Context.EntityPool.RemoveReferences(logic, this);
         UpdateMask<T>();
     }

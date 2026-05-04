@@ -2,12 +2,12 @@
 
 namespace Orbitality.Containers;
 
-public class ComponentPool<T> : IComponentPool
+public struct ComponentPool<T>() : IComponentPool
 {
-    public List<T> Components { get; } = new();
-    public List<Entity> Entities { get; } = new();
+    public List<T> Components { get; } = [];
+    public List<Entity> Entities { get; } = [];
 
-    private Dictionary<Entity, int> _indices = new();
+    private Dictionary<Entity, int> _indices = [];
 
     public void Add(object component, Entity entity)
     {

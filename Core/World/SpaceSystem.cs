@@ -9,7 +9,7 @@ public class SpaceSystem()
     private string _globalSpacePath;
     private string _localSpacesFolder;
     private string[] _localSpacesPaths;
-    private readonly HashSet<Space> _localSpaces = [];
+    private readonly List<Space> _localSpaces = [];
 
     public void SetPaths(string globalSpacePath, string localSpacesFolder)
     {

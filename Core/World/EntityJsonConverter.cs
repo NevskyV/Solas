@@ -23,7 +23,6 @@ public class EntityJsonConverter : JsonConverter<Entity>
         }
 
         var savedLogics = new List<Logic>(entity.Logics);
-        entity.Logics.Clear();
 
         foreach (var logic in savedLogics)
         {

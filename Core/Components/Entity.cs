@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Orbitality.ComponentUtils;
+using Orbitality.Containers;
 using Orbitality.Interfaces;
 using Orbitality.World;
 
@@ -12,31 +13,33 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
     public ReactiveProperty<bool> IsEnabled { get; set; } = new(true);
     [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
     [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
-
-    public HashSet<EntityModifier> Modifiers { get; init; } = new();
-    public HashSet<IData> Data { get; } = new();
-    public HashSet<Logic> Logics { get; } = new();
-    [JsonIgnore] public uint[] MaskChunks = Array.Empty<uint>();
+    
+    private readonly List<IData> _data = [];
+    private readonly List<Logic> _logics = [];
+    public IData[] Data => _data.ToArray();
+    public Logic[] Logics => _logics.ToArray();
+    [JsonIgnore] public uint[] MaskChunks = [];
 
     #region Data Method Group
 
     public void AddData<T>(T data) where T : IData
     {
-        if (!Data.Add(data)) return;
+        if (_data.Contains(data)) return;
+        _data.Add(data);
         Engine.Context.EntityPool.AddReferences(data, this);
         UpdateMask<T>();
     }
 
     public void RemoveData<T>(T data) where T : IData
     {
-        Data.Remove(data);
+        _data.Remove(data);
         Engine.Context.EntityPool.RemoveReferences(data, this);
         UpdateMask<T>();
     }
 
     public T GetData<T>() where T : IData
     {
-        return (T)Data.First(x => x is T);
+        return (T)_data.First(x => x is T);
     }
 
     #endregion
@@ -47,7 +50,8 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
     {
         var newLogic = new T();
         newLogic.SetupLogic(this, CurrentSpace.Provider);
-        if (!Logics.Add(newLogic)) return newLogic;
+        if (_logics.Contains(newLogic)) return newLogic;
+        _logics.Add(newLogic);
 
         Engine.Context.EntityPool.AddReferences(newLogic, this);
         UpdateMask<T>();
@@ -56,35 +60,19 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 
     public void RemoveLogic<T>(T logic) where T : Logic, new()
     {
-        Logics.Remove(logic);
+        _logics.Remove(logic);
         Engine.Context.EntityPool.RemoveReferences(logic, this);
         UpdateMask<T>();
     }
 
     public T GetLogic<T>() where T : Logic
     {
-        return (T)Logics.First(x => x is T);
+        return (T)_logics.First(x => x is T);
     }
 
     public void Dispose()
     {
-        foreach (var logic in Logics) (logic as IDestroyable)?.Destroy();
-        foreach (var modifier in Modifiers) modifier.IsEnabled = false;
-    }
-
-    #endregion
-
-    #region Modificators Method Group
-
-    public void AddModifier<T>() where T : EntityModifier
-    {
-        var newModifier = (T)Activator.CreateInstance(typeof(T), this);
-        Modifiers.Add(newModifier);
-    }
-    
-    public void SetModifierState<T>(bool state) where T : EntityModifier
-    {
-        Modifiers.First(x => x is T).IsEnabled = state;
+        foreach (var logic in _logics) (logic as IDestroyable)?.Destroy();
     }
 
     #endregion

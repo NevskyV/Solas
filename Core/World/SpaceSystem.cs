@@ -61,6 +61,7 @@ public class SpaceSystem()
             JsonConvert.DeserializeObject<List<Entity>>(await File.ReadAllTextAsync(path), _jsonSerializerSettings);
         }
         Engine.Context.Destroyer.AddSpace(space);
+        Engine.Context.Injector.BuildDependencies(space);
         return space;
     }
 

@@ -53,7 +53,6 @@ public class Engine
     {
         _context.SpaceSystem.SetPaths(globalSpacePath, localSpacesFolder);
         _globalSpace = _context.SpaceSystem.LoadGlobalSpace();
-        _context.Injector.BuildGlobalDependencies();
     }
 
     private async void StartGame()

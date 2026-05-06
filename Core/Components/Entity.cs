@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Orbitality.ComponentUtils;
-using Orbitality.Containers;
 using Orbitality.Interfaces;
 using Orbitality.World;
 
@@ -48,8 +47,7 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
 
     public T AddLogic<T>() where T : Logic, new()
     {
-        var newLogic = new T();
-        newLogic.SetupLogic(this, CurrentSpace.Provider);
+        var newLogic = new T() { Entity = this };
         if (_logics.Contains(newLogic)) return newLogic;
         _logics.Add(newLogic);
 

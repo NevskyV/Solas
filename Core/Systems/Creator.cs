@@ -18,8 +18,7 @@ public class Creator
         var pool = Engine.Context.EntityPool;
 
         pool.RegisterEntity(newEntity);
-
-        //Console.WriteLine($"Created entity {newEntity.Id}");
+        
         return newEntity;
     }
 }

@@ -10,11 +10,6 @@ namespace Orbitality.Systems;
 public class DependencyInjector
 {
     private readonly Dictionary<Space, DependencyPool> _cache = [];
-
-    public void BuildGlobalDependencies()
-    {
-        BuildDependencies(Engine.GlobalSpace);
-    }
     
     public void BuildDependencies(Space space)
     {

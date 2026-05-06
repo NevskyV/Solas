@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Orbitality.Components;
 using Orbitality.Systems;
 
 namespace Orbitality.World;

@@ -35,8 +35,6 @@ public class Updater
         _previousTime = _stopwatch.Elapsed.TotalSeconds;
         _accumulator = 0;
         _isRunning = true;
-
-        Stopwatch sw = Stopwatch.StartNew();
         
         var e = Engine.Instance;
         while (e.State != GameState.None)

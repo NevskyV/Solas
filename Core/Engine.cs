@@ -14,7 +14,8 @@ public class Engine
         new Creator(),
         new Destroyer(),
         new EntityPool(),
-        new SpaceSystem()
+        new SpaceSystem(),
+        new DependencyInjector()
     );
 
     private Space _globalSpace;
@@ -50,8 +51,9 @@ public class Engine
 
     public void CreateWorld(string globalSpacePath, string localSpacesFolder)
     {
-        Context.SpaceSystem.SetPaths(globalSpacePath, localSpacesFolder);
+        _context.SpaceSystem.SetPaths(globalSpacePath, localSpacesFolder);
         _globalSpace = _context.SpaceSystem.LoadGlobalSpace();
+        _context.Injector.BuildGlobalDependencies();
     }
 
     private async void StartGame()
@@ -77,7 +79,7 @@ public class Engine
     private void StopGame()
     {
         _updater.Stop();
-        Context.Destroyer.DestroyAll();
+        _context.Destroyer.DestroyAll();
     }
 
     public static List<Entity> GetEntitiesIn(Space space)

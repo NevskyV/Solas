@@ -8,29 +8,36 @@ namespace Orbitality.Containers;
 public class EntityPool
 {
     private Dictionary<Space, List<Entity>> Entities { get; } = [];
-    public Dictionary<Type, IComponentPool> ComponentPools { get; } = [];
+    private Dictionary<Space, Dictionary<Type, IComponentPool>> ComponentPools { get; } = [];
 
     public List<IUpdateRunner> UpdateRunners { get; } = [];
     public List<IUpdateRunner> FixedUpdateRunners { get; } = [];
     public List<IUpdateRunner> LateUpdateRunners { get; } = [];
-
-    public List<Entity> GetEntitiesIn(Space space)
-    {
-        return Entities[space];
-    }
-
+    
+    #region Registration
+    
     public void RegisterNewSpace(Space space)
     {
         Entities.Add(space, new List<Entity>());
+        ComponentPools.Add(space, new Dictionary<Type, IComponentPool>());
     }
-    
-    #region Registration
+
+    private ComponentPool<T> RegisterNewPool<T>(Space space)
+    {
+        var type = typeof(T);
+        if(ComponentPools[space].TryGetValue(type, out var componentPool)) 
+            return (ComponentPool<T>)componentPool;
+        var pool = new ComponentPool<T>();
+        if(!ComponentPools[space].ContainsKey(type))
+            ComponentPools[space].Add(type, pool);
+        ComponentPools[space][type] = pool;
+        return pool;
+    }
 
     public void RegisterEntity(Entity entity)
     {
         Entities[entity.CurrentSpace].Add(entity);
         foreach (var logic in entity.Logics) AddReferences(logic, entity);
-
         foreach (var data in entity.Data) AddReferences(data, entity);
     }
 
@@ -64,38 +71,34 @@ public class EntityPool
 
     public void AddReferences<T>(T component, Entity entity)
     {
-        var type = typeof(T);
-
-        if (!ComponentPools.TryGetValue(type, out var rawPool))
-        {
-            var pool = new ComponentPool<T>();
-            ComponentPools[type] = pool;
-            
-            rawPool = pool;
-        }
-
-        ((ComponentPool<T>)rawPool).Add(component!, entity);
+        var rawPool = RegisterNewPool<T>(entity.CurrentSpace);
+        rawPool.Add(component, entity);
     }
 
     public void RemoveReferences<T>(T _, Entity entity)
     {
         var type = typeof(T);
 
-        if (ComponentPools.TryGetValue(type, out var pool)) pool.Remove(entity);
+        if (ComponentPools[entity.CurrentSpace].TryGetValue(type, out var pool)) pool.Remove(entity);
     }
 
     #endregion
 
     #region Search
-
-    public Entity GetEntityWith(Space space, params Type[] types)
+    
+    public Dictionary<Type, IComponentPool> GetTypesWithComponentPoolsIn(Space space)
     {
-        return GetEntitiesWith(space, types).FirstOrDefault();
+        return ComponentPools[space];
+    }
+    
+    public List<Entity> GetEntitiesIn(Space space)
+    {
+        return Entities[space];
     }
 
     public IEnumerable<Entity> GetEntitiesWith(Space space, params Type[] types)
     {
-        if (types == null || types.Length == 0) return Enumerable.Empty<Entity>();
+        if (types == null || types.Length == 0) throw new NullReferenceException("No entities found with "  + types);
 
         var totalChunks = ComponentRegistry.Count / 32 + 1;
         Span<uint> filter = stackalloc uint[totalChunks];
@@ -128,22 +131,43 @@ public class EntityPool
 
     public IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
     {
-        return ((ComponentPool<T>)ComponentPools[typeof(T)]).Entities.Where(e =>
-            e.CurrentSpace == space || e.CurrentSpace == Engine.GlobalSpace);
+        var type = typeof(T);
+        if(ComponentPools[space].ContainsKey(type))
+        {
+            var pool = (ComponentPool<T>)ComponentPools[space][type];
+            if (pool.Entities.Count > 0)
+                return pool.Entities;
+        }
+        else if(ComponentPools[Engine.GlobalSpace].ContainsKey(type))
+        {
+            var pool = (ComponentPool<T>)ComponentPools[Engine.GlobalSpace][type];
+            if (pool.Entities.Count > 0)
+                return pool.Entities;
+        }
+        throw new NullReferenceException("No entities found for type " + type);
+    }
+
+    public T GetComponentBySingleType<T>(Space space)
+    {
+        return GetComponentsBySingleType<T>(space).First();
     }
 
     public IEnumerable<T> GetComponentsBySingleType<T>(Space space)
     {
-        var result = new List<T>();
-        var pool = (ComponentPool<T>)ComponentPools[typeof(T)];
-        for (var i = 0; i < pool.Entities.Count; i++)
+        var type = typeof(T);
+        if(ComponentPools[space].ContainsKey(type))
         {
-            var e = pool.Entities[i];
-            if (e.CurrentSpace == space || e.CurrentSpace == Engine.GlobalSpace)
-                result.Add(pool.Components[i]);
+            var pool = (ComponentPool<T>)ComponentPools[space][type];
+            if (pool.Entities.Count > 0)
+                return pool.Components;
         }
-
-        return result;
+        else if(ComponentPools[Engine.GlobalSpace].ContainsKey(type))
+        {
+            var pool = (ComponentPool<T>)ComponentPools[Engine.GlobalSpace][type];
+            if (pool.Entities.Count > 0)
+                return pool.Components;
+        }
+        throw new NullReferenceException("No components found for type " + type);
     }
 
     #endregion

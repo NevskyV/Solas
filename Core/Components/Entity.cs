@@ -54,6 +54,8 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         _logics.Add(newLogic);
 
         Engine.Context.EntityPool.AddReferences(newLogic, this);
+        Engine.Context.Injector.InjectEntity(newLogic, CurrentSpace);
+        
         UpdateMask<T>();
         return newLogic;
     }

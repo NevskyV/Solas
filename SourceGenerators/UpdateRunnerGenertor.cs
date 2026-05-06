@@ -104,10 +104,13 @@ namespace Orbitality.Generated
         if (parallel)
         {
             runners.Append($@"
-            System.Threading.Tasks.Parallel.For(0, comps.Count, i =>
-            {{
-                comps[i].{methodName}();
-            }});");
+            System.Threading.Tasks.Parallel.ForEach(
+                System.Collections.Concurrent.Partitioner.Create(0, comps.Count, 64),
+                range =>
+                {{
+                    for (int i = range.Item1; i < range.Item2; i++)
+                        comps[i].Update();
+                }});");
         }
         else
         {
@@ -122,6 +125,7 @@ namespace Orbitality.Generated
 }");
 
         register.Append($@"
+            pool.RegisterNewPool<{fullName}>();
             pool.{registerMethod}(new {runnerName}((Orbitality.Containers.ComponentPool<{fullName}>)Engine.Context.EntityPool.ComponentPools[typeof({fullName})]));
 ");
     }

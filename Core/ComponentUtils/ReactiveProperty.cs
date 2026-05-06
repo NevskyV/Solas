@@ -1,8 +1,10 @@
-﻿namespace Orbitality.ComponentUtils;
+﻿using Newtonsoft.Json;
+
+namespace Orbitality.ComponentUtils;
 
 public class ReactiveProperty<T>(T value)
 {
-    public Action<T> OnChange =  delegate { };
+    [JsonIgnore] public Action<T> OnChange =  delegate { };
 
     public T Value
     {

@@ -71,6 +71,10 @@ public class SpaceSystem()
 
     public async void SaveSpace(Space space, string path)
     {
+        // foreach (var entity in Engine.GetEntitiesIn(space))
+        // {
+        //     Console.WriteLine(entity);
+        // }
         var text = JsonConvert.SerializeObject(Engine.GetEntitiesIn(space), _jsonSerializerSettings);
         await File.WriteAllTextAsync(path, text);
     }

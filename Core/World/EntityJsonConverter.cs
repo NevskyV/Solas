@@ -16,15 +16,15 @@ public class EntityJsonConverter : JsonConverter<Entity>
         var jObject = JObject.Load(reader);
 
         var metaData = jObject["MetaData"]!.ToObject<EntityMetaData>(serializer);
+        var logics = jObject["Logics"]!.ToObject<Logic[]>(serializer);
+        var data = jObject["Data"]!.ToObject<IData[]>(serializer);
         var entity = Engine.Context.Creator.CreateEntity(InjectedSpace, metaData);
         using (var innerReader = jObject.CreateReader())
         {
             serializer.Populate(innerReader, entity);
         }
 
-        var savedLogics = new List<Logic>(entity.Logics);
-
-        foreach (var logic in savedLogics)
+        foreach (var logic in logics)
         {
             if (logic == null) continue;
 
@@ -35,6 +35,12 @@ public class EntityJsonConverter : JsonConverter<Entity>
                 var genericAdd = addMethod.MakeGenericMethod(logicType);
                 genericAdd.Invoke(entity, null);
             }
+        }
+        
+        foreach (var d in data)
+        {
+            if (d == null) continue;
+            entity.AddData(d);
         }
 
         return entity;

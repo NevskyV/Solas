@@ -8,4 +8,5 @@ public record struct EngineContext(
     Creator Creator,
     Destroyer Destroyer,
     EntityPool EntityPool,
-    SpaceSystem SpaceSystem);
+    SpaceSystem SpaceSystem,
+    DependencyInjector Injector);

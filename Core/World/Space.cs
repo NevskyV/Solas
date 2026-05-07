@@ -6,17 +6,14 @@ namespace Orbitality.World;
 public class Space
 {
     public string Name { get; init; }
-
-    //DI
-    private readonly IServiceScope _scope;
-    public IServiceProvider Provider => _scope.ServiceProvider;
+    public string Path { get; init; }
     public readonly Initializer Initializer;
 
-    public Space(string name)
+    public Space(string name, string path)
     {
         Name = name;
+        Path = path;
         Initializer = new Initializer(this);
-        _scope = new ServiceCollection().BuildServiceProvider().CreateScope();
         Engine.Context.EntityPool.RegisterNewSpace(this);
     }
 }

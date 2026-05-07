@@ -15,10 +15,7 @@ public class Creator
         var newEntity = new Entity(space, entityMetaData);
 
         //Register & return
-        var pool = Engine.Context.EntityPool;
-
-        pool.RegisterEntity(newEntity);
-        
+        Engine.Context.EntityPool.RegisterEntity(newEntity);
         return newEntity;
     }
 }

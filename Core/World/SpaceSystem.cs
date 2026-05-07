@@ -53,7 +53,7 @@ public class SpaceSystem()
 
     private async Task<Space> LoadSpace(string path)
     {
-        var space = new Space(Path.GetFileNameWithoutExtension(path));
+        var space = new Space(Path.GetFileNameWithoutExtension(path), path);
         Console.WriteLine($"Loading space: {space.Name}");
         if (File.Exists(path))
         {
@@ -67,17 +67,13 @@ public class SpaceSystem()
 
     public void SaveGlobalSpace()
     {
-        SaveSpace(Engine.GlobalSpace, _globalSpacePath);
+        SaveSpace(Engine.GlobalSpace);
     }
 
-    public async void SaveSpace(Space space, string path)
+    public async void SaveSpace(Space space)
     {
-        // foreach (var entity in Engine.GetEntitiesIn(space))
-        // {
-        //     Console.WriteLine(entity);
-        // }
         var text = JsonConvert.SerializeObject(Engine.GetEntitiesIn(space), _jsonSerializerSettings);
-        await File.WriteAllTextAsync(path, text);
+        await File.WriteAllTextAsync(space.Path, text);
     }
 
     public void SaveEntity(Entity entity)

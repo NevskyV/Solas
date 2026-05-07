@@ -2,10 +2,15 @@
 
 namespace Orbitality.Containers;
 
-public class DependencyPool(uint logicsCount)
+public record struct DependencyPool
 {
-    private readonly Logic[] _dependencies = new Logic[logicsCount];
+    private readonly Logic[] _dependencies;
     private uint _pointer;
+
+    public DependencyPool(uint logicsCount)
+    {
+        _dependencies = new Logic[logicsCount];
+    }
     
     public void Add<T>(T logic) where T : Logic
     {

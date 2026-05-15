@@ -14,6 +14,6 @@ public class Space
         Name = name;
         Path = path;
         Initializer = new Initializer(this);
-        Engine.Context.EntityPool.RegisterNewSpace(this);
+        Engine.Context.EntityPool.RegisterSpace(this);
     }
 }

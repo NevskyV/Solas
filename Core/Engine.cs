@@ -81,7 +81,7 @@ public class Engine
         _context.Destroyer.DestroyAll();
     }
 
-    public static List<Entity> GetEntitiesIn(Space space)
+    public static IEnumerable<Entity> GetEntitiesIn(Space space)
     {
         return Instance._context.EntityPool.GetEntitiesIn(space);
     }

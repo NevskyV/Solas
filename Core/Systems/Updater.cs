@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Orbitality.Containers;
+using Orbitality.Interfaces;
 
 namespace Orbitality.Systems;
 
@@ -25,6 +26,9 @@ public class Updater
     private bool _isRunning;
     private EntityPool _entityPool;
 
+    public IUpdateSystem[] UpdateSystems;
+    public IUpdateSystem[] FixedUpdateSystems;
+    public IUpdateSystem[] LateUpdateSystems;
 
     public void Start(EntityPool entityPool)
     {
@@ -80,7 +84,8 @@ public class Updater
         {
             var fixedUpdatables = _entityPool.FixedUpdateRunners;
             for (var i = 0; i < fixedUpdatables.Count; i++) fixedUpdatables[i].Run();
-
+            for (var i = 0; i < FixedUpdateSystems.Length; i++) FixedUpdateSystems[i].Update();
+            
             _accumulator -= Time.FixedDeltaTime;
             steps++;
         }
@@ -92,9 +97,11 @@ public class Updater
 
         var updatables = _entityPool.UpdateRunners;
         for (var i = 0; i < updatables.Count; i++) updatables[i].Run();
-
+        for (var i = 0; i < UpdateSystems.Length; i++) UpdateSystems[i].Update();
+        
         var lateUpdatables = _entityPool.LateUpdateRunners;
         for (var i = 0; i < lateUpdatables.Count; i++) lateUpdatables[i].Run();
+        for (var i = 0; i < LateUpdateSystems.Length; i++) LateUpdateSystems[i].Update();
     }
 
     public void Stop()

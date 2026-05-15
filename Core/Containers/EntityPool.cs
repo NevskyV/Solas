@@ -1,55 +1,62 @@
 ﻿using Orbitality.Components;
 using Orbitality.ComponentUtils;
+using Orbitality.Interfaces;
 using Orbitality.World;
 
 namespace Orbitality.Containers;
 
 public class EntityPool
 {
-    private Dictionary<Space, List<Entity>> Entities { get; } = [];
-    private Dictionary<Space, Dictionary<Type, IComponentPool>> ComponentPools { get; } = [];
-
+    private readonly Dictionary<Space, List<Entity>> _entities = [];
+    private readonly Dictionary<Space, Dictionary<Type, IComponentPool>> _componentPools = [];
+    private readonly List<SpaceFolder> _spaceFolders = [];
+    
     public List<IUpdateRunner> UpdateRunners { get; } = [];
     public List<IUpdateRunner> FixedUpdateRunners { get; } = [];
     public List<IUpdateRunner> LateUpdateRunners { get; } = [];
     
     #region Registration
     
-    public void RegisterNewSpace(Space space)
+    public void RegisterSpace(Space space)
     {
-        Entities.Add(space, new List<Entity>());
-        ComponentPools.Add(space, new Dictionary<Type, IComponentPool>());
+        _entities.Add(space, new List<Entity>());
+        _componentPools.Add(space, new Dictionary<Type, IComponentPool>());
     }
 
-    private ComponentPool<T> RegisterNewPool<T>(Space space)
+    private ComponentPool<T> RegisterPool<T>(Space space)
     {
         var type = typeof(T);
-        if(ComponentPools[space].TryGetValue(type, out var componentPool)) 
+        if(_componentPools[space].TryGetValue(type, out var componentPool)) 
             return (ComponentPool<T>)componentPool;
         var pool = new ComponentPool<T>();
-        if(!ComponentPools[space].ContainsKey(type))
-            ComponentPools[space].Add(type, pool);
-        ComponentPools[space][type] = pool;
+        if(!_componentPools[space].ContainsKey(type))
+            _componentPools[space].Add(type, pool);
+        _componentPools[space][type] = pool;
         return pool;
+    }
+
+    public void RegisterSpaceFolder(SpaceFolder folder)
+    {
+        _spaceFolders.Add(folder);
     }
 
     public void RegisterEntity(Entity entity)
     {
-        Entities[entity.CurrentSpace].Add(entity);
+        _entities[entity.CurrentSpace].Add(entity);
         foreach (var logic in entity.Logics) AddReferences(logic, entity);
         foreach (var data in entity.Data) AddReferences(data, entity);
     }
 
     public void UnregisterEntity(Entity entity)
     {
-        Entities[entity.CurrentSpace].Remove(entity);
+        _entities[entity.CurrentSpace].Remove(entity);
         foreach (var logic in entity.Logics) RemoveReferences(logic, entity);
         foreach (var data in entity.Data) RemoveReferences(data, entity);
     }
 
     public void UnregisterEntityById(Space space, Guid id)
     {
-        var entity = Entities[space].FirstOrDefault(e => e.Id == id);
+        var entity = _entities[space].FirstOrDefault(e => e.Id == id);
         if (entity != null) UnregisterEntity(entity);
     }
 
@@ -70,7 +77,7 @@ public class EntityPool
 
     public void AddReferences<T>(T component, Entity entity)
     {
-        var rawPool = RegisterNewPool<T>(entity.CurrentSpace);
+        var rawPool = RegisterPool<T>(entity.CurrentSpace);
         rawPool.Add(component, entity);
     }
 
@@ -78,21 +85,31 @@ public class EntityPool
     {
         var type = typeof(T);
 
-        if (ComponentPools[entity.CurrentSpace].TryGetValue(type, out var pool)) pool.Remove(entity);
+        if (_componentPools[entity.CurrentSpace].TryGetValue(type, out var pool)) pool.Remove(entity);
     }
 
     #endregion
 
     #region Search
     
-    public Dictionary<Type, IComponentPool> GetTypesWithComponentPoolsIn(Space space)
+    public SpaceFolder GetSpaceFolderWith(Guid guid)
     {
-        return ComponentPools[space];
+        return _spaceFolders.Find(x=>x.Guid == guid);
     }
     
-    public List<Entity> GetEntitiesIn(Space space)
+    public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids)
     {
-        return Entities[space];
+        return _spaceFolders.Where(x=>guids.Contains(x.Guid));
+    }
+    
+    public Dictionary<Type, IComponentPool> GetTypesWithComponentPoolsIn(Space space)
+    {
+        return _componentPools[space];
+    }
+    
+    public IEnumerable<Entity> GetEntitiesIn(Space space)
+    {
+        return _entities[space];
     }
 
     public IEnumerable<Entity> GetEntitiesWith(Space space, params Type[] types)
@@ -110,7 +127,7 @@ public class EntityPool
         }
 
         var result = new List<Entity>();
-        foreach (var entity in Entities[space])
+        foreach (var entity in _entities[space])
             if (IsMatch(entity.MaskChunks, filter))
                 result.Add(entity);
 
@@ -131,15 +148,15 @@ public class EntityPool
     public IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
     {
         var type = typeof(T);
-        if(ComponentPools[space].ContainsKey(type))
+        if(_componentPools[space].ContainsKey(type))
         {
-            var pool = (ComponentPool<T>)ComponentPools[space][type];
+            var pool = (ComponentPool<T>)_componentPools[space][type];
             if (pool.Entities.Count > 0)
                 return pool.Entities;
         }
-        else if(ComponentPools[Engine.GlobalSpace].ContainsKey(type))
+        else if(_componentPools[Engine.GlobalSpace].ContainsKey(type))
         {
-            var pool = (ComponentPool<T>)ComponentPools[Engine.GlobalSpace][type];
+            var pool = (ComponentPool<T>)_componentPools[Engine.GlobalSpace][type];
             if (pool.Entities.Count > 0)
                 return pool.Entities;
         }
@@ -154,15 +171,15 @@ public class EntityPool
     public IEnumerable<T> GetComponentsBySingleType<T>(Space space)
     {
         var type = typeof(T);
-        if(ComponentPools[space].ContainsKey(type))
+        if(_componentPools[space].ContainsKey(type))
         {
-            var pool = (ComponentPool<T>)ComponentPools[space][type];
+            var pool = (ComponentPool<T>)_componentPools[space][type];
             if (pool.Entities.Count > 0)
                 return pool.Components;
         }
-        else if(ComponentPools[Engine.GlobalSpace].ContainsKey(type))
+        else if(_componentPools[Engine.GlobalSpace].ContainsKey(type))
         {
-            var pool = (ComponentPool<T>)ComponentPools[Engine.GlobalSpace][type];
+            var pool = (ComponentPool<T>)_componentPools[Engine.GlobalSpace][type];
             if (pool.Entities.Count > 0)
                 return pool.Components;
         }

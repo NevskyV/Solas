@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Orbitality.Containers;
 using Orbitality.Systems;
 
 namespace Orbitality.World;
@@ -15,5 +16,6 @@ public class Space
         Path = path;
         Initializer = new Initializer(this);
         Engine.Context.EntityPool.RegisterSpace(this);
+        Engine.Context.Destroyer.AddSpace(this);
     }
 }

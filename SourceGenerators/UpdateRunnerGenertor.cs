@@ -87,7 +87,7 @@ namespace Orbitality.Generated
 using Orbitality.Containers;
 namespace Orbitality.Generated
 {{
-    public class {runnerName} : Orbitality.ComponentUtils.IUpdateRunner
+    public class {runnerName} : Orbitality.Interfaces.IUpdateRunner
     {{
         private readonly ComponentPool<{fullName}> _pool;
 
@@ -98,7 +98,7 @@ namespace Orbitality.Generated
 
         public void Run()
         {{
-            var comps = ((ComponentPool<{fullName}>)Engine.Context.EntityPool.ComponentPools[typeof({fullName})]).Components;
+            var comps = Engine.Context.EntityPool.GetComponentPoolsByType(typeof({fullName})).Cast<ComponentPool<{fullName}>>();
 ");
 
         if (parallel)
@@ -109,7 +109,7 @@ namespace Orbitality.Generated
                 range =>
                 {{
                     for (int i = range.Item1; i < range.Item2; i++)
-                        comps[i].Update();
+                        comps[i].{methodName}();
                 }});");
         }
         else
@@ -125,8 +125,8 @@ namespace Orbitality.Generated
 }");
 
         register.Append($@"
-            pool.RegisterNewPool<{fullName}>();
-            pool.{registerMethod}(new {runnerName}((Orbitality.Containers.ComponentPool<{fullName}>)Engine.Context.EntityPool.ComponentPools[typeof({fullName})]));
+            //pool.RegisterPool<{fullName}>();
+            pool.{registerMethod}(new {runnerName}(Engine.Context.EntityPool.GetComponentPoolsByType(typeof({fullName})).Cast<ComponentPool<{fullName}>>().FirstOrDefault()));
 ");
     }
 }

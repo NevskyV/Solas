@@ -51,16 +51,15 @@ public class Engine
 
     public void CreateWorld(string globalSpacePath, string localSpacesFolder)
     {
-        _context.SpaceSystem.SetPaths(globalSpacePath, localSpacesFolder);
-        _globalSpace = _context.SpaceSystem.LoadGlobalSpace();
+        _context.SpaceSystem.SetPaths(localSpacesFolder);
+        _globalSpace = _context.SpaceSystem.LoadSpace(globalSpacePath);
     }
 
-    private async void StartGame()
+    private  void StartGame()
     {
-        List<Task> initializationTasks = _globalSpace.Initializer.InitializeDependencies();
+        var initializationTasks = _globalSpace.Initializer.InitializeDependencies().ToList();
         initializationTasks.AddRange(_context.SpaceSystem.InitializeLocalSpaces());
-        await Task.WhenAll(initializationTasks.ToArray());
-        
+        Task.WhenAll(initializationTasks.ToArray());
         State = GameState.Update;
     }
 

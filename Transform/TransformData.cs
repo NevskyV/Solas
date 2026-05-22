@@ -6,7 +6,7 @@ namespace Orbitality.Transform;
 
 public class TransformData : IData
 {
-    public DataField<Vector3> Position;
-    public DataField<Vector3> Rotation;
-    public DataField<Vector3> Scale;
+    public DataProperty<Vector3> Position;
+    public DataProperty<Vector3> Rotation;
+    public DataProperty<Vector3> Scale;
 }

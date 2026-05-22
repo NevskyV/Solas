@@ -6,11 +6,11 @@ using Orbitality.World;
 namespace Orbitality.Components;
 
 [Serializable]
-public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
+public class Entity(Guid id, Space currentSpace, EntityMetaData metaData) : IDisposable
 {
+    public Guid Id { get; private set; } = id;
     public EntityMetaData MetaData { get; set; } = metaData;
-    public ReactiveProperty<bool> IsEnabled { get; set; } = new(true);
-    [JsonIgnore] public Guid Id { get; private set; } = Guid.NewGuid();
+    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
     [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
     
     private readonly List<IData> _data = [];
@@ -84,7 +84,6 @@ public class Entity(Space currentSpace, EntityMetaData metaData) : IDisposable
         var bitIndex = id % 32;
 
         if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
-
         MaskChunks[chunkIndex] |= 1u << bitIndex;
     }
 

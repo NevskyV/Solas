@@ -1,4 +1,5 @@
 ﻿using Orbitality.Components;
+using Orbitality.Containers;
 using Orbitality.Interfaces;
 using Orbitality.World;
 
@@ -6,24 +7,19 @@ namespace Orbitality.Systems;
 
 public class Initializer(Space space)
 {
-    public List<Task> InitializeDependencies()
+    public SpaceContainer Container;
+    
+    public IEnumerable<Task> InitializeDependencies()
     {
-        var result = new List<Task>();
-        foreach (var entity in Engine.GetEntitiesIn(space)) result.AddRange(entity.Logics.Select(InitializeLogic));
-
-        return result;
+        var entities = Engine.GetEntitiesIn(space).ToArray();
+        var allTasks = entities.SelectMany(entity => entity.Logics.Select(InitializeLogic));
+        return allTasks;
     }
 
-    private Task InitializeLogic(Logic logic)
+    private async Task InitializeLogic(Logic logic)
     {
-        try
-        {
-            (logic as IInitializable)?.Initialize();
-            return Task.CompletedTask;
-        }
-        catch (Exception exception)
-        {
-            return Task.FromException(exception);
-        }
+        await Task.Run(((IInitializable)logic).Initialize);
     }
 }
+
+public enum InitializationOrder { Random, Prefixal, Suffixal, Custom }

@@ -186,5 +186,10 @@ public class EntityPool
         throw new NullReferenceException("No components found for type " + type);
     }
 
+    public IEnumerable<IComponentPool> GetComponentPoolsByType(Type type)
+    {
+        return _componentPools.Values.Select(x => x[type]);
+    }
+
     #endregion
 }

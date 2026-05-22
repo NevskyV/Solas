@@ -2,5 +2,5 @@
 
 public abstract class DataModifier<T>
 {
-    public DataField<T> Field { get; init; }
+    public DataProperty<T> Property { get; init; }
 }

@@ -26,9 +26,9 @@ public class Updater
     private bool _isRunning;
     private EntityPool _entityPool;
 
-    public IUpdateSystem[] UpdateSystems;
-    public IUpdateSystem[] FixedUpdateSystems;
-    public IUpdateSystem[] LateUpdateSystems;
+    public IUpdateSystem[] UpdateSystems = [];
+    public IUpdateSystem[] FixedUpdateSystems = [];
+    public IUpdateSystem[] LateUpdateSystems = [];
 
     public void Start(EntityPool entityPool)
     {
@@ -44,7 +44,6 @@ public class Updater
         while (e.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
-
             Tick();
 
             var targetTicks = 1.0 / TargetFrameTime * Stopwatch.Frequency;

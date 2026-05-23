@@ -1,5 +1,6 @@
 ﻿using Orbitality.Components;
 using Orbitality.Containers;
+using Orbitality.Interfaces;
 using Orbitality.Systems;
 using Orbitality.World;
 
@@ -8,11 +9,11 @@ namespace Orbitality;
 public class Engine
 {
     public static Engine Instance { get; } = new();
-    private readonly Updater _updater = new();
 
     private readonly EngineContext _context = new(
         new Creator(),
         new Destroyer(),
+        new Updater(),
         new EntityPool(),
         new SpaceSystem(),
         new DependencyInjector(),
@@ -61,6 +62,29 @@ public class Engine
         _coreSettings = (CoreSettings)_settingsContext.First(x => x.GetType().IsAssignableTo(typeof(CoreSettings)));
     }
 
+    public void CreateUpdateSystems()
+    {
+        
+        foreach (var typeName in _coreSettings.UpdateSystems)
+        {
+            var type = Type.GetType(typeName)!;
+            IUpdateSystem instance = (IUpdateSystem)Activator.CreateInstance(type)!;
+            switch (instance.UpdateType)
+            {
+                case UpdateType.Update: 
+                    _context.Updater.UpdateSystems.Add(instance);
+                    break;
+                case UpdateType.FixedUpdate: 
+                    _context.Updater.FixedUpdateSystems.Add(instance);
+                    break;
+                case UpdateType.LateUpdate: 
+                    _context.Updater.LateUpdateSystems.Add(instance);
+                    break;
+            }
+            
+        }
+    }
+
     public void CreateWorld()
     {
         _context.SpaceSystem.SetPaths(_coreSettings.LocalSpacesFolderPath);
@@ -78,7 +102,7 @@ public class Engine
     private void StartUpdate()
     {
         Time.TimeScale = 1;
-        _updater.Start(_context.EntityPool);
+        _context.Updater.Start(_context.EntityPool);
     }
 
     private void StopUpdate()
@@ -88,7 +112,7 @@ public class Engine
 
     private void StopGame()
     {
-        _updater.Stop();
+        _context.Updater.Stop();
         _context.Destroyer.DestroyAll();
     }
 

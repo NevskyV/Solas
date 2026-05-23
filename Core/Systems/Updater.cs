@@ -26,9 +26,9 @@ public class Updater
     private bool _isRunning;
     private EntityPool _entityPool;
 
-    public IUpdateSystem[] UpdateSystems = [];
-    public IUpdateSystem[] FixedUpdateSystems = [];
-    public IUpdateSystem[] LateUpdateSystems = [];
+    public List<IUpdateSystem> UpdateSystems = [];
+    public List<IUpdateSystem> FixedUpdateSystems = [];
+    public List<IUpdateSystem> LateUpdateSystems = [];
 
     public void Start(EntityPool entityPool)
     {
@@ -81,9 +81,9 @@ public class Updater
         var steps = 0;
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
+            for (var i = 0; i < FixedUpdateSystems.Count; i++) FixedUpdateSystems[i].Update();
             var fixedUpdatables = _entityPool.FixedUpdateRunners;
             for (var i = 0; i < fixedUpdatables.Count; i++) fixedUpdatables[i].Run();
-            for (var i = 0; i < FixedUpdateSystems.Length; i++) FixedUpdateSystems[i].Update();
             
             _accumulator -= Time.FixedDeltaTime;
             steps++;
@@ -94,13 +94,14 @@ public class Updater
         var invFixedDelta = 1.0 / Time.FixedDeltaTime;
         Time.Alpha = _accumulator * invFixedDelta;
 
+        for (var i = 0; i < UpdateSystems.Count; i++) UpdateSystems[i].Update();
         var updatables = _entityPool.UpdateRunners;
         for (var i = 0; i < updatables.Count; i++) updatables[i].Run();
-        for (var i = 0; i < UpdateSystems.Length; i++) UpdateSystems[i].Update();
         
+        for (var i = 0; i < LateUpdateSystems.Count; i++) LateUpdateSystems[i].Update();
         var lateUpdatables = _entityPool.LateUpdateRunners;
         for (var i = 0; i < lateUpdatables.Count; i++) lateUpdatables[i].Run();
-        for (var i = 0; i < LateUpdateSystems.Length; i++) LateUpdateSystems[i].Update();
+        
     }
 
     public void Stop()

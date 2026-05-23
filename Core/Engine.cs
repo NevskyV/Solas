@@ -15,8 +15,14 @@ public class Engine
         new Destroyer(),
         new EntityPool(),
         new SpaceSystem(),
-        new DependencyInjector()
+        new DependencyInjector(),
+        new SettingsSystem()
     );
+    
+    private IData[] _settingsContext;
+    private CoreSettings _coreSettings;
+    public static IData[] SettingsContext => Instance._settingsContext;
+    public static CoreSettings CoreSettings => Instance._coreSettings;
 
     private Space _globalSpace;
     public static EngineContext Context => Instance._context;
@@ -49,10 +55,16 @@ public class Engine
         }
     }
 
-    public void CreateWorld(string globalSpacePath, string localSpacesFolder)
+    public void LoadEngineSettings(string pathToSettingsFolder)
     {
-        _context.SpaceSystem.SetPaths(localSpacesFolder);
-        _globalSpace = _context.SpaceSystem.LoadSpace(globalSpacePath);
+        _settingsContext = _context.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
+        _coreSettings = (CoreSettings)_settingsContext.First(x => x.GetType().IsAssignableTo(typeof(CoreSettings)));
+    }
+
+    public void CreateWorld()
+    {
+        _context.SpaceSystem.SetPaths(_coreSettings.LocalSpacesFolderPath);
+        _globalSpace = _context.SpaceSystem.LoadSpace(_coreSettings.GlobalSpacePath);
     }
 
     private  void StartGame()

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+﻿using System.Runtime.InteropServices;
 using Orbitality.ComponentUtils;
 using Orbitality.Interfaces;
 using Orbitality.World;
@@ -11,13 +11,13 @@ public class Entity(Guid id, Space currentSpace, EntityMetaData metaData) : IDis
     public Guid Id { get; private set; } = id;
     public EntityMetaData MetaData { get; set; } = metaData;
     public ReactiveProperty<bool> IsEnabled { get; set; } = new();
-    [JsonIgnore] public Space CurrentSpace { get; set; } = currentSpace;
+    public Space CurrentSpace { get; set; } = currentSpace;
     
     private readonly List<IData> _data = [];
     private readonly List<Logic> _logics = [];
-    public IData[] Data => _data.ToArray();
-    public Logic[] Logics => _logics.ToArray();
-    [JsonIgnore] public uint[] MaskChunks = [];
+    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
+    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
+    public uint[] MaskChunks = [];
 
     #region Data Method Group
 

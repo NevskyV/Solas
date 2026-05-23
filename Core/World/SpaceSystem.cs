@@ -1,9 +1,4 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Orbitality.Components;
-using Orbitality.Containers;
-
-namespace Orbitality.World;
+﻿namespace Orbitality.World;
 
 public class SpaceSystem()
 {

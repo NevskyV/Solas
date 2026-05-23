@@ -48,7 +48,7 @@ public sealed class BinarySpaceSaver
             foreach (var data in entity.Data)
             {
                 var type = data.GetType();
-                writer.Write(type.AssemblyQualifiedName!);
+                writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
 
                 var method = type.GetMethod("Write")!;
                 
@@ -63,7 +63,8 @@ public sealed class BinarySpaceSaver
 
             foreach (var logic in entity.Logics)
             {
-                writer.Write(logic.GetType().AssemblyQualifiedName!);
+                var type = logic.GetType();
+                writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
             }
         }
     }

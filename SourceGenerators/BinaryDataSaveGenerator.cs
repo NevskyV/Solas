@@ -186,8 +186,7 @@ public partial {keyword} {name}{typeParameters}
 
         return result;
     }}
-}}
-";
+}}";
     }
 
     private static string GenerateWrite(
@@ -205,8 +204,7 @@ public partial {keyword} {name}{typeParameters}
 {pad}if ({access} != null)
 {pad}{{
 {GenerateWrite($"{access}.Value", innerNullable!, indent + 1)}
-{pad}}}
-";
+{pad}}}";
         }
 
         if (type.TypeKind == TypeKind.Enum)
@@ -214,7 +212,7 @@ public partial {keyword} {name}{typeParameters}
             return $"{pad}writer.Write((int){access});";
         }
 
-        if (type is IArrayTypeSymbol array)
+        if (type.SpecialType is not SpecialType.System_String && type is IArrayTypeSymbol array)
         {
             return $@"
 {pad}writer.Write({access}.Length);
@@ -222,11 +220,10 @@ public partial {keyword} {name}{typeParameters}
 {pad}foreach (var item in {access})
 {pad}{{
 {GenerateWrite("item", array.ElementType, indent + 1)}
-{pad}}}
-";
+{pad}}}";
         }
 
-        if (IsEnumerable(type, out ITypeSymbol? itemType))
+        if (type.SpecialType is not SpecialType.System_String && IsEnumerable(type, out ITypeSymbol? itemType))
         {
             return $@"
 {pad}writer.Write({access}.Count());
@@ -234,8 +231,7 @@ public partial {keyword} {name}{typeParameters}
 {pad}foreach (var item in {access})
 {pad}{{
 {GenerateWrite("item", itemType!, indent + 1)}
-{pad}}}
-";
+{pad}}}";
         }
 
         return type.SpecialType switch
@@ -272,8 +268,7 @@ public partial {keyword} {name}{typeParameters}
 {pad}if (reader.ReadBoolean())
 {pad}{{
 {GenerateRead(access, innerNullable!, indent + 1)}
-{pad}}}
-";
+{pad}}}";
         }
 
         if (type.TypeKind == TypeKind.Enum)
@@ -282,26 +277,23 @@ public partial {keyword} {name}{typeParameters}
                 $"{pad}{access} = ({type.ToDisplayString()})reader.ReadInt32();";
         }
 
-        if (type is IArrayTypeSymbol array)
+        if (type.SpecialType is not SpecialType.System_String && type is IArrayTypeSymbol array)
         {
             string element =
                 array.ElementType.ToDisplayString();
 
             return $@"
+{pad}int length = reader.ReadInt32();
+
+{pad}{access} = new {element}[length];
+
+{pad}for (int i = 0; i < length; i++)
 {pad}{{
-{pad}    int length = reader.ReadInt32();
-
-{pad}    {access} = new {element}[length];
-
-{pad}    for (int i = 0; i < length; i++)
-{pad}    {{
-{GenerateRead($"{access}[i]", array.ElementType, indent + 2)}
-{pad}    }}
-{pad}}}
-";
+{GenerateRead($"{access}[i]", array.ElementType, indent + 1)}
+{pad}}}";
         }
 
-        if (IsEnumerable(type, out ITypeSymbol? itemType))
+        if (type.SpecialType is not SpecialType.System_String && IsEnumerable(type, out ITypeSymbol? itemType))
         {
             string collection =
                 type.ToDisplayString();
@@ -310,21 +302,18 @@ public partial {keyword} {name}{typeParameters}
                 itemType!.ToDisplayString();
 
             return $@"
+{pad}int count = reader.ReadInt32();
+
+{pad}{access} = new {collection}();
+
+{pad}for (int i = 0; i < count; i++)
 {pad}{{
-{pad}    int count = reader.ReadInt32();
+{pad}    {item} value = default!;
 
-{pad}    {access} = new {collection}();
+{GenerateRead("value", itemType, indent + 1)}
 
-{pad}    for (int i = 0; i < count; i++)
-{pad}    {{
-{pad}        {item} value = default!;
-
-{GenerateRead("value", itemType, indent + 2)}
-
-{pad}        {access}.Add(value);
-{pad}    }}
-{pad}}}
-";
+{pad}    {access}.Add(value);
+{pad}}}";
         }
 
         return type.SpecialType switch

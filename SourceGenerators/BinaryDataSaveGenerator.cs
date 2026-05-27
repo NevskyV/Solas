@@ -9,6 +9,7 @@ namespace Orbitality.SourceGenerators;
 [Generator]
 public sealed class BinarySerializerGenerator : IIncrementalGenerator
 {
+    private static Compilation _compilation;
     public void Initialize(
         IncrementalGeneratorInitializationContext context)
     {
@@ -34,7 +35,7 @@ public sealed class BinarySerializerGenerator : IIncrementalGenerator
                 (Compilation compilation,
                     ImmutableArray<TypeDeclarationSyntax> syntaxes)
                     = source;
-
+                _compilation = compilation;
                 INamedTypeSymbol? dataInterface =
                     compilation.GetTypeByMetadataName(
                         "Orbitality.Components.IData");
@@ -208,7 +209,13 @@ public partial {keyword} {name}{typeParameters}
         if (type.ToDisplayString() == "System.Type")
         {
             return
-                $"{pad}writer.Write({TypeToString(type)})";
+                $@"{pad}writer.Write(""{TypeToString(type)}"");";
+        }
+        
+        if (type.ToDisplayString() == "System.Guid")
+        {
+            return
+                $@"{pad}writer.Write({access}.ToByteArray());";
         }
 
         if (type.TypeKind == TypeKind.Enum)
@@ -280,6 +287,12 @@ public partial {keyword} {name}{typeParameters}
         {
             return
                 $"{pad}{access} = Type.GetType(reader.ReadString());";
+        }
+        
+        if (type.ToDisplayString() == "System.Guid")
+        {
+            return
+                $"{pad}{access} = new Guid(reader.ReadBytes(16));";
         }
 
         if (type.TypeKind == TypeKind.Enum)
@@ -421,10 +434,9 @@ public partial {keyword} {name}{typeParameters}
         return new string(' ', count * 4);
     }
 
-    private static string TypeToString(ITypeSymbol type)
+    private static string TypeToString(ITypeSymbol symbol)
     {
-        string typeName = type.ToDisplayString();
-        Type runtimeType = Type.GetType(typeName);
-        return $"{runtimeType.FullName}, {runtimeType.Assembly.GetName().Name}";
+        var fullName = symbol.ToDisplayString();
+        return $"{fullName}, {_compilation.AssemblyName}";
     }
 }

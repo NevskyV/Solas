@@ -2,7 +2,7 @@
 
 public interface IBranchable
 {
-    public Guid Id { get; init; }
+    public Guid Id { get; set; }
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; }
 

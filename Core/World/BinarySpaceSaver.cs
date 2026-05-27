@@ -4,23 +4,27 @@ using Orbitality.Systems;
 
 namespace Orbitality.World;
 
-public sealed class BinarySpaceSaver
+public static class BinarySpaceSaver
 {
-
-    public static void SaveSpace(InitializationPool container, Entity[] entities, string path)
+    public static void SaveSpace(Space space, Entity[] entities)
     {
-        using var stream = File.Open(path, FileMode.Create, FileAccess.Write);
+        using var stream = File.Open(space.Path, FileMode.Create, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
 
+        writer.Write(space.Id.ToByteArray());
+        writer.Write(space.RootId.ToByteArray());
+        
         // =========================
-        // Space Container
+        // Initialization pool
         // =========================
 
-        writer.Write((ushort)container.OrderType);
+        
+        var pool = space.Initializer.Pool;
+        writer.Write((ushort)pool.OrderType);
 
-        writer.Write(container.OrderedEntitiesIds.Length);
+        writer.Write(pool.OrderedEntitiesIds.Length);
 
-        foreach (var guid in container.OrderedEntitiesIds)
+        foreach (var guid in pool.OrderedEntitiesIds)
         {
             writer.Write(guid.ToByteArray());
         }
@@ -71,16 +75,19 @@ public sealed class BinarySpaceSaver
 
     public static InitializationPool LoadSpace(Space space, string path)
     {
-        var container = new InitializationPool();
-        if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0) return container;
+        var pool = new InitializationPool();
+        if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0) return pool;
         using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
         using var reader = new BinaryReader(stream);
 
+        space.Id = new Guid(reader.ReadBytes(16));
+        space.RootId = new Guid(reader.ReadBytes(16));
+        
         // =========================
-        // Space Container
+        // Initialization pool
         // =========================
 
-        container.OrderType = (InitializationOrder)reader.ReadUInt16();
+        pool.OrderType = (InitializationOrder)reader.ReadUInt16();
 
         int orderedCount = reader.ReadInt32();
 
@@ -91,7 +98,7 @@ public sealed class BinarySpaceSaver
             ordered[i] = new Guid(reader.ReadBytes(16));
         }
 
-        container.OrderedEntitiesIds = ordered;
+        pool.OrderedEntitiesIds = ordered;
 
         // =========================
         // Entities
@@ -146,6 +153,6 @@ public sealed class BinarySpaceSaver
             }
         }
 
-        return container;
+        return pool;
     }
 }

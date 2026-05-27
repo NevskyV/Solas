@@ -7,24 +7,24 @@ namespace Orbitality.Systems;
 
 public class Initializer(Space space)
 {
-    public InitializationPool Container;
+    public InitializationPool Pool;
     
     public IEnumerable<Task> InitializeDependencies()
     {
         var entities = Engine.GetEntitiesIn(space).ToArray();
 
-        var guidsCount = Container.OrderedEntitiesIds.Length;
+        var guidsCount = Pool.OrderedEntitiesIds.Length;
         Entity[] orderedEntities = new Entity[guidsCount];
 
-        if (Container.OrderType == InitializationOrder.Custom)
+        if (Pool.OrderType == InitializationOrder.Custom)
         {
             var entitiesCopy = entities.ToArray();
             for (var i = 0; i < guidsCount; i++)
             {
-                entities[i] = entitiesCopy.First(e => e.Id == Container.OrderedEntitiesIds[i]);
+                entities[i] = entitiesCopy.First(e => e.Id == Pool.OrderedEntitiesIds[i]);
             }
         }
-        else if (Container.OrderType != InitializationOrder.Random)
+        else if (Pool.OrderType != InitializationOrder.Random)
         {
             Entity[] result = new Entity[entities.Length];
             var count = 0;
@@ -32,7 +32,7 @@ public class Initializer(Space space)
             {
                 for (var j = 0; j < guidsCount; j++)
                 {
-                    if (entities[i].Id == Container.OrderedEntitiesIds[j])
+                    if (entities[i].Id == Pool.OrderedEntitiesIds[j])
                     {
                         orderedEntities[j] = entities[i];
                         entities[i] = null;
@@ -40,7 +40,7 @@ public class Initializer(Space space)
                     }
                 }
 
-                if (entities[i] != null && Container.OrderType == InitializationOrder.Suffixal)
+                if (entities[i] != null && Pool.OrderType == InitializationOrder.Suffixal)
                 {
                     result[count] = entities[i];
                     count++;
@@ -53,7 +53,7 @@ public class Initializer(Space space)
                 count++;
             }
 
-            if (Container.OrderType == InitializationOrder.Prefixal)
+            if (Pool.OrderType == InitializationOrder.Prefixal)
             {
                 foreach (var entity in entities)
                 {

@@ -9,6 +9,7 @@ public class SpacePool
     private string[] _localSpacesPaths;
     private readonly List<Space> _localSpaces = [];
     private readonly List<SpaceFolder> _spaceFolders = [];
+    public WorldSettings WorldSettings => Engine.Context.SettingsSystem.ReadSettings<WorldSettings>();
 
     #region SpaceFolders
 
@@ -56,15 +57,23 @@ public class SpacePool
         var space = new Space(Path.GetFileNameWithoutExtension(path), path);
         Console.WriteLine($"Loading space: {space.Name}");
 
-        space.Initializer.Container = BinarySpaceSaver.LoadSpace(space, path);
+        space.Initializer.Pool = BinarySpaceSaver.LoadSpace(space, path);
         
         Engine.Context.Injector.BuildDependencies(space);
         return space;
     }
 
+    public void LoadSavedSpaces()
+    {
+        foreach (var space in _localSpaces.Where(space => WorldSettings.SpaceIds.Contains(space.Id)))
+        {
+            LoadSavedSpaces();
+        }
+    }
+
     public void SaveSpace(Space space)
     {
-        BinarySpaceSaver.SaveSpace(space.Initializer.Container,Engine.GetEntitiesIn(space).ToArray(), space.Path);
+        BinarySpaceSaver.SaveSpace(space,Engine.GetEntitiesIn(space).ToArray());
     }
     
     #endregion

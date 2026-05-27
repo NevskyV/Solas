@@ -45,4 +45,9 @@ public class SettingsSystem
         _settingsPaths.Add(settings.GetType(), path);
         WriteSettings(settings);
     }
+
+    public T ReadSettings<T>() where T : struct, IData
+    {
+        return (T)Engine.SettingsContext.First(x => x.GetType().IsAssignableTo(typeof(T)));
+    }
 }

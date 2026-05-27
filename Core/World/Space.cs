@@ -7,7 +7,17 @@ public class Space : IBranchable
 {
     public string Name { get; }
     public string Path { get; }
-    public Guid Id { get; init; }
+
+    public Guid Id
+    {
+        get;
+        set
+        {
+            if (field == Guid.Empty)
+                field = value;
+        }
+    }
+
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; }
     public readonly Initializer Initializer;

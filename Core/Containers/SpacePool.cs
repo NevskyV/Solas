@@ -1,4 +1,6 @@
-﻿using Orbitality.World;
+﻿using System.Runtime.InteropServices;
+using Orbitality.Interfaces;
+using Orbitality.World;
 
 namespace Orbitality.Containers;
 
@@ -6,6 +8,28 @@ public class SpacePool
 {
     private string[] _localSpacesPaths;
     private readonly List<Space> _localSpaces = [];
+    private readonly List<SpaceFolder> _spaceFolders = [];
+
+    #region SpaceFolders
+
+    public void RegisterSpaceFolder(SpaceFolder folder)
+    {
+        _spaceFolders.Add(folder);
+    }
+    
+    public SpaceFolder GetSpaceFolderWith(Guid guid)
+    {
+        return _spaceFolders.Find(x=>x.Guid == guid);
+    }
+    
+    public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids)
+    {
+        return _spaceFolders.Where(x=>guids.Contains(x.Guid));
+    }
+
+    #endregion
+    
+    #region Spaces
 
     public void SetPaths(string localSpacesFolder)
     {
@@ -42,4 +66,23 @@ public class SpacePool
     {
         BinarySpaceSaver.SaveSpace(space.Initializer.Container,Engine.GetEntitiesIn(space).ToArray(), space.Path);
     }
+    
+    #endregion
+
+    #region Update
+
+    public void InjectPoolsInUpdateRunners(ReadOnlySpan<IUpdateRunner> runners)
+    {
+        foreach (var runner in runners)
+        {
+            List<IComponentPool> allContainers = [];
+            foreach (var space in _localSpaces.Concat([Engine.GlobalSpace]))
+            {
+                allContainers.AddRange(Engine.Context.EntityPool.GetComponentPoolsInSpace(space));
+            }
+            runner.InjectPools(CollectionsMarshal.AsSpan(allContainers));
+        }
+    }
+
+    #endregion
 }

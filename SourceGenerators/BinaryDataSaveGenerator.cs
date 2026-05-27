@@ -171,7 +171,6 @@ public partial {keyword} {name}{typeParameters}
         {name}{typeParameters} value)
     {{
         writer.Write(BinaryVersion);
-
 {write}
     }}
 
@@ -183,7 +182,6 @@ public partial {keyword} {name}{typeParameters}
         {name}{typeParameters} result = new();
 
 {read}
-
         return result;
     }}
 }}";

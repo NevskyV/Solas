@@ -84,30 +84,44 @@ namespace Orbitality.Generated
 
         runners.Append($@"
 using Orbitality.Containers;
+using Orbitality.Interfaces;
 namespace Orbitality.Generated
 {{
     public class {runnerName} : Orbitality.Interfaces.IUpdateRunner
     {{
-        public void Run()
+        List<{fullName}> _updatables = [];
+    
+        public void InjectPools(ReadOnlySpan<IComponentPool> pools)
         {{
-            var comps = Engine.Context.EntityPool.GetComponentPoolsByType(typeof({fullName})).Cast<ComponentPool<{fullName}>>();");
+            _updatables.Clear();
+            foreach (var pool in pools)
+            {{
+                if (pool is ComponentPool<{fullName}> castedPool)
+                {{
+                    _updatables.AddRange(castedPool.Components);
+                }}
+            }}
+        }}
+
+        public void Run()
+        {{");
 
         if (parallel)
         {
             runners.Append($@"
             System.Threading.Tasks.Parallel.ForEach(
-                System.Collections.Concurrent.Partitioner.Create(0, comps.Count, 64),
+                System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 64),
                 range =>
                 {{
                     for (int i = range.Item1; i < range.Item2; i++)
-                        comps[i].{methodName}();
+                        _updatables[i].{methodName}();
                 }});");
         }
         else
         {
             runners.Append($@"
-            for (int i = 0; i < comps.Count; i++)
-                comps[i].{methodName}();");
+            for (int i = 0; i < _updatables.Count; i++)
+                _updatables[i].{methodName}();");
         }
 
         runners.Append(
@@ -118,7 +132,6 @@ namespace Orbitality.Generated
             """);
 
         register.Append($@"
-            //pool.RegisterPool<{fullName}>();
             pool.{registerMethod}(new {runnerName}());
 ");
     }

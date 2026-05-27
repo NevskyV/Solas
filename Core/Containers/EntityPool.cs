@@ -9,7 +9,6 @@ public class EntityPool
 {
     private readonly Dictionary<Space, List<Entity>> _entities = [];
     private readonly Dictionary<Space, Dictionary<Type, IComponentPool>> _componentPools = [];
-    private readonly List<SpaceFolder> _spaceFolders = [];
     
     public List<IUpdateRunner> UpdateRunners { get; } = [];
     public List<IUpdateRunner> FixedUpdateRunners { get; } = [];
@@ -33,11 +32,6 @@ public class EntityPool
             _componentPools[space].Add(type, pool);
         _componentPools[space][type] = pool;
         return pool;
-    }
-
-    public void RegisterSpaceFolder(SpaceFolder folder)
-    {
-        _spaceFolders.Add(folder);
     }
 
     public void RegisterEntity(Entity entity)
@@ -91,16 +85,6 @@ public class EntityPool
     #endregion
 
     #region Search
-    
-    public SpaceFolder GetSpaceFolderWith(Guid guid)
-    {
-        return _spaceFolders.Find(x=>x.Guid == guid);
-    }
-    
-    public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids)
-    {
-        return _spaceFolders.Where(x=>guids.Contains(x.Guid));
-    }
     
     public Dictionary<Type, IComponentPool> GetTypesWithComponentPoolsIn(Space space)
     {
@@ -186,9 +170,9 @@ public class EntityPool
         throw new NullReferenceException("No components found for type " + type);
     }
 
-    public IEnumerable<IComponentPool> GetComponentPoolsByType(Type type)
+    public IEnumerable<IComponentPool> GetComponentPoolsInSpace(Space space)
     {
-        return _componentPools.Values.Select(x => x[type]);
+        return _componentPools[space].Values;
     }
 
     #endregion

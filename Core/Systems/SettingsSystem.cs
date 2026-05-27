@@ -1,6 +1,6 @@
 ﻿using Orbitality.Components;
 
-namespace Orbitality;
+namespace Orbitality.Systems;
 
 public class SettingsSystem
 {

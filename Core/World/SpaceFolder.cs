@@ -16,11 +16,11 @@ public struct SpaceFolder() : IBranchable
     
     public IBranchable GetRoot()
     {
-        return Engine.Context.EntityPool.GetSpaceFolderWith(RootId);
+        return Engine.Context.SpacePool.GetSpaceFolderWith(RootId);
     }
     
     public IEnumerable<IBranchable> GetBranches()
     {
-        return Engine.Context.EntityPool.GetSpaceFoldersWith(BranchesIds).Cast<IBranchable>();
+        return Engine.Context.SpacePool.GetSpaceFoldersWith(BranchesIds).Cast<IBranchable>();
     }
 }

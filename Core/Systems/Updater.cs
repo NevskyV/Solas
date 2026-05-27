@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Orbitality.Containers;
 using Orbitality.Interfaces;
 
@@ -26,9 +27,9 @@ public class Updater
     private bool _isRunning;
     private EntityPool _entityPool;
 
-    public List<IUpdateSystem> UpdateSystems = [];
-    public List<IUpdateSystem> FixedUpdateSystems = [];
-    public List<IUpdateSystem> LateUpdateSystems = [];
+    public readonly List<IUpdateSystem> UpdateSystems = [];
+    public readonly List<IUpdateSystem> FixedUpdateSystems = [];
+    public readonly List<IUpdateSystem> LateUpdateSystems = [];
 
     public void Start(EntityPool entityPool)
     {
@@ -39,11 +40,19 @@ public class Updater
         _previousTime = _stopwatch.Elapsed.TotalSeconds;
         _accumulator = 0;
         _isRunning = true;
+
+        var injectAction = Engine.Context.SpacePool.InjectPoolsInUpdateRunners;
         
         var e = Engine.Instance;
         while (e.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
+            
+            //Injecting runners before Tick
+            injectAction.Invoke(CollectionsMarshal.AsSpan(_entityPool.UpdateRunners));
+            injectAction.Invoke(CollectionsMarshal.AsSpan(_entityPool.FixedUpdateRunners));
+            injectAction.Invoke(CollectionsMarshal.AsSpan(_entityPool.LateUpdateRunners));
+            
             Tick();
 
             var targetTicks = 1.0 / TargetFrameTime * Stopwatch.Frequency;

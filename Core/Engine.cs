@@ -87,8 +87,8 @@ public class Engine
 
     public void CreateWorld()
     {
-        _context.SpacePool.SetPaths(_coreSettings.LocalSpacesFolderPath);
         _globalSpace = _context.SpacePool.LoadSpace(_coreSettings.GlobalSpacePath);
+        _context.SpacePool.SetPaths(_coreSettings.LocalSpacesFolderPath);
     }
 
     private  void StartGame()

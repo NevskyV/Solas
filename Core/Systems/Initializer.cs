@@ -7,7 +7,7 @@ namespace Orbitality.Systems;
 
 public class Initializer(Space space)
 {
-    public SpaceContainer Container;
+    public InitializationPool Container;
     
     public IEnumerable<Task> InitializeDependencies()
     {

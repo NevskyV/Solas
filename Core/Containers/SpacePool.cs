@@ -1,14 +1,14 @@
-﻿namespace Orbitality.World;
+﻿using Orbitality.World;
 
-public class SpaceSystem()
+namespace Orbitality.Containers;
+
+public class SpacePool
 {
-    private string _localSpacesFolder;
     private string[] _localSpacesPaths;
     private readonly List<Space> _localSpaces = [];
 
     public void SetPaths(string localSpacesFolder)
     {
-        _localSpacesFolder = localSpacesFolder;
         _localSpacesPaths = Directory.GetFiles(localSpacesFolder, "*.space", SearchOption.AllDirectories);
     }
 
@@ -21,12 +21,10 @@ public class SpaceSystem()
         }
         return result;
     }
-
-    public Space LoadLocalSpace(string name)
+    
+    public Space GetSpace(Guid guid)
     {
-        var space = LoadSpace(_localSpacesPaths.First(x => Path.GetFileNameWithoutExtension(x) == name));
-        _localSpaces.Add(space);
-        return space;
+        return _localSpaces.First(x => x.Id == guid);
     }
 
     public Space LoadSpace(string path)

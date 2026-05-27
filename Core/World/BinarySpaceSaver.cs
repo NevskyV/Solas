@@ -7,7 +7,7 @@ namespace Orbitality.World;
 public sealed class BinarySpaceSaver
 {
 
-    public static void SaveSpace(SpaceContainer container, Entity[] entities, string path)
+    public static void SaveSpace(InitializationPool container, Entity[] entities, string path)
     {
         using var stream = File.Open(path, FileMode.Create, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
@@ -69,9 +69,9 @@ public sealed class BinarySpaceSaver
         }
     }
 
-    public static SpaceContainer LoadSpace(Space space, string path)
+    public static InitializationPool LoadSpace(Space space, string path)
     {
-        var container = new SpaceContainer();
+        var container = new InitializationPool();
         if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0) return container;
         using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
         using var reader = new BinaryReader(stream);

@@ -1,6 +1,5 @@
 ﻿using Orbitality.Containers;
 using Orbitality.Systems;
-using Orbitality.World;
 
 namespace Orbitality;
 
@@ -9,6 +8,6 @@ public record struct EngineContext(
     Destroyer Destroyer,
     Updater Updater,
     EntityPool EntityPool,
-    SpaceSystem SpaceSystem,
+    SpacePool SpacePool,
     DependencyInjector Injector,
     SettingsSystem SettingsSystem);

@@ -206,6 +206,12 @@ public partial {keyword} {name}{typeParameters}
 {GenerateWrite($"{access}.Value", innerNullable!, indent + 1)}
 {pad}}}";
         }
+        
+        if (type.ToDisplayString() == "System.Type")
+        {
+            return
+                $"{pad}writer.Write({TypeToString(type)})";
+        }
 
         if (type.TypeKind == TypeKind.Enum)
         {
@@ -269,6 +275,13 @@ public partial {keyword} {name}{typeParameters}
 {pad}{{
 {GenerateRead(access, innerNullable!, indent + 1)}
 {pad}}}";
+        }
+
+
+        if (type.ToDisplayString() == "System.Type")
+        {
+            return
+                $"{pad}{access} = Type.GetType(reader.ReadString());";
         }
 
         if (type.TypeKind == TypeKind.Enum)
@@ -408,5 +421,12 @@ public partial {keyword} {name}{typeParameters}
     private static string Pad(int count)
     {
         return new string(' ', count * 4);
+    }
+
+    private static string TypeToString(ITypeSymbol type)
+    {
+        string typeName = type.ToDisplayString();
+        Type runtimeType = Type.GetType(typeName);
+        return $"{runtimeType.FullName}, {runtimeType.Assembly.GetName().Name}";
     }
 }

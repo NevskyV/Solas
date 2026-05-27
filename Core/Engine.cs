@@ -15,7 +15,7 @@ public class Engine
         new Destroyer(),
         new Updater(),
         new EntityPool(),
-        new SpaceSystem(),
+        new SpacePool(),
         new DependencyInjector(),
         new SettingsSystem()
     );
@@ -87,14 +87,14 @@ public class Engine
 
     public void CreateWorld()
     {
-        _context.SpaceSystem.SetPaths(_coreSettings.LocalSpacesFolderPath);
-        _globalSpace = _context.SpaceSystem.LoadSpace(_coreSettings.GlobalSpacePath);
+        _context.SpacePool.SetPaths(_coreSettings.LocalSpacesFolderPath);
+        _globalSpace = _context.SpacePool.LoadSpace(_coreSettings.GlobalSpacePath);
     }
 
     private  void StartGame()
     {
         var initializationTasks = _globalSpace.Initializer.InitializeDependencies().ToList();
-        initializationTasks.AddRange(_context.SpaceSystem.InitializeLocalSpaces());
+        initializationTasks.AddRange(_context.SpacePool.InitializeLocalSpaces());
         Task.WhenAll(initializationTasks.ToArray());
         State = GameState.Update;
     }

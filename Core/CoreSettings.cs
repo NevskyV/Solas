@@ -3,10 +3,10 @@ using Orbitality.Components;
 
 namespace Orbitality;
 
-[SettingsSection(nameof(CoreSettings))]
-public partial struct CoreSettings : IData
+[SettingsSection]
+public partial struct CoreSettings() : IData
 {
-    public string GlobalSpacePath;
-    public string LocalSpacesFolderPath;
-    public string[] UpdateSystems;
+    public string GlobalSpacePath = Directory.GetCurrentDirectory() + @"\Orbitality\Global.space";
+    public string LocalSpacesFolderPath = Directory.GetCurrentDirectory() + @"\Assets";
+    public string[] UpdateSystems = [];
 }

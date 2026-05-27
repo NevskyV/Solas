@@ -4,6 +4,7 @@ namespace Orbitality.Containers;
 
 public struct SpaceFolder() : IBranchable
 {
+    public Guid Id { get; init; }
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; }
     public Guid Guid { get; init; } = Guid.NewGuid();

@@ -74,8 +74,7 @@ namespace Orbitality.Generated
             .FirstOrDefault(a => a.Key == "Parallel").Value.Value as bool? ?? false;
 
         var runnerName = $"{className}_{methodName}Runner";
-
-        // Проверка метода
+        
         var hasMethod = symbol.GetMembers()
             .OfType<IMethodSymbol>()
             .Any(m => m.Name == methodName && m.Parameters.Length == 0);
@@ -89,17 +88,9 @@ namespace Orbitality.Generated
 {{
     public class {runnerName} : Orbitality.Interfaces.IUpdateRunner
     {{
-        private readonly ComponentPool<{fullName}> _pool;
-
-        public {runnerName}(ComponentPool<{fullName}> pool)
-        {{
-            _pool = pool;
-        }}
-
         public void Run()
         {{
-            var comps = Engine.Context.EntityPool.GetComponentPoolsByType(typeof({fullName})).Cast<ComponentPool<{fullName}>>();
-");
+            var comps = Engine.Context.EntityPool.GetComponentPoolsByType(typeof({fullName})).Cast<ComponentPool<{fullName}>>();");
 
         if (parallel)
         {
@@ -119,14 +110,16 @@ namespace Orbitality.Generated
                 comps[i].{methodName}();");
         }
 
-        runners.Append(@"
-        }
-    }
-}");
+        runners.Append(
+            """
+                    }
+                }
+            }
+            """);
 
         register.Append($@"
             //pool.RegisterPool<{fullName}>();
-            pool.{registerMethod}(new {runnerName}(Engine.Context.EntityPool.GetComponentPoolsByType(typeof({fullName})).Cast<ComponentPool<{fullName}>>().FirstOrDefault()));
+            pool.{registerMethod}(new {runnerName}());
 ");
     }
 }

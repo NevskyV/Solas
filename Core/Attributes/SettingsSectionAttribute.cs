@@ -1,4 +1,4 @@
 ﻿namespace Orbitality.Attributes;
 
 [AttributeUsage(AttributeTargets.Struct)]
-public class SettingsSectionAttribute() : Attribute;
+public class SettingsSectionAttribute : Attribute;

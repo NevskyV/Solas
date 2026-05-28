@@ -19,7 +19,7 @@ public class Space : IBranchable
     }
 
     public Guid RootId { get; set; }
-    public List<Guid> BranchesIds { get; set; }
+    public List<Guid> BranchesIds { get; set; } = [];
     public readonly Initializer Initializer;
 
     public Space(string name, string path)

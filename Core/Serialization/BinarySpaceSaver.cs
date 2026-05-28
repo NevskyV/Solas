@@ -1,14 +1,15 @@
 ﻿using Orbitality.Components;
 using Orbitality.Containers;
 using Orbitality.Systems;
+using Orbitality.World;
 
-namespace Orbitality.World;
+namespace Orbitality.Serialization;
 
 public static class BinarySpaceSaver
 {
     public static void SaveSpace(Space space, Entity[] entities)
     {
-        using var stream = File.Open(space.Path, FileMode.Create, FileAccess.Write);
+        using var stream = File.Open(space.Path, FileMode.OpenOrCreate, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
 
         writer.Write(space.Id.ToByteArray());
@@ -17,7 +18,6 @@ public static class BinarySpaceSaver
         // =========================
         // Initialization pool
         // =========================
-
         
         var pool = space.Initializer.Pool;
         writer.Write((ushort)pool.OrderType);
@@ -115,7 +115,7 @@ public static class BinarySpaceSaver
                 reader.ReadString(),
                 reader.ReadUInt16());
 
-            var entity = Engine.Context.Creator.CreateEntity(id, space, metaData);
+            var entity =  new Entity(id, space, metaData);
 
             // =========================
             // Data

@@ -11,7 +11,6 @@ public class Engine
     public static Engine Instance { get; } = new();
 
     private readonly EngineContext _context = new(
-        new Creator(),
         new Destroyer(),
         new Updater(),
         new EntityPool(),

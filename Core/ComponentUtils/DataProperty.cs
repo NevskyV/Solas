@@ -15,7 +15,7 @@ public partial class DataProperty<T>() : ReactiveProperty<T>(), IData
             newModifier = new TModifier() { Property = this };
             _modifiers.Add(newModifier);
         }
-
+        
         return newModifier;
     }
 

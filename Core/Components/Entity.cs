@@ -6,12 +6,12 @@ using Orbitality.World;
 namespace Orbitality.Components;
 
 [Serializable]
-public class Entity(Guid id, Space currentSpace, EntityMetaData metaData) : IDisposable
+public class Entity : IDisposable
 {
-    public Guid Id { get; private set; } = id;
-    public EntityMetaData MetaData { get; set; } = metaData;
+    public Guid Id { get; private set; }
+    public EntityMetaData MetaData { get; set; }
     public ReactiveProperty<bool> IsEnabled { get; set; } = new();
-    public Space CurrentSpace { get; set; } = currentSpace;
+    public Space CurrentSpace { get; set; }
     
     private readonly List<IData> _data = [];
     private readonly List<Logic> _logics = [];
@@ -96,5 +96,21 @@ public class Entity(Guid id, Space currentSpace, EntityMetaData metaData) : IDis
             await Task.Delay((int)setTime);
             IsEnabled.Value = oldValue;
         }
+    }
+    
+    public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
+    {
+        //Set default values
+        id = id == Guid.Empty ? Guid.NewGuid() : id;
+        entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
+        space ??= Engine.GlobalSpace;
+        
+        //Create Entity
+        Id = id;
+        MetaData = entityMetaData;
+        CurrentSpace = space;
+
+        //Register & return
+        Engine.Context.EntityPool.RegisterEntity(this);
     }
 }

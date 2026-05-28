@@ -98,9 +98,32 @@ public sealed class BinarySerializerGenerator : IIncrementalGenerator
                 : $"<{string.Join(", ",
                     type.TypeParameters.Select(
                         p => p.Name))}>";
+        string constraints =
+            string.Join(
+                "\n",
+                type.TypeParameters.Select(p =>
+                {
+                    List<string> parts = [];
 
+                    if (p.HasReferenceTypeConstraint)
+                        parts.Add("class");
+
+                    if (p.HasValueTypeConstraint)
+                        parts.Add("struct");
+
+                    foreach (ITypeSymbol constraint in p.ConstraintTypes)
+                        parts.Add(constraint.ToDisplayString());
+
+                    if (p.HasConstructorConstraint)
+                        parts.Add("new()");
+
+                    return parts.Count > 0
+                        ? $"where {p.Name} : {string.Join(", ", parts)}"
+                        : "";
+                }));
+        
         IEnumerable<IFieldSymbol> fields =
-            type.GetMembers()
+            GetAllMembers(type)
                 .OfType<IFieldSymbol>()
                 .Where(static f =>
                     !f.IsStatic &&
@@ -110,7 +133,7 @@ public sealed class BinarySerializerGenerator : IIncrementalGenerator
                     Accessibility.Public);
 
         IEnumerable<IPropertySymbol> properties =
-            type.GetMembers()
+            GetAllMembers(type)
                 .OfType<IPropertySymbol>()
                 .Where(static p =>
                     !p.IsStatic &&
@@ -160,10 +183,10 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
-
+using Orbitality.Serialization;
 namespace {ns};
 
-public partial {keyword} {name}{typeParameters}
+public partial {keyword} {name}{typeParameters}{constraints}
 {{
     public const int BinaryVersion = 1;
 
@@ -221,6 +244,12 @@ public partial {keyword} {name}{typeParameters}
         if (type.TypeKind == TypeKind.Enum)
         {
             return $"{pad}writer.Write((int){access});";
+        }
+        
+        if (type is ITypeParameterSymbol)
+        {
+            return
+                $"{pad}BinarySerializer.Write(writer, {access});";
         }
 
         if (type.SpecialType is not SpecialType.System_String && type is IArrayTypeSymbol array)
@@ -299,6 +328,13 @@ public partial {keyword} {name}{typeParameters}
         {
             return
                 $"{pad}{access} = ({type.ToDisplayString()})reader.ReadInt32();";
+        }
+        
+        if (type is ITypeParameterSymbol)
+        {
+            return
+                $"{pad}{access} = ({type.ToDisplayString()})" +
+                $"BinarySerializer.Read(reader, typeof({type.ToDisplayString()}));";
         }
 
         if (type.SpecialType is not SpecialType.System_String && type is IArrayTypeSymbol array)
@@ -438,5 +474,19 @@ public partial {keyword} {name}{typeParameters}
     {
         var fullName = symbol.ToDisplayString();
         return $"{fullName}, {_compilation.AssemblyName}";
+    }
+    
+    private static IEnumerable<ISymbol> GetAllMembers(
+        INamedTypeSymbol type)
+    {
+        INamedTypeSymbol? current = type;
+
+        while (current != null)
+        {
+            foreach (ISymbol member in current.GetMembers())
+                yield return member;
+
+            current = current.BaseType;
+        }
     }
 }

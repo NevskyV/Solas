@@ -1,6 +1,9 @@
 <Solution>
+  <Project Path="Audio/Audio.csproj" />
   <Project Path="Core/Core.csproj" />
   <Project Path="Editor/Editor.csproj" />
+  <Project Path="Input/Input.csproj" />
+  <Project Path="Physics/Physics.csproj" />
   <Project Path="Render/Render.csproj" />
   <Project Path="SourceGenerators/SourceGenerators.csproj" />
   <Project Path="Transform/Transform.csproj" />

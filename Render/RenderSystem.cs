@@ -1,5 +1,5 @@
 ﻿namespace Orbitality.Render;
 
-public class Renderer
+public class RenderSystem
 {
 }

@@ -1,4 +1,4 @@
-﻿namespace Orbitality.ComponentUtils.Modifiers;
+﻿namespace Orbitality.ComponentUtils;
 
 public abstract class DataModifier<T>
 {

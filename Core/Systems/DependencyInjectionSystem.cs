@@ -7,7 +7,7 @@ using Orbitality.World;
 
 namespace Orbitality.Systems;
 
-public class DependencyInjector
+public class DependencyInjectionSystem
 {
     private readonly Dictionary<Space, DependencyPool> _cache = [];
     

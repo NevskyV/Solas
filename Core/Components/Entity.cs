@@ -52,7 +52,7 @@ public class Entity : IDisposable
         _logics.Add(newLogic);
 
         Engine.Context.EntityPool.AddReferences(newLogic, this);
-        Engine.Context.Injector.InjectEntity(newLogic, CurrentSpace);
+        Engine.Context.InjectionSystem.InjectEntity(newLogic, CurrentSpace);
         
         UpdateMask<T>();
         return newLogic;

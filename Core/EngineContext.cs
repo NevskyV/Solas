@@ -4,9 +4,9 @@ using Orbitality.Systems;
 namespace Orbitality;
 
 public record struct EngineContext(
-    Destroyer Destroyer,
-    Updater Updater,
+    DestroySystem Destroyer,
+    UpdateSystem Updater,
     EntityPool EntityPool,
     SpacePool SpacePool,
-    DependencyInjector Injector,
+    DependencyInjectionSystem InjectionSystem,
     SettingsSystem SettingsSystem);

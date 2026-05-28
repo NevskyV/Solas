@@ -1,6 +1,8 @@
 ﻿using Orbitality.Components;
 using Orbitality.Containers;
+using Orbitality.Enums;
 using Orbitality.Interfaces;
+using Orbitality.Settings;
 using Orbitality.Systems;
 using Orbitality.World;
 
@@ -11,11 +13,11 @@ public class Engine
     public static Engine Instance { get; } = new();
 
     private readonly EngineContext _context = new(
-        new Destroyer(),
-        new Updater(),
+        new DestroySystem(),
+        new UpdateSystem(),
         new EntityPool(),
         new SpacePool(),
-        new DependencyInjector(),
+        new DependencyInjectionSystem(),
         new SettingsSystem()
     );
     
@@ -113,7 +115,7 @@ public class Engine
     private void StopGame()
     {
         _context.Updater.Stop();
-        _context.Destroyer.DestroyAll();
+        _context.SpacePool.UnloadAllSpaces();
     }
 
     public static IEnumerable<Entity> GetEntitiesIn(Space space)

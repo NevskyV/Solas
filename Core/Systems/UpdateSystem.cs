@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Orbitality.Containers;
+using Orbitality.Enums;
 using Orbitality.Interfaces;
 
 namespace Orbitality.Systems;
@@ -13,7 +14,7 @@ public static class Time
     public static double Alpha { get; internal set; }
 }
 
-public class Updater
+public class UpdateSystem
 {
     public float TargetFrameTime { get; set; } = 60.0f;
     private readonly Stopwatch _stopwatch = new();

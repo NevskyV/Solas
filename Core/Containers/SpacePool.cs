@@ -1,6 +1,7 @@
 ﻿using System.Runtime.InteropServices;
 using Orbitality.Interfaces;
 using Orbitality.Serialization;
+using Orbitality.Settings;
 using Orbitality.World;
 
 namespace Orbitality.Containers;
@@ -63,7 +64,7 @@ public class SpacePool
 
         space.Initializer.Pool = BinarySpaceSaver.LoadSpace(space, path);
         
-        Engine.Context.Injector.BuildDependencies(space);
+        Engine.Context.InjectionSystem.BuildDependencies(space);
         return space;
     }
 
@@ -84,10 +85,21 @@ public class SpacePool
 
     public void UnloadSpace(Space space)
     {
-        _localSpaces.Remove(space);
+        if(_localSpaces.Contains(space))
+            _localSpaces.Remove(space);
         SpaceTree.Detach(space);
-        Engine.Context.EntityPool.UnregisterSpace(space);
         Engine.Context.Destroyer.DestroyIn(space);
+        Engine.Context.EntityPool.UnregisterSpace(space);
+    }
+    
+    public void UnloadAllSpaces()
+    {
+        var count = _localSpaces.Count;
+        for (var i = 0; i < count; i++)
+        {
+            UnloadSpace(_localSpaces[i]);
+        }
+        UnloadSpace(Engine.GlobalSpace);
     }
 
     public void SaveSpace(Space space)

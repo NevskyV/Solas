@@ -5,7 +5,7 @@ using Orbitality.World;
 
 namespace Orbitality.Systems;
 
-public class Initializer(Space space)
+public class InitializeSystem(Space space)
 {
     public InitializationPool Pool;
     

@@ -20,15 +20,14 @@ public class Space : IBranchable
 
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; } = [];
-    public readonly Initializer Initializer;
+    public readonly InitializeSystem Initializer;
 
     public Space(string name, string path)
     {
         Name = name;
         Path = path;
-        Initializer = new Initializer(this);
+        Initializer = new InitializeSystem(this);
         Engine.Context.EntityPool.RegisterSpace(this);
-        Engine.Context.Destroyer.AddSpace(this);
     }
     
     public IBranchable GetRoot()

@@ -1,7 +1,7 @@
 ﻿using Orbitality.Attributes;
 using Orbitality.Components;
 
-namespace Orbitality;
+namespace Orbitality.Settings;
 
 [SettingsSection]
 public partial struct CoreSettings() : IData

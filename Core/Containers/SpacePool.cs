@@ -2,6 +2,7 @@
 using Orbitality.Interfaces;
 using Orbitality.Serialization;
 using Orbitality.Settings;
+using Orbitality.Systems;
 using Orbitality.World;
 
 namespace Orbitality.Containers;
@@ -10,24 +11,31 @@ public class SpacePool
 {
     private string[] _localSpacesPaths;
     private readonly List<Space> _localSpaces = [];
-    private readonly List<SpaceFolder> _spaceFolders = [];
+    private readonly Dictionary<Space,List<SpaceFolder>> _spaceFolders = [];
     public WorldSettings WorldSettings => Engine.Context.SettingsSystem.ReadSettings<WorldSettings>();
 
     #region SpaceFolders
 
-    public void RegisterSpaceFolder(SpaceFolder folder)
+    public void RegisterSpaceFolder(SpaceFolder folder, Space space)
     {
-        _spaceFolders.Add(folder);
+        if(!_spaceFolders.ContainsKey(space))
+            _spaceFolders.Add(space, []);
+        _spaceFolders[space].Add(folder);
     }
     
     public SpaceFolder GetSpaceFolderWith(Guid guid)
     {
-        return _spaceFolders.Find(x=>x.Guid == guid);
+        return _spaceFolders.Values.Select(x=>x.Find(y=>y.Id == guid)).FirstOrDefault();
     }
     
     public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids)
     {
-        return _spaceFolders.Where(x=>guids.Contains(x.Guid));
+        return _spaceFolders.Values.Select(x => x.Find(y => guids.Contains(y.Id)));
+    }
+
+    public List<SpaceFolder> GetAllSpaceFoldersIn(Space space)
+    {
+        return _spaceFolders.TryGetValue(space, out var folders) ? folders : [];
     }
 
     #endregion
@@ -59,11 +67,26 @@ public class SpacePool
 
     public Space LoadSpace(string path)
     {
-        var space = new Space(Path.GetFileNameWithoutExtension(path), path);
-        Console.WriteLine($"Loading space: {space.Name}");
+        Space space;
+        if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0)
+        {
+            space = new Space(Path.GetFileNameWithoutExtension(path), path, Guid.NewGuid())
+            {
+                Initializer =
+                {
+                    Pool = new InitializationPool()
+                }
+            };
+        }
+        else
+        {
+            using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
+            using var reader = new BinaryReader(stream);
 
-        space.Initializer.Pool = BinarySpaceSaver.LoadSpace(space, path);
-        
+            space = new Space(Path.GetFileNameWithoutExtension(path), path, new Guid(reader.ReadBytes(16)));
+            space.Initializer.Pool = BinarySpaceSaver.LoadSpace(space, path);
+        }
+        Console.WriteLine($"Loading space: {space.Name}");
         Engine.Context.InjectionSystem.BuildDependencies(space);
         return space;
     }
@@ -100,11 +123,6 @@ public class SpacePool
             UnloadSpace(_localSpaces[i]);
         }
         UnloadSpace(Engine.GlobalSpace);
-    }
-
-    public void SaveSpace(Space space)
-    {
-        BinarySpaceSaver.SaveSpace(space,Engine.GetEntitiesIn(space).ToArray());
     }
     
     #endregion

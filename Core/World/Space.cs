@@ -8,24 +8,16 @@ public class Space : IBranchable
     public string Name { get; }
     public string Path { get; }
 
-    public Guid Id
-    {
-        get;
-        set
-        {
-            if (field == Guid.Empty)
-                field = value;
-        }
-    }
-
+    public Guid Id { get; init; }
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; } = [];
     public readonly InitializeSystem Initializer;
 
-    public Space(string name, string path)
+    public Space(string name, string path, Guid id)
     {
         Name = name;
         Path = path;
+        Id = id;
         Initializer = new InitializeSystem(this);
         Engine.Context.EntityPool.RegisterSpace(this);
     }

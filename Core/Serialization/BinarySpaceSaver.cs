@@ -7,7 +7,7 @@ namespace Orbitality.Serialization;
 
 public static class BinarySpaceSaver
 {
-    public static void SaveSpace(Space space, Entity[] entities)
+    public static void SaveSpace(Space space)
     {
         using var stream = File.Open(space.Path, FileMode.OpenOrCreate, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
@@ -28,11 +28,38 @@ public static class BinarySpaceSaver
         {
             writer.Write(guid.ToByteArray());
         }
+        
+        // =========================
+        // SpaceFolders
+        // =========================
+
+        var folders = Engine.Context.SpacePool.GetAllSpaceFoldersIn(space);
+        writer.Write(folders.Count);
+        foreach (var folder in folders)
+        {
+            writer.Write(folder.Id.ToByteArray());
+            writer.Write(folder.RootId.ToByteArray());
+            
+            writer.Write(folder.BranchesIds.Count);
+            foreach (var branchId in folder.BranchesIds)
+            {
+                writer.Write(branchId.ToByteArray());
+            }
+
+            var entityIds = folder.GetEntityIds();
+            writer.Write(entityIds.Length);
+            foreach (var entityId in entityIds)
+            {
+                writer.Write(entityId.ToByteArray());
+            }
+        }
 
         // =========================
         // Entities
         // =========================
-
+        
+        var entities = Engine.GetEntitiesIn(space).ToArray();
+        
         writer.Write(entities.Length);
 
         foreach (var entity in entities)
@@ -75,38 +102,69 @@ public static class BinarySpaceSaver
 
     public static InitializationPool LoadSpace(Space space, string path)
     {
-        var pool = new InitializationPool();
-        if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0) return pool;
         using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
         using var reader = new BinaryReader(stream);
 
-        space.Id = new Guid(reader.ReadBytes(16));
+        reader.ReadBytes(16); //Id already has written
         space.RootId = new Guid(reader.ReadBytes(16));
         
         // =========================
         // Initialization pool
         // =========================
+        
+        var pool = new InitializationPool
+        {
+            OrderType = (InitializationOrder)reader.ReadUInt16()
+        };
 
-        pool.OrderType = (InitializationOrder)reader.ReadUInt16();
-
-        int orderedCount = reader.ReadInt32();
+        var orderedCount = reader.ReadInt32();
 
         var ordered = new Guid[orderedCount];
 
-        for (int i = 0; i < orderedCount; i++)
+        for (var i = 0; i < orderedCount; i++)
         {
             ordered[i] = new Guid(reader.ReadBytes(16));
         }
 
         pool.OrderedEntitiesIds = ordered;
+        
+        // =========================
+        // SpaceFolders
+        // =========================
+
+        var foldersCount = reader.ReadInt32();
+        for (var i = 0; i < foldersCount; i++)
+        {
+            var folderId = new Guid(reader.ReadBytes(16));
+            var folderRootId = new Guid(reader.ReadBytes(16));
+            
+            var folderBranchesCount = reader.ReadInt32();
+            var folderBranches = new Guid[folderBranchesCount];
+            for (var j = 0; j < folderBranchesCount; j++)
+            {
+                folderBranches[j] = new Guid(reader.ReadBytes(16));
+            }
+
+            var folder = new SpaceFolder(folderId, space)
+            {
+                RootId = folderRootId,
+                BranchesIds = folderBranches.ToList(),
+            };
+            
+            var entityIdsCount = reader.ReadInt32();
+            for (var j = 0; j < entityIdsCount; j++)
+            {
+                folder.AddEntityId(new Guid(reader.ReadBytes(16)));
+            }
+        }
 
         // =========================
         // Entities
         // =========================
 
-        int entityCount = reader.ReadInt32();
+        var entityCount = reader.ReadInt32();
 
-        for (int i = 0; i < entityCount; i++)
+        for (var i = 0; i < entityCount; i++)
         {
             var id = new Guid(reader.ReadBytes(16));
 
@@ -121,9 +179,9 @@ public static class BinarySpaceSaver
             // Data
             // =========================
 
-            int dataCount = reader.ReadInt32();
+            var dataCount = reader.ReadInt32();
 
-            for (int j = 0; j < dataCount; j++)
+            for (var j = 0; j < dataCount; j++)
             {
                 var typeName = reader.ReadString();
 
@@ -137,9 +195,9 @@ public static class BinarySpaceSaver
             // Logic
             // =========================
 
-            int logicCount = reader.ReadInt32();
+            var logicCount = reader.ReadInt32();
 
-            for (int j = 0; j < logicCount; j++)
+            for (var j = 0; j < logicCount; j++)
             {
                 var typeName = reader.ReadString();
 

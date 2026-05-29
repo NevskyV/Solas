@@ -5,8 +5,7 @@ using Orbitality.World;
 
 namespace Orbitality.Components;
 
-[Serializable]
-public class Entity : IDisposable
+public class Entity : IDisposable, IToggleable
 {
     public Guid Id { get; private set; }
     public EntityMetaData MetaData { get; set; }
@@ -15,9 +14,27 @@ public class Entity : IDisposable
     
     private readonly List<IData> _data = [];
     private readonly List<Logic> _logics = [];
+    
     public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
     public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
+    
     public uint[] MaskChunks = [];
+    
+    public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
+    {
+        //Set default values
+        id = id == Guid.Empty ? Guid.NewGuid() : id;
+        entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
+        space ??= Engine.GlobalSpace;
+        
+        //Fill properties
+        Id = id;
+        MetaData = entityMetaData;
+        CurrentSpace = space;
+
+        //Register
+        Engine.Context.EntityPool.RegisterEntity(this);
+    }
 
     #region Data Method Group
 
@@ -77,7 +94,7 @@ public class Entity : IDisposable
 
     #endregion
 
-    public void UpdateMask<T>()
+    private void UpdateMask<T>()
     {
         var id = ComponentRegistry.GetId(typeof(T));
         var chunkIndex = id / 32;
@@ -87,7 +104,7 @@ public class Entity : IDisposable
         MaskChunks[chunkIndex] |= 1u << bitIndex;
     }
 
-    public async void SwitchState(bool newState, uint setTime = 0)
+    public async Task SwitchState(bool newState, uint setTime = 0)
     {
         var oldValue = IsEnabled.Value;
         IsEnabled.Value = newState;
@@ -96,21 +113,5 @@ public class Entity : IDisposable
             await Task.Delay((int)setTime);
             IsEnabled.Value = oldValue;
         }
-    }
-    
-    public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
-    {
-        //Set default values
-        id = id == Guid.Empty ? Guid.NewGuid() : id;
-        entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
-        space ??= Engine.GlobalSpace;
-        
-        //Create Entity
-        Id = id;
-        MetaData = entityMetaData;
-        CurrentSpace = space;
-
-        //Register & return
-        Engine.Context.EntityPool.RegisterEntity(this);
     }
 }

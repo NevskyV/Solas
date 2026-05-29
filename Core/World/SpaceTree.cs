@@ -38,8 +38,7 @@ public static class SpaceTree
         var lookupSpace = space;
         
         var visited = new HashSet<Guid> { space.Id }; 
-
-        while (lookupSpace.RootId != Engine.GlobalSpace.Id)
+        while (lookupSpace.RootId != Guid.Empty && lookupSpace.RootId != Engine.GlobalSpace.Id)
         {
             var nextRootId = lookupSpace.RootId;
             if (!visited.Add(nextRootId)) break;

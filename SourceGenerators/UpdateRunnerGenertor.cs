@@ -3,7 +3,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Orbitality.SourceGenerators;
+namespace Solas.SourceGenerators;
 
 [Generator]
 public class UpdateRunnerGenerator : IIncrementalGenerator
@@ -25,11 +25,11 @@ public class UpdateRunnerGenerator : IIncrementalGenerator
 
             var runners = new StringBuilder();
             var register = new StringBuilder(@"
-namespace Orbitality.Generated
+namespace Solas.Generated
 {
     public static class GeneratedUpdateRegistration
     {
-        public static void RegisterAll(Orbitality.Containers.EntityPool pool)
+        public static void RegisterAll(Solas.Containers.EntityPool pool)
         {
 ");
 
@@ -83,11 +83,11 @@ namespace Orbitality.Generated
             return;
 
         runners.Append($@"
-using Orbitality.Containers;
-using Orbitality.Interfaces;
-namespace Orbitality.Generated
+using Solas.Containers;
+using Solas.Interfaces;
+namespace Solas.Generated
 {{
-    public class {runnerName} : Orbitality.Interfaces.IUpdateRunner
+    public class {runnerName} : Solas.Interfaces.IUpdateRunner
     {{
         List<{fullName}> _updatables = [];
     

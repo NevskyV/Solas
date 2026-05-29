@@ -1,4 +1,4 @@
-﻿namespace Orbitality.World;
+﻿namespace Solas.World;
 
 public static class SpaceTree
 {

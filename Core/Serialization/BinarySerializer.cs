@@ -2,7 +2,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace Orbitality.Serialization;
+namespace Solas.Serialization;
 
 public static class BinarySerializer
 {

@@ -1,7 +1,7 @@
-﻿using Orbitality.Enums;
-using Orbitality.Interfaces;
+﻿using Solas.Enums;
+using Solas.Interfaces;
 
-namespace Orbitality.Transform;
+namespace Solas.Transform;
 
 public class TransformSystem : IUpdateSystem
 {

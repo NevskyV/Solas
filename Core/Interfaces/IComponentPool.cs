@@ -1,6 +1,6 @@
-﻿using Orbitality.Components;
+﻿using Solas.Components;
 
-namespace Orbitality.Interfaces;
+namespace Solas.Interfaces;
 
 public interface IComponentPool
 {

@@ -1,7 +1,7 @@
-﻿using Orbitality.Components;
-using Orbitality.World;
+﻿using Solas.Components;
+using Solas.World;
 
-namespace Orbitality.Systems;
+namespace Solas.Systems;
 
 public class DestroySystem
 {

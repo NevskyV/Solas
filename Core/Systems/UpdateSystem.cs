@@ -1,10 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Orbitality.Containers;
-using Orbitality.Enums;
-using Orbitality.Interfaces;
+using Solas.Containers;
+using Solas.Enums;
+using Solas.Interfaces;
 
-namespace Orbitality.Systems;
+namespace Solas.Systems;
 
 public static class Time
 {

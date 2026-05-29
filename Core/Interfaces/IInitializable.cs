@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Interfaces;
+﻿namespace Solas.Interfaces;
 
 public interface IInitializable
 {

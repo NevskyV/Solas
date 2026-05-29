@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Attributes;
+﻿namespace Solas.Attributes;
 
 [AttributeUsage(AttributeTargets.Class)]
 public class UpdateAttribute : Attribute

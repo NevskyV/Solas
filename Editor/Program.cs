@@ -1,7 +1,7 @@
 ﻿using System;
 using Avalonia;
 
-namespace Orbitality.Editor;
+namespace Solas.Editor;
 
 sealed class Program
 {

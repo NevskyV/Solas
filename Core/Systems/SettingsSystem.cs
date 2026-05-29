@@ -1,6 +1,6 @@
-﻿using Orbitality.Components;
+﻿using Solas.Components;
 
-namespace Orbitality.Systems;
+namespace Solas.Systems;
 
 public class SettingsSystem
 {

@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Components;
+﻿namespace Solas.Components;
 
 public abstract class Logic
 {

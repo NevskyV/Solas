@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Editor.ViewModels;
+﻿namespace Solas.Editor.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {

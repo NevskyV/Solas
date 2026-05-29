@@ -1,8 +1,8 @@
 ﻿using System.Numerics;
-using Orbitality.Components;
-using Orbitality.ComponentUtils;
+using Solas.ComponentUtils;
+using Solas.Components;
 
-namespace Orbitality.Transform;
+namespace Solas.Transform;
 
 public class TransformData : IData
 {

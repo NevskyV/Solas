@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Orbitality.SourceGenerators;
+namespace Solas.SourceGenerators;
 
 [Generator]
 public class AutoInjectGenerator : IIncrementalGenerator
@@ -61,7 +61,7 @@ namespace {ns}
 {{
     public partial class {className}
     {{
-        public void __AutoInject(Orbitality.Containers.DependencyPool c)
+        public void __AutoInject(Solas.Containers.DependencyPool c)
         {{
 ");
 

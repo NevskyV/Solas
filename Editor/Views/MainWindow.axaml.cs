@@ -2,7 +2,7 @@ using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 
-namespace Orbitality.Editor.Views;
+namespace Solas.Editor.Views;
 
 public partial class MainWindow : Window
 {

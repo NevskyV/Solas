@@ -1,12 +1,12 @@
-﻿using Orbitality.Components;
-using Orbitality.Containers;
-using Orbitality.Enums;
-using Orbitality.Interfaces;
-using Orbitality.Settings;
-using Orbitality.Systems;
-using Orbitality.World;
+﻿using Solas.Components;
+using Solas.Containers;
+using Solas.Enums;
+using Solas.Interfaces;
+using Solas.Settings;
+using Solas.Systems;
+using Solas.World;
 
-namespace Orbitality;
+namespace Solas;
 
 public class Engine
 {

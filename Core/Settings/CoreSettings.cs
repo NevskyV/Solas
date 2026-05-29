@@ -1,7 +1,7 @@
-﻿using Orbitality.Attributes;
-using Orbitality.Components;
+﻿using Solas.Attributes;
+using Solas.Components;
 
-namespace Orbitality.Settings;
+namespace Solas.Settings;
 
 [SettingsSection]
 public partial struct CoreSettings() : IData

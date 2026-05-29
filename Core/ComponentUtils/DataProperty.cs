@@ -1,6 +1,6 @@
-﻿using Orbitality.Components;
+﻿using Solas.Components;
 
-namespace Orbitality.ComponentUtils;
+namespace Solas.ComponentUtils;
 
 public partial class DataProperty<T>() : ReactiveProperty<T>(), IData
 {

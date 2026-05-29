@@ -1,6 +1,6 @@
-﻿using Orbitality.Systems;
+﻿using Solas.Systems;
 
-namespace Orbitality.Containers;
+namespace Solas.Containers;
 
 public struct InitializationPool()
 {

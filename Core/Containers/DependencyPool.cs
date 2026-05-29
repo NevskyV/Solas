@@ -1,6 +1,6 @@
-﻿using Orbitality.Components;
+﻿using Solas.Components;
 
-namespace Orbitality.Containers;
+namespace Solas.Containers;
 
 public record struct DependencyPool
 {

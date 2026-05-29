@@ -2,9 +2,9 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using Orbitality.Editor.ViewModels;
+using Solas.Editor.ViewModels;
 
-namespace Orbitality.Editor;
+namespace Solas.Editor;
 
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.

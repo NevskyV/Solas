@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Audio;
+﻿namespace Solas.Audio;
 
 public class AudioSystem
 {

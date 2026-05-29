@@ -1,7 +1,7 @@
-﻿using Orbitality.Containers;
-using Orbitality.Systems;
+﻿using Solas.Containers;
+using Solas.Systems;
 
-namespace Orbitality;
+namespace Solas;
 
 public record struct EngineContext(
     DestroySystem Destroyer,

@@ -1,9 +1,9 @@
-﻿using Orbitality.Components;
-using Orbitality.Containers;
-using Orbitality.Interfaces;
-using Orbitality.World;
+﻿using Solas.Components;
+using Solas.Containers;
+using Solas.Interfaces;
+using Solas.World;
 
-namespace Orbitality.Systems;
+namespace Solas.Systems;
 
 public class InitializeSystem(Space space)
 {

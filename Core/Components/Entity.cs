@@ -1,9 +1,9 @@
 ﻿using System.Runtime.InteropServices;
-using Orbitality.ComponentUtils;
-using Orbitality.Interfaces;
-using Orbitality.World;
+using Solas.ComponentUtils;
+using Solas.Interfaces;
+using Solas.World;
 
-namespace Orbitality.Components;
+namespace Solas.Components;
 
 public class Entity : IDisposable, IToggleable
 {

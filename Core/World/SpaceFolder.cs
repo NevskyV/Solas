@@ -1,7 +1,7 @@
 ﻿using System.Runtime.InteropServices;
-using Orbitality.Interfaces;
+using Solas.Interfaces;
 
-namespace Orbitality.World;
+namespace Solas.World;
 
 public struct SpaceFolder : IBranchable
 {

@@ -1,7 +1,7 @@
-﻿using Orbitality.Components;
-using Orbitality.Interfaces;
+﻿using Solas.Components;
+using Solas.Interfaces;
 
-namespace Orbitality.Containers;
+namespace Solas.Containers;
 
 public readonly record struct ComponentPool<T>() : IComponentPool
 {

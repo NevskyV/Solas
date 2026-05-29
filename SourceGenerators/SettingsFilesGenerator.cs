@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Orbitality.SourceGenerators;
+namespace Solas.SourceGenerators;
 
 [Generator]
 public class SettingsFileGenerator : IIncrementalGenerator
@@ -37,8 +37,8 @@ public class SettingsFileGenerator : IIncrementalGenerator
                 string ns =
                     symbol.ContainingNamespace.ToDisplayString();
                 builder.Append($@"
-using Orbitality.Attributes;
-using Orbitality.Components;
+using Solas.Attributes;
+using Solas.Components;
 using System.Runtime.CompilerServices;
 namespace {ns}
 {{
@@ -47,7 +47,7 @@ namespace {ns}
         [ModuleInitializer]
         public static void CreateBinary()
         {{
-            var dir = AppDomain.CurrentDomain.BaseDirectory + @""\Orbitality\Settings\"";
+            var dir = AppDomain.CurrentDomain.BaseDirectory + @""\Solas\Settings\"";
             var path = dir + ""{className}.set"";
             
             if (!File.Exists(path))

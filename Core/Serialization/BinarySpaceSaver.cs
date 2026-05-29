@@ -1,9 +1,9 @@
-﻿using Orbitality.Components;
-using Orbitality.Containers;
-using Orbitality.Systems;
-using Orbitality.World;
+﻿using Solas.Components;
+using Solas.Containers;
+using Solas.Systems;
+using Solas.World;
 
-namespace Orbitality.Serialization;
+namespace Solas.Serialization;
 
 public static class BinarySpaceSaver
 {

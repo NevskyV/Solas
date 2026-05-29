@@ -1,13 +1,14 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Orbitality.Editor.App"
-             xmlns:local="using:Orbitality.Editor"
-             xmlns:editor="clr-namespace:Orbitality.Editor"
+             x:Class="Solas.Editor.App"
+             xmlns:local="using:Solas.Editor"
+             xmlns:editor="clr-namespace:Solas.Editor"
+             xmlns:editor1="clr-namespace:Solas.Editor"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
-        <editor:ViewLocator/>
+        <editor1:ViewLocator/>
     </Application.DataTemplates>
   
     <Application.Styles>

@@ -1,4 +1,4 @@
-# Orbitality Game Engine
+# Solas Game Engine
 
 ### *“Developers should build games, not fight the engine.”*
 

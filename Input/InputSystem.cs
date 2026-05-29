@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Input;
+﻿namespace Solas.Input;
 
 public class InputSystem
 {

@@ -1,11 +1,11 @@
 ﻿using System.Collections;
 using System.Reflection;
-using Orbitality.Attributes;
-using Orbitality.Components;
-using Orbitality.Containers;
-using Orbitality.World;
+using Solas.Attributes;
+using Solas.Components;
+using Solas.Containers;
+using Solas.World;
 
-namespace Orbitality.Systems;
+namespace Solas.Systems;
 
 public class DependencyInjectionSystem
 {

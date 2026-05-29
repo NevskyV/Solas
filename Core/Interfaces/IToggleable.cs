@@ -1,6 +1,6 @@
-﻿using Orbitality.ComponentUtils;
+﻿using Solas.ComponentUtils;
 
-namespace Orbitality.Interfaces;
+namespace Solas.Interfaces;
 
 public interface IToggleable
 {

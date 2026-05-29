@@ -1,11 +1,10 @@
 ﻿using System.Runtime.InteropServices;
-using Orbitality.Interfaces;
-using Orbitality.Serialization;
-using Orbitality.Settings;
-using Orbitality.Systems;
-using Orbitality.World;
+using Solas.Interfaces;
+using Solas.Serialization;
+using Solas.Settings;
+using Solas.World;
 
-namespace Orbitality.Containers;
+namespace Solas.Containers;
 
 public class SpacePool
 {

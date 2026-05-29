@@ -1,9 +1,9 @@
-﻿using Orbitality.Components;
-using Orbitality.ComponentUtils;
-using Orbitality.Interfaces;
-using Orbitality.World;
+﻿using Solas.Components;
+using Solas.ComponentUtils;
+using Solas.Interfaces;
+using Solas.World;
 
-namespace Orbitality.Containers;
+namespace Solas.Containers;
 
 public class EntityPool
 {

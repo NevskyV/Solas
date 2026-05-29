@@ -1,7 +1,7 @@
-﻿using Orbitality.Interfaces;
-using Orbitality.Systems;
+﻿using Solas.Interfaces;
+using Solas.Systems;
 
-namespace Orbitality.World;
+namespace Solas.World;
 
 public class Space : IBranchable
 {

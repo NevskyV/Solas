@@ -2,14 +2,28 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-        <RootNamespace>Orbitality.SourceGenerators</RootNamespace>
+        
+        <RootNamespace>Solas.SourceGenerators</RootNamespace>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <LangVersion>latest</LangVersion>
         <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)Generated</CompilerGeneratedFilesOutputPath>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <PackageId>Solas.SourceGenerators</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>NevskyV</Authors>
+        <Description>High performance open-source .net game engine created specifically for indie devs</Description>
+        <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
+        <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+        <None Include="$(OutputPath)\$(AssemblyName).dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs"
+              Visible="false" />
     </ItemGroup>
 </Project>

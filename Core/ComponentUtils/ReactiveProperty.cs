@@ -1,4 +1,4 @@
-﻿namespace Orbitality.ComponentUtils;
+﻿namespace Solas.ComponentUtils;
 
 public class ReactiveProperty<T>()
 {

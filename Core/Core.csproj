@@ -4,11 +4,18 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-        <RootNamespace>Orbitality</RootNamespace>
+        <RootNamespace>Solas</RootNamespace>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild> 
+        <PackageId>Solas.Core</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>NevskyV</Authors>
+        <Description>High performance open-source .net game engine created specifically for indie devs</Description>
+        <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
+        <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="D:\C# Projects\Orbitality\OrbitalityEngine\SourceGenerators\SourceGenerators.csproj"
+        <ProjectReference Include="..\SourceGenerators\SourceGenerators.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false" />
     </ItemGroup>

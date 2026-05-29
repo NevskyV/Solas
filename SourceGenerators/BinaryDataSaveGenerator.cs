@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Orbitality.SourceGenerators;
+namespace Solas.SourceGenerators;
 
 [Generator]
 public sealed class BinarySerializerGenerator : IIncrementalGenerator
@@ -38,7 +38,7 @@ public sealed class BinarySerializerGenerator : IIncrementalGenerator
                 _compilation = compilation;
                 INamedTypeSymbol? dataInterface =
                     compilation.GetTypeByMetadataName(
-                        "Orbitality.Components.IData");
+                        "Solas.Components.IData");
 
                 if (dataInterface == null)
                     return;
@@ -183,7 +183,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Collections.Generic;
-using Orbitality.Serialization;
+using Solas.Serialization;
 namespace {ns};
 
 public partial {keyword} {name}{typeParameters}{constraints}

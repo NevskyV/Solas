@@ -1,10 +1,10 @@
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Orbitality.Editor.ViewModels;
-using Orbitality.Editor.Views;
+using Solas.Editor.ViewModels;
+using Solas.Editor.Views;
 
-namespace Orbitality.Editor;
+namespace Solas.Editor;
 
 public partial class App : Application
 {

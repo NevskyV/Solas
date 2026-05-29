@@ -4,7 +4,13 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-        <RootNamespace>Orbitality.Audio</RootNamespace>
+        <RootNamespace>Solas.Audio</RootNamespace>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <PackageId>Solas.Audio</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>NevskyV</Authors>
+        <Description>High performance open-source .net game engine created specifically for indie devs</Description>
+        <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
+        <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
     </PropertyGroup>
 
 </Project>

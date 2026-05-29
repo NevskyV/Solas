@@ -1,6 +1,6 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace Orbitality.Editor.ViewModels;
+namespace Solas.Editor.ViewModels;
 
 public abstract class ViewModelBase : ObservableObject
 {

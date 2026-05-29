@@ -1,4 +1,4 @@
-﻿namespace Orbitality.Components;
+﻿namespace Solas.Components;
 
 public record struct EntityMetaData(string Name, string Tag, ushort Icon)
 {

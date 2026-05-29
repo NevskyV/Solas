@@ -1,6 +1,6 @@
-﻿using Orbitality.Enums;
+﻿using Solas.Enums;
 
-namespace Orbitality.Interfaces;
+namespace Solas.Interfaces;
 
 public interface IUpdateSystem
 {

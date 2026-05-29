@@ -1,3 +1,3 @@
-﻿namespace Orbitality.Components;
+﻿namespace Solas.Components;
 
 public interface IData;

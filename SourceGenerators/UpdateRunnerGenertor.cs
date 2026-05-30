@@ -115,13 +115,15 @@ namespace Solas.Generated
                 {{
                     for (int i = range.Item1; i < range.Item2; i++)
                         _updatables[i].{methodName}();
-                }});");
+                }});
+");
         }
         else
         {
             runners.Append($@"
             for (int i = 0; i < _updatables.Count; i++)
-                _updatables[i].{methodName}();");
+                _updatables[i].{methodName}();
+");
         }
 
         runners.Append(

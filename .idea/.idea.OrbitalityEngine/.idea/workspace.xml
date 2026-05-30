@@ -13,79 +13,7 @@
     <configurations />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="e186caaa-aa76-4c8a-8e18-1ba406734c0e" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.OrbitalityEngine/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.OrbitalityEngine/.idea/avalonia.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.OrbitalityEngine/.idea/encodings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.OrbitalityEngine/.idea/indexLayout.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Audio/Audio.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Audio/Audio.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Audio/AudioSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Audio/AudioSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Attributes/AutoInjectAttribute.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Attributes/AutoInjectAttribute.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Attributes/SettingsSectionAttribute.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Attributes/SettingsSectionAttribute.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Attributes/UpdateAttributes.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Attributes/UpdateAttributes.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/ComponentUtils/ComponentRegistry.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/ComponentUtils/ComponentRegistry.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/ComponentUtils/DataModifier.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/ComponentUtils/DataModifier.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/ComponentUtils/DataProperty.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/ComponentUtils/DataProperty.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/ComponentUtils/ReactiveProperty.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/ComponentUtils/ReactiveProperty.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Components/EnitityMetaData.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Components/EnitityMetaData.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Components/Entity.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Components/Entity.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Components/IData.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Components/IData.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Components/Logic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Components/Logic.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Containers/ComponentPool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Containers/ComponentPool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Containers/DependencyPool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Containers/DependencyPool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Containers/EntityPool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Containers/EntityPool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Containers/InitializationPool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Containers/InitializationPool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Containers/SpacePool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Containers/SpacePool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Core.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Core.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Engine.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Engine.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/EngineContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/EngineContext.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Enums/GameState.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Enums/GameState.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Enums/UpdateType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Enums/UpdateType.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IBranchable.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IBranchable.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IComponentPool.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IComponentPool.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IDestroyable.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IDestroyable.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IInitializable.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IInitializable.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IToggleable.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IToggleable.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IUpdateRunner.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IUpdateRunner.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Interfaces/IUpdateSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Interfaces/IUpdateSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Serialization/BinarySerializer.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Serialization/BinarySerializer.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Serialization/BinarySpaceSaver.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Serialization/BinarySpaceSaver.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Settings/CoreSettings.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Settings/CoreSettings.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Settings/WorldSettings.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Settings/WorldSettings.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Systems/DependencyInjectionSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Systems/DependencyInjectionSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Systems/DestroySystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Systems/DestroySystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Systems/InitializeSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Systems/InitializeSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Systems/SettingsSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Systems/SettingsSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/Systems/UpdateSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/Systems/UpdateSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/World/Space.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/World/Space.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/World/SpaceFolder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/World/SpaceFolder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Core/World/SpaceTree.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Core/World/SpaceTree.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/App.axaml" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/App.axaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/App.axaml.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/App.axaml.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/Editor.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/Editor.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/Program.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/Program.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/ViewLocator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/ViewLocator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/ViewModels/MainWindowViewModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/ViewModels/MainWindowViewModel.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/ViewModels/ViewModelBase.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/ViewModels/ViewModelBase.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/Views/MainWindow.axaml" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/Views/MainWindow.axaml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Editor/Views/MainWindow.axaml.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Editor/Views/MainWindow.axaml.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Input/Input.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Input/Input.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Input/InputSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Input/InputSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/OrbitalityEngine.slnx" beforeDir="false" afterPath="$PROJECT_DIR$/SolasEngine.slnx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Physics/Physics.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Physics/Physics.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Physics/PhysicsSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Physics/PhysicsSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Render/Render.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Render/Render.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Render/RenderSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Render/RenderSystem.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SourceGenerators/AutoInjectGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SourceGenerators/AutoInjectGenerator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SourceGenerators/BinaryDataSaveGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SourceGenerators/BinaryDataSaveGenerator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SourceGenerators/SettingsFilesGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SourceGenerators/SettingsFilesGenerator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SourceGenerators/SourceGenerators.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/SourceGenerators/SourceGenerators.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SourceGenerators/UpdateRunnerGenertor.cs" beforeDir="false" afterPath="$PROJECT_DIR$/SourceGenerators/UpdateRunnerGenertor.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Transform/Transform.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/Transform/Transform.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Transform/TransformData.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Transform/TransformData.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Transform/TransformSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Transform/TransformSystem.cs" afterDir="false" />
-    </list>
+    <list default="true" id="e186caaa-aa76-4c8a-8e18-1ba406734c0e" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -232,7 +160,7 @@
       <workItem from="1779476595872" duration="3553000" />
       <workItem from="1780008748904" duration="1995000" />
       <workItem from="1780054381569" duration="4641000" />
-      <workItem from="1780077179046" duration="2351000" />
+      <workItem from="1780077179046" duration="2485000" />
     </task>
     <task id="LOCAL-00001" summary="Update &amp; fixed update realisation">
       <option name="closed" value="true" />
@@ -378,7 +306,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780010247603</updated>
     </task>
-    <option name="localTasksCounter" value="19" />
+    <task id="LOCAL-00019" summary="Rename All to Solas">
+      <option name="closed" value="true" />
+      <created>1780079648779</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1780079648779</updated>
+    </task>
+    <option name="localTasksCounter" value="20" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -417,7 +353,8 @@
     <MESSAGE value="DataField, DataModifier, IUpdateSystem, SpaceFolder. Start Working on transform module" />
     <MESSAGE value="Created Empty Main Projects" />
     <MESSAGE value="Cleanup core, fix incosistent naming, remove caching in Destroyer.cs" />
-    <option name="LAST_COMMIT_MESSAGE" value="Cleanup core, fix incosistent naming, remove caching in Destroyer.cs" />
+    <MESSAGE value="Rename All to Solas" />
+    <option name="LAST_COMMIT_MESSAGE" value="Rename All to Solas" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

@@ -27,7 +27,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         //Set default values
         id = id == Guid.Empty ? Guid.NewGuid() : id;
         entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
-        space ??= Engine.GlobalSpace;
+        space ??= WorldContext.GlobalSpace;
         
         //Fill properties
         Id = id;
@@ -35,7 +35,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         CurrentSpace = space;
 
         //Register
-        Engine.Context.EntityPool.RegisterEntity(this);
+        EngineContext.EntityPool.RegisterEntity(this);
     }
 
     #region Data Method Group
@@ -44,7 +44,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     {
         if (_data.Contains(data)) return default;
         _data.Add(data);
-        Engine.Context.EntityPool.AddReferences(data, this);
+        EngineContext.EntityPool.AddReferences(data, this);
         UpdateMask<T>();
         return data;
     }
@@ -52,7 +52,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     public void RemoveData<T>(T data) where T : IData
     {
         _data.Remove(data);
-        Engine.Context.EntityPool.RemoveReferences(data, this);
+        EngineContext.EntityPool.RemoveReferences(data, this);
         UpdateMask<T>();
     }
 
@@ -71,7 +71,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         if (_logics.Contains(newLogic)) return newLogic;
         _logics.Add(newLogic);
 
-        Engine.Context.EntityPool.AddReferences(newLogic, this);
+        EngineContext.EntityPool.AddReferences(newLogic, this);
         
         UpdateMask<T>();
         return newLogic;
@@ -80,7 +80,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     public void RemoveLogic<T>(T logic) where T : Logic, new()
     {
         _logics.Remove(logic);
-        Engine.Context.EntityPool.RemoveReferences(logic, this);
+        EngineContext.EntityPool.RemoveReferences(logic, this);
         UpdateMask<T>();
     }
 
@@ -91,7 +91,14 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
 
     public void Dispose()
     {
-        foreach (var logic in _logics) (logic as IDestroyable)?.Destroy();
+        foreach (var logic in _logics)
+        {
+            logic.Dispose();
+        }
+        foreach (var data in _data)
+        {
+            data.Dispose();
+        }
     }
 
     #endregion
@@ -133,9 +140,9 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         // Data
         // =========================
 
-        writer.Write(Data.Length);
+        writer.Write(_data.Count);
 
-        foreach (var data in Data)
+        foreach (var data in _data)
         {
             var type = data.GetType();
             writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
@@ -146,9 +153,9 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         // Logic
         // =========================
 
-        writer.Write(Logics.Length);
+        writer.Write(_logics.Count);
 
-        foreach (var logic in Logics)
+        foreach (var logic in _logics)
         {
             var type = logic.GetType();
             writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
@@ -181,7 +188,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
             AddData(data);
 
             if (guids.Length > 0)
-                Engine.Context.DISystem.AddInjectable(data, guids, CurrentSpace);
+                EngineContext.DISystem.AddInjectable(data, guids, CurrentSpace);
         }
 
         // =========================
@@ -207,7 +214,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
                 ids[i] = (new Guid(reader.ReadBytes(16)), new Guid(reader.ReadBytes(16)));
             } 
             
-            Engine.Context.DISystem.AddInjectable(l, ids, CurrentSpace);
+            EngineContext.DISystem.AddInjectable(l, ids, CurrentSpace);
         }
 
         return this;
@@ -230,4 +237,6 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     }
 
     #endregion
+    
+    public void Destroy() => EngineContext.Destroyer.DestroyEntity(this);
 }

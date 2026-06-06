@@ -1,0 +1,46 @@
+﻿using Solas.Assets;
+using Solas.Components;
+using Solas.Interfaces;
+using Solas.World;
+
+namespace Solas;
+
+public class Command
+{
+    #region Settings System
+    
+    public static void ReadAllSettings(string pathToSettingsFolder) => EngineContext.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
+    public static T GetSettings<T>() where T : class, IData => EngineContext.SettingsSystem.GetSettings<T>();
+    public static void WriteExistingSettings(IData settings) => EngineContext.SettingsSystem.WriteExistingSettings(settings);
+    public static void WriteNewSettings(IData settings, string path) => EngineContext.SettingsSystem.WriteNewSettings(settings, path);
+    
+    #endregion
+    
+    #region DI System
+    
+    public static T AutoInject<T>(Space space) where T : Logic => EngineContext.DISystem.AutoInject<T>(space);
+    public static T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable, new() => EngineContext.DISystem.Inject<T>(id, spaceId);
+    public static Entity Inject(Guid id, Guid spaceId) => EngineContext.DISystem.Inject(id, spaceId);
+    
+    #endregion
+    
+    #region Assets Pool
+    
+    public static void RegisterNewAsset(Asset asset) => EngineContext.AssetsPool.RegisterNewAsset(asset);
+    public static void SaveAsset(Asset asset) => EngineContext.AssetsPool.SaveAsset(asset);
+    public static void SaveNewAssets() => EngineContext.AssetsPool.SaveNewAssets();
+    
+    #endregion
+    
+    #region Entity Pool
+
+    public static void RegisterRunner(IUpdateRunner runner) => EngineContext.EntityPool.RegisterRunner(runner);
+    
+    public static void RegisterFixedRunner(IUpdateRunner runner) => EngineContext.EntityPool.RegisterFixedRunner(runner);
+    
+    public static void RegisterLateRunner(IUpdateRunner runner) => EngineContext.EntityPool.RegisterLateRunner(runner);
+
+    #endregion
+    
+    //TODO: else
+}

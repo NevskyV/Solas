@@ -10,8 +10,8 @@ public abstract class Asset : IReferenceable
     public abstract void Write(BinaryWriter writer);
     public abstract IReferenceable Read(BinaryReader reader);
 
-    public Asset()
+    protected Asset()
     {
-        Engine.Context.AssetsPool.RegisterNewAsset(this);
+        EngineContext.AssetsPool.RegisterNewAsset(this);
     }
 }

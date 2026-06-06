@@ -1,43 +1,42 @@
 ﻿using System.Runtime.InteropServices;
 using Solas.Interfaces;
-using Solas.Serialization;
 using Solas.Settings;
 using Solas.World;
 
 namespace Solas.Containers;
 
-public class SpacePool
+internal class SpacePool
 {
     private string[] _localSpacesPaths;
     private readonly List<Space> _localSpaces = [];
     private readonly Dictionary<Space,List<SpaceFolder>> _spaceFolders = [];
-    public WorldSettings WorldSettings => Engine.Context.SettingsSystem.ReadSettings<WorldSettings>();
+    private WorldSettings WorldSettings => EngineContext.SettingsSystem.GetSettings<WorldSettings>();
 
     #region SpaceFolders
 
-    public void RegisterSpaceFolder(SpaceFolder folder, Space space)
+    internal void RegisterSpaceFolder(SpaceFolder folder, Space space)
     {
         if(!_spaceFolders.ContainsKey(space))
             _spaceFolders.Add(space, []);
         _spaceFolders[space].Add(folder);
     }
     
-    public SpaceFolder GetSpaceFolderWith(Guid guid, Space space)
+    internal SpaceFolder GetSpaceFolderWith(Guid guid, Space space)
     {
         return _spaceFolders[space].Find(x=>x.Id == guid);
     }
     
-    public SpaceFolder GetSpaceFolderWith(Guid guid, Guid spaceId)
+    internal SpaceFolder GetSpaceFolderWith(Guid guid, Guid spaceId)
     {
         return _spaceFolders[GetSpace(spaceId)].Find(x=>x.Id == guid);
     }
     
-    public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids, Space space)
+    internal IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids, Space space)
     {
         return _spaceFolders[space].Where(x=>guids.Contains(x.Id));
     }
 
-    public List<SpaceFolder> GetAllSpaceFoldersIn(Space space)
+    internal List<SpaceFolder> GetAllSpaceFoldersIn(Space space)
     {
         return _spaceFolders.TryGetValue(space, out var folders) ? folders : [];
     }
@@ -46,30 +45,30 @@ public class SpacePool
     
     #region Spaces
 
-    public void SetPaths(string localSpacesFolder)
+    internal void SetPaths(string localSpacesFolder)
     {
         _localSpacesPaths = Directory.GetFiles(localSpacesFolder, "*.space", SearchOption.AllDirectories);
     }
 
-    public IEnumerable<Task> InitializeLocalSpaces()
+    internal IEnumerable<Task> InitializeLocalSpaces()
     {
         return _localSpaces.SelectMany(x=>x.Initializer.InitializeDependencies());
     }
     
-    public Space GetSpace(Guid guid)
+    internal Space GetSpace(Guid guid)
     {
-        return Engine.GlobalSpace.Id == guid? Engine.GlobalSpace : _localSpaces.FirstOrDefault(x => x.Id == guid);
+        return WorldContext.GlobalSpace.Id == guid? WorldContext.GlobalSpace : _localSpaces.FirstOrDefault(x => x.Id == guid);
     }
 
-    public Space LoadLocalSpace(string path, Space rootSpace = null)
+    internal Space LoadLocalSpace(string path, Space rootSpace = null)
     {
         var space = LoadSpace(path);
         _localSpaces.Add(space);
-        SpaceTree.Attach(space, rootSpace??Engine.GlobalSpace);
+        SpaceTree.Attach(space, rootSpace??WorldContext.GlobalSpace);
         return space;
     }
 
-    public Space LoadSpace(string path, bool immediateBuild = true)
+    internal Space LoadSpace(string path, bool immediateBuild = true)
     {
         Space space;
         if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0)
@@ -93,7 +92,7 @@ public class SpacePool
         Console.WriteLine(space.Id);
         Console.WriteLine($"Loading space: {space.Name}");
         if(immediateBuild)
-            Engine.Context.DISystem.BuildDependencies(space);
+            EngineContext.DISystem.BuildDependencies(space);
         return space;
     }
 
@@ -112,7 +111,7 @@ public class SpacePool
 
         foreach (var space in _localSpaces)
         {
-            Engine.Context.DISystem.BuildDependencies(space);
+            EngineContext.DISystem.BuildDependencies(space);
         }
         SpaceTree.Create(_localSpaces);
     }
@@ -122,8 +121,8 @@ public class SpacePool
         if(_localSpaces.Contains(space))
             _localSpaces.Remove(space);
         SpaceTree.Detach(space);
-        Engine.Context.Destroyer.DestroyIn(space);
-        Engine.Context.EntityPool.UnregisterSpace(space);
+        EngineContext.Destroyer.DestroyIn(space);
+        EngineContext.EntityPool.UnregisterSpace(space);
     }
     
     public void UnloadAllSpaces()
@@ -133,7 +132,7 @@ public class SpacePool
         {
             UnloadSpace(_localSpaces[i]);
         }
-        UnloadSpace(Engine.GlobalSpace);
+        UnloadSpace(WorldContext.GlobalSpace);
     }
     
     public void SaveSpace(Space space)
@@ -146,7 +145,7 @@ public class SpacePool
 
     public bool IsLoaded(Guid id)
     {
-        return _localSpaces.Exists(x => x.Id == id) || Engine.GlobalSpace.Id == id;
+        return _localSpaces.Exists(x => x.Id == id) || WorldContext.GlobalSpace.Id == id;
     }
     
     #endregion
@@ -158,9 +157,9 @@ public class SpacePool
         foreach (var runner in runners)
         {
             List<IComponentPool> allContainers = [];
-            foreach (var space in _localSpaces.Concat([Engine.GlobalSpace]))
+            foreach (var space in _localSpaces.Concat([WorldContext.GlobalSpace]))
             {
-                allContainers.AddRange(Engine.Context.EntityPool.GetComponentPoolsInSpace(space));
+                allContainers.AddRange(EngineContext.EntityPool.GetComponentPoolsInSpace(space));
             }
             runner.InjectPools(CollectionsMarshal.AsSpan(allContainers));
         }

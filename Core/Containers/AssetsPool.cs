@@ -2,37 +2,39 @@
 using Solas.Components;
 using Solas.Interfaces;
 using Solas.Serialization;
+using Solas.Settings;
+using Solas.World;
 
 namespace Solas.Containers;
 
-public class AssetsPool
+internal class AssetsPool
 {
     private readonly List<Asset> _createdAssets = [];
     private readonly List<Asset> _loadedAssets = [];
     private Dictionary<Guid, uint> _assetsPointers;
     private Dictionary<Guid, uint> _entitiesPointers;
-
-    public void ReadPointers()
-    {
-        _assetsPointers = SearchIdSerializer.ReadAll(Engine.CoreSettings.AssetsPackPath + ".lookup");
-        _entitiesPointers = SearchIdSerializer.ReadAll(Engine.CoreSettings.AssetsSpacePath + ".lookup");
-    }
     
-    public uint GetAssetPointer(Guid id) => _assetsPointers[id];
-    public uint GetEntitiesPointer(Guid id) => _entitiesPointers[id];
+    private readonly CoreSettings _coreSettings = WorldContext.CoreSettings;
+    private readonly Space _globalSpace = WorldContext.GlobalSpace;
 
-    public void RegisterNewAsset(Asset asset)
+    internal void ReadPointers()
+    {
+        _assetsPointers = SearchIdSerializer.ReadAll(_coreSettings.AssetsPackPath + ".lookup");
+        _entitiesPointers = SearchIdSerializer.ReadAll(_coreSettings.AssetsSpacePath + ".lookup");
+    }
+
+    internal void RegisterNewAsset(Asset asset)
     {
         _createdAssets.Add(asset);
     }
     
-    public Asset GetLoadedAsset(Guid id)
+    internal Asset GetLoadedAsset(Guid id)
     {
         var res = _loadedAssets.Find(x => x.Id == id);
         return res;
     }
     
-    public T GetAsset<T>(Guid id) where T : Asset, new()
+    internal T GetAsset<T>(Guid id) where T : Asset, new()
     {
         if (!_loadedAssets.Exists(x => x.Id == id))
         {
@@ -41,34 +43,34 @@ public class AssetsPool
         return (T)_loadedAssets.Find(x => x.Id == id);
     }
 
-    public void SaveAllNewAssets()
+    internal void SaveNewAssets()
     {
-        using var stream = File.Open(Engine.CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
+        using var stream = File.Open(_coreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
 
         foreach (var asset in _createdAssets)
         {
-            SearchIdSerializer.Write(Engine.CoreSettings.AssetsPackPath + ".lookup", asset.Id, (uint)stream.Position);
+            SearchIdSerializer.Write(_coreSettings.AssetsPackPath + ".lookup", asset.Id, (uint)stream.Position);
         
             writer.Write(asset.Id.ToByteArray());
             asset.Write(writer);
         }
     }
     
-    public static void SaveAsset(Asset asset)
+    internal void SaveAsset(Asset asset)
     {
-        using var stream = File.Open(Engine.CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
+        using var stream = File.Open(_coreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
         
-        SearchIdSerializer.Write(Engine.CoreSettings.AssetsPackPath + ".lookup", asset.Id, (uint)stream.Position);
+        SearchIdSerializer.Write(_coreSettings.AssetsPackPath + ".lookup", asset.Id, (uint)stream.Position);
         
         writer.Write(asset.Id.ToByteArray());
         asset.Write(writer);
     }
 
-    public T LoadAsset<T>(Guid id) where T : IReferenceable, new()
+    internal T LoadAsset<T>(Guid id) where T : IReferenceable, new()
     {
-        using var stream = File.Open(Engine.CoreSettings.AssetsPackPath, FileMode.Open, FileAccess.Read);
+        using var stream = File.Open(_coreSettings.AssetsPackPath, FileMode.Open, FileAccess.Read);
         using var reader = new BinaryReader(stream);
         
         stream.Position = _assetsPointers[id];
@@ -77,21 +79,14 @@ public class AssetsPool
         return asset;
     }
 
-    public Entity LoadEntity(Guid id)
+    internal Entity LoadEntity(Guid id)
     {
-        using var stream = File.Open(Engine.CoreSettings.AssetsSpacePath, FileMode.Open, FileAccess.Read);
+        using var stream = File.Open(_coreSettings.AssetsSpacePath, FileMode.Open, FileAccess.Read);
         using var reader = new BinaryReader(stream);
         
-        stream.Position = _assetsPointers[id];
-        var entity = Entity.StaticRead(reader, Engine.GlobalSpace);
-        Engine.Context.DISystem.BuildDependencies(Engine.GlobalSpace);
+        stream.Position = _entitiesPointers[id];
+        var entity = Entity.StaticRead(reader, _globalSpace);
+        EngineContext.DISystem.BuildDependencies(_globalSpace);
         return entity;
     }
-
-    // public void __Inject((Guid id, Guid spaceId)[] ids)
-    // {
-    //     var sys = Engine.Context.DISystem;
-    //     fff = sys.Inject<T>();
-    //     ggg = sys.AutoInject<T>();
-    // }
 }

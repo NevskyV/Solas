@@ -1,6 +1,4 @@
-﻿using Solas.Components;
-
-namespace Solas.ComponentUtils;
+﻿namespace Solas.ComponentUtils;
 
 public class DataProperty<T>() : ReactiveProperty<T>()
 {

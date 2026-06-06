@@ -1,8 +1,8 @@
 ﻿namespace Solas.World;
 
-public static class SpaceTree
+internal static class SpaceTree
 {
-    public static void Create(List<Space> spaces)
+    internal static void Create(List<Space> spaces)
     {
         var lookup = spaces.ToLookup(x => x.RootId);
         foreach (var space in spaces)
@@ -11,19 +11,19 @@ public static class SpaceTree
         }
     }
 
-    public static void Attach(Space space, Space spaceToAttach)
+    internal static void Attach(Space space, Space spaceToAttach)
     {
         if (space.Id == spaceToAttach.Id) return;
 
-        Engine.Context.SpacePool.GetSpace(space.RootId).BranchesIds.Remove(spaceToAttach.Id);
+        EngineContext.SpacePool.GetSpace(space.RootId).BranchesIds.Remove(spaceToAttach.Id);
         space.RootId = spaceToAttach.Id;
         spaceToAttach.BranchesIds.Add(space.Id);
     }
 
-    public static void Detach(Space space)
+    internal static void Detach(Space space)
     {
         var root = space.GetRoot();
-        if (root != Engine.GlobalSpace)
+        if (root != WorldContext.GlobalSpace)
         {
             foreach (var branch in space.GetBranches())
             {
@@ -32,25 +32,25 @@ public static class SpaceTree
         }
     }
 
-    public static List<Space> GetAllAvailableSpacesFor(Space space)
+    internal static List<Space> GetAllAvailableSpacesFor(Space space)
     {
         List<Space> result = [space];
         var lookupSpace = space;
         
         var visited = new HashSet<Guid> { space.Id }; 
-        while (lookupSpace.RootId != Guid.Empty && lookupSpace.RootId != Engine.GlobalSpace.Id)
+        while (lookupSpace.RootId != Guid.Empty && lookupSpace.RootId != WorldContext.GlobalSpace.Id)
         {
             var nextRootId = lookupSpace.RootId;
             if (!visited.Add(nextRootId)) break;
 
-            lookupSpace = Engine.Context.SpacePool.GetSpace(nextRootId);
+            lookupSpace = EngineContext.SpacePool.GetSpace(nextRootId);
             result.Add(lookupSpace);
         }
         
         FillBranchables(space.BranchesIds, result);
 
-        if (space != Engine.GlobalSpace)
-            result.Add(Engine.GlobalSpace);
+        if (space != WorldContext.GlobalSpace)
+            result.Add(WorldContext.GlobalSpace);
         
         return result;
     }
@@ -59,7 +59,7 @@ public static class SpaceTree
     {
         foreach (var id in branchIds)
         {
-            var space = Engine.Context.SpacePool.GetSpace(id);
+            var space = EngineContext.SpacePool.GetSpace(id);
             accumulator.Add(space);
             if (space.BranchesIds.Count > 0)
             {

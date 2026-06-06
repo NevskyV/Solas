@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Solas.Containers;
 using Solas.Enums;
 using Solas.Interfaces;
+using Solas.Settings;
 
 namespace Solas.Systems;
 
@@ -14,9 +15,8 @@ public static class Time
     public static double Alpha { get; internal set; }
 }
 
-public class UpdateSystem
+internal class UpdateSystem
 {
-    public float TargetFrameTime { get; set; } = 60.0f;
     private readonly Stopwatch _stopwatch = new();
 
     private double _previousTime;
@@ -26,26 +26,24 @@ public class UpdateSystem
     private readonly double _tickToSeconds = 1.0 / Stopwatch.Frequency;
 
     private bool _isRunning;
-    private EntityPool _entityPool;
+    private readonly EntityPool _entityPool = EngineContext.EntityPool;
 
-    public readonly List<IUpdateSystem> UpdateSystems = [];
-    public readonly List<IUpdateSystem> FixedUpdateSystems = [];
-    public readonly List<IUpdateSystem> LateUpdateSystems = [];
+    internal readonly List<IUpdateSystem> UpdateSystems = [];
+    internal readonly List<IUpdateSystem> FixedUpdateSystems = [];
+    internal readonly List<IUpdateSystem> LateUpdateSystems = [];
 
-    public void Start(EntityPool entityPool)
+    internal void Start()
     {
         if (_isRunning) return;
-        _entityPool = entityPool;
 
         _stopwatch.Restart();
         _previousTime = _stopwatch.Elapsed.TotalSeconds;
         _accumulator = 0;
         _isRunning = true;
 
-        var injectAction = Engine.Context.SpacePool.InjectPoolsInUpdateRunners;
+        var injectAction = EngineContext.SpacePool.InjectPoolsInUpdateRunners;
         
-        var e = Engine.Instance;
-        while (e.State != GameState.None)
+        while (Engine.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
             
@@ -56,7 +54,7 @@ public class UpdateSystem
             
             Tick();
 
-            var targetTicks = 1.0 / TargetFrameTime * Stopwatch.Frequency;
+            var targetTicks = 1.0 / WorldContext.CoreSettings.TargetFrameTime * Stopwatch.Frequency;
             var elapsedTicks = _stopwatch.ElapsedTicks - startTicks;
 
             var remaining = targetTicks - elapsedTicks;
@@ -66,7 +64,7 @@ public class UpdateSystem
                 var ms = (int)(remaining * 1000 / Stopwatch.Frequency);
                 if (ms > 0)
                     Thread.Sleep(ms);
-                while (e.State != GameState.None && _stopwatch.ElapsedTicks - startTicks < targetTicks)
+                while (Engine.State != GameState.None && _stopwatch.ElapsedTicks - startTicks < targetTicks)
                     Thread.SpinWait(10);
             }
         }
@@ -74,7 +72,7 @@ public class UpdateSystem
         _isRunning = false;
     }
 
-    public void Tick()
+    private void Tick()
     {
         var currentTime = _stopwatch.ElapsedTicks * _tickToSeconds;
         var frameTime = currentTime - _previousTime;
@@ -114,7 +112,7 @@ public class UpdateSystem
         
     }
 
-    public void Stop()
+    internal void Stop()
     {
         _stopwatch.Stop();
     }

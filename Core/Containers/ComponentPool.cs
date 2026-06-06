@@ -3,7 +3,7 @@ using Solas.Interfaces;
 
 namespace Solas.Containers;
 
-public readonly record struct ComponentPool<T>() : IComponentPool
+public class ComponentPool<T>() : IComponentPool
 {
     public List<T> Components { get; } = [];
     public List<Entity> Entities { get; } = [];
@@ -38,7 +38,7 @@ public readonly record struct ComponentPool<T>() : IComponentPool
         _indices.Remove(entity);
     }
 
-    public Entity? FindEntityFor(object component)
+    public Entity FindEntityFor(object component)
     {
         if (component is not T typed)
             return null;

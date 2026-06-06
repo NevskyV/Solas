@@ -1,5 +1,4 @@
 ﻿using Solas.Components;
-using Solas.Containers;
 using Solas.Enums;
 using Solas.Interfaces;
 using Solas.Settings;
@@ -8,30 +7,9 @@ using Solas.World;
 
 namespace Solas;
 
-public class Engine
+public static class Engine
 {
-    public static Engine Instance { get; } = new();
-
-    private readonly EngineContext _context = new(
-        new DestroySystem(),
-        new UpdateSystem(),
-        new EntityPool(),
-        new SpacePool(),
-        new AssetsPool(),
-        new DISystem(),
-        new SettingsSystem()
-    );
-    
-    private IData[] _settingsContext;
-    private CoreSettings _coreSettings;
-    public static IData[] SettingsContext => Instance._settingsContext;
-    public static CoreSettings CoreSettings => Instance._coreSettings;
-
-    private Space _globalSpace;
-    public static EngineContext Context => Instance._context;
-    public static Space GlobalSpace => Instance._globalSpace;
-
-    public GameState State
+    public static GameState State
     {
         get;
         set
@@ -58,73 +36,73 @@ public class Engine
         }
     }
 
-    public void LoadEngineSettings(string pathToSettingsFolder)
+    public static void LoadEngineSettings(string pathToSettingsFolder)
     {
-        _settingsContext = _context.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
-        _coreSettings = (CoreSettings)_settingsContext.First(x => x.GetType().IsAssignableTo(typeof(CoreSettings)));
+        EngineContext.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
+        WorldContext.CoreSettings = EngineContext.SettingsSystem.GetSettings<CoreSettings>();
     }
 
-    public void CreateUpdateSystems()
+    public static void CreateUpdateSystems()
     {
-        foreach (var typeName in _coreSettings.UpdateSystems)
+        foreach (var typeName in WorldContext.CoreSettings.UpdateSystems)
         {
             var type = Type.GetType(typeName)!;
             IUpdateSystem instance = (IUpdateSystem)Activator.CreateInstance(type)!;
             switch (instance.UpdateType)
             {
                 case UpdateType.Update: 
-                    _context.Updater.UpdateSystems.Add(instance);
+                    EngineContext.Updater.UpdateSystems.Add(instance);
                     break;
                 case UpdateType.FixedUpdate: 
-                    _context.Updater.FixedUpdateSystems.Add(instance);
+                    EngineContext.Updater.FixedUpdateSystems.Add(instance);
                     break;
                 case UpdateType.LateUpdate: 
-                    _context.Updater.LateUpdateSystems.Add(instance);
+                    EngineContext.Updater.LateUpdateSystems.Add(instance);
                     break;
             }
             
         }
     }
 
-    public void CreateWorld()
+    public static void CreateWorld()
     {
-        _context.AssetsPool.ReadPointers();
+        EngineContext.AssetsPool.ReadPointers();
         
-        _globalSpace = _context.SpacePool.LoadSpace(_coreSettings.GlobalSpacePath, false);
-        _context.DISystem.BuildDependencies(_globalSpace);
+        WorldContext.GlobalSpace = EngineContext.SpacePool.LoadSpace(WorldContext.CoreSettings.GlobalSpacePath, false);
+        EngineContext.DISystem.BuildDependencies(WorldContext.GlobalSpace);
         
-        _context.SpacePool.SetPaths(_coreSettings.LocalSpacesDirectory);
-        _context.SpacePool.LoadSavedSpaces();
+        EngineContext.SpacePool.SetPaths(WorldContext.CoreSettings.LocalSpacesDirectory);
+        EngineContext.SpacePool.LoadSavedSpaces();
     }
 
-    private  void StartGame()
+    private static void StartGame()
     {
-        var initializationTasks = _globalSpace.Initializer.InitializeDependencies().ToList();
-        initializationTasks.AddRange(_context.SpacePool.InitializeLocalSpaces());
+        var initializationTasks = WorldContext.GlobalSpace.Initializer.InitializeDependencies().ToList();
+        initializationTasks.AddRange(EngineContext.SpacePool.InitializeLocalSpaces());
         Task.WhenAll(initializationTasks.ToArray());
         State = GameState.Update;
     }
 
-    private void StartUpdate()
+    private static void StartUpdate()
     {
         Time.TimeScale = 1;
-        _context.Updater.Start(_context.EntityPool);
+        EngineContext.Updater.Start();
     }
 
-    private void StopUpdate()
+    private static void StopUpdate()
     {
         Time.TimeScale = 0;
     }
 
-    private void StopGame()
+    private static void StopGame()
     {
-        _context.Updater.Stop();
-        _context.SpacePool.UnloadAllSpaces();
-        _context.AssetsPool.SaveAllNewAssets();
+        EngineContext.Updater.Stop();
+        EngineContext.SpacePool.UnloadAllSpaces();
+        EngineContext.AssetsPool.SaveNewAssets();
     }
 
     public static IEnumerable<Entity> GetEntitiesIn(Space space)
     {
-        return Instance._context.EntityPool.GetEntitiesIn(space);
+        return EngineContext.EntityPool.GetEntitiesIn(space);
     }
 }

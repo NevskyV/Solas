@@ -4,8 +4,10 @@ using Solas.Components;
 namespace Solas.Settings;
 
 [SettingsSection]
-public partial struct CoreSettings() : IData
+public partial class CoreSettings() : IData
 {
+    public float TargetFrameTime = 60.0f;
+    
     public string AssetsDirectory = Directory.GetCurrentDirectory() + @"\Assets\";
     public string AssetsPackPath = Directory.GetCurrentDirectory() + @"\Solas\Assets.pack";
     public string GlobalSpacePath = Directory.GetCurrentDirectory() + @"\Solas\Global.space";

@@ -1,6 +1,6 @@
 ﻿namespace Solas.Assets;
 
-public class TextAsset : Asset
+public sealed class TextAsset : Asset
 {
     public string[] Lines;
     

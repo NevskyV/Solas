@@ -199,7 +199,6 @@ public sealed class BinarySerializerGenerator : IIncrementalGenerator
             : $@"
     public void Inject((Guid, Guid)[] guids)
     {{
-        var sys = Solas.Engine.Context.DISystem;
 {inject}    }}";
 
         var typeKey = GetTypeKey(type, assemblyName);
@@ -411,23 +410,23 @@ public partial {keyword} {name}{typeParameters}{constraints}
         if (IsEntity(field.Type, context))
         {
             return
-                $"        {access} = sys.Inject(guids[{index}].Item1, guids[{index}].Item2);";
+                $"        {access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2);";
         }
 
         if (IsLogic(field.Type, context))
         {
             return
-                $"        {access} = sys.Inject(guids[{index}].Item1, guids[{index}].Item2).GetLogic<{field.Type.ToDisplayString()}>();";
+                $"        {access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2).GetLogic<{field.Type.ToDisplayString()}>();";
         }
 
         if (IsData(field.Type, context))
         {
             return
-                $"        {access} = sys.Inject(guids[{index}].Item1, guids[{index}].Item2).GetData<{field.Type.ToDisplayString()}>();";
+                $"        {access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2).GetData<{field.Type.ToDisplayString()}>();";
         }
 
         return
-            $"        {access} = sys.Inject<{field.Type.ToDisplayString()}>(guids[{index}].Item1, guids[{index}].Item2);";
+            $"        {access} = Solas.Command.Inject<{field.Type.ToDisplayString()}>(guids[{index}].Item1, guids[{index}].Item2);";
     }
 
     private static string GenerateReferenceWrite(
@@ -446,7 +445,7 @@ public partial {keyword} {name}{typeParameters}{constraints}
             : IsData(type, context)
                 ?
                 [
-                    $"var owner = Solas.Engine.Context.EntityPool.TryGetEntityFor({access}, {entityParameter}?.CurrentSpace);",
+                    $"var owner = Solas.Query.TryGetEntityFor({access}, {entityParameter}?.CurrentSpace);",
                     "writer.Write(owner.Id.ToByteArray());",
                     "writer.Write(owner.GetSpaceId().ToByteArray());"
                 ]

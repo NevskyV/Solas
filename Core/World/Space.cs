@@ -13,7 +13,7 @@ public class Space : IBranchable
     public Guid Id { get; init; }
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; } = [];
-    public readonly InitializeSystem Initializer;
+    internal readonly InitializeSystem Initializer;
 
     public Space(string name, string path, Guid id)
     {
@@ -21,17 +21,17 @@ public class Space : IBranchable
         Path = path;
         Id = id;
         Initializer = new InitializeSystem(this);
-        Engine.Context.EntityPool.RegisterSpace(this);
+        EngineContext.EntityPool.RegisterSpace(this);
     }
     
     public IBranchable GetRoot()
     {
-        return RootId == Guid.Empty ? Engine.GlobalSpace : Engine.Context.SpacePool.GetSpace(RootId);
+        return RootId == Guid.Empty ? WorldContext.GlobalSpace : EngineContext.SpacePool.GetSpace(RootId);
     }
 
     public IEnumerable<IBranchable> GetBranches()
     {
-        return BranchesIds.Select(x => Engine.Context.SpacePool.GetSpace(x));
+        return BranchesIds.Select(x => EngineContext.SpacePool.GetSpace(x));
     }
 
     public Guid GetSpaceId() => Id;
@@ -59,7 +59,7 @@ public class Space : IBranchable
         // SpaceFolders
         // =========================
 
-        var folders = Engine.Context.SpacePool.GetAllSpaceFoldersIn(this);
+        var folders = EngineContext.SpacePool.GetAllSpaceFoldersIn(this);
         writer.Write(folders.Count);
         foreach (var folder in folders)
         {

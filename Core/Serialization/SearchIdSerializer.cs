@@ -1,8 +1,8 @@
 ﻿namespace Solas.Serialization;
 
-public static class SearchIdSerializer
+internal static class SearchIdSerializer
 {
-    public static void Write(string path, Guid objectId, uint offset)
+    internal static void Write(string path, Guid objectId, uint offset)
     {
         using var stream = File.Open(path, FileMode.Append, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
@@ -11,7 +11,7 @@ public static class SearchIdSerializer
         writer.Write(offset);
     }
     
-    public static void WriteAll(string path, IEnumerable<(Guid, uint)> objects)
+    internal static void WriteAll(string path, IEnumerable<(Guid, uint)> objects)
     {
         using var stream = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
@@ -23,7 +23,7 @@ public static class SearchIdSerializer
         }
     }
     
-    public static Dictionary<Guid, uint> ReadAll(string lookupPath)
+    internal static Dictionary<Guid, uint> ReadAll(string lookupPath)
     {
         using var stream = File.Open(lookupPath, FileMode.OpenOrCreate, FileAccess.Read);
         using var reader = new BinaryReader(stream);

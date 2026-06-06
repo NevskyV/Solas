@@ -4,7 +4,7 @@ using Solas.Components;
 namespace Solas.Settings;
 
 [SettingsSection]
-public partial struct WorldSettings() : IData
+public partial class WorldSettings() : IData
 {
     public Guid[] SpaceIds = [];
 }

@@ -3,11 +3,15 @@ using Solas.Systems;
 
 namespace Solas;
 
-public record struct EngineContext(
-    DestroySystem Destroyer,
-    UpdateSystem Updater,
-    EntityPool EntityPool,
-    SpacePool SpacePool,
-    AssetsPool AssetsPool,
-    DISystem DISystem,
-    SettingsSystem SettingsSystem);
+internal record struct EngineContext
+{
+    //Systems
+    internal static readonly DestroySystem Destroyer = new ();
+    internal static readonly UpdateSystem Updater = new ();
+    internal static readonly SettingsSystem SettingsSystem = new ();
+    internal static readonly DISystem DISystem = new ();
+    
+    internal static readonly EntityPool EntityPool = new ();
+    internal static readonly SpacePool SpacePool = new ();
+    internal static readonly AssetsPool AssetsPool = new ();
+}

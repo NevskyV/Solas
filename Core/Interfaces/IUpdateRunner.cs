@@ -2,6 +2,6 @@
 
 public interface IUpdateRunner
 {
-    void InjectPools(ReadOnlySpan<IComponentPool> pools);
-    void Run();
+    public void InjectPools(ReadOnlySpan<IComponentPool> pools);
+    public void Run();
 }

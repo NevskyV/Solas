@@ -3,18 +3,18 @@ using Solas.World;
 
 namespace Solas.Systems;
 
-public class DestroySystem
+internal class DestroySystem
 {
-    public void DestroyIn(Space space)
+    internal void DestroyIn(Space space)
     {
         var entities =  Engine.GetEntitiesIn(space).ToArray();
         foreach (var entity in entities) 
             DestroyEntity(entity);
     }
 
-    private void DestroyEntity(Entity entity)
+    internal void DestroyEntity(Entity entity)
     {
-        Engine.Context.EntityPool.UnregisterEntity(entity);
+        EngineContext.EntityPool.UnregisterEntity(entity);
         entity.Dispose();
     }
 }

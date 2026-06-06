@@ -4,7 +4,7 @@ namespace Solas.Interfaces;
 
 public interface IComponentPool
 {
-    void Add(object component, Entity entity);
-    void Remove(Entity entity);
-    Entity? FindEntityFor(object component);
+    public void Add(object component, Entity entity);
+    public void Remove(Entity entity);
+    public Entity FindEntityFor(object component);
 }

@@ -27,9 +27,9 @@ public class UpdateRunnerGenerator : IIncrementalGenerator
             var register = new StringBuilder(@"
 namespace Solas.Generated
 {
-    public static class GeneratedUpdateRegistration
+    internal static class GeneratedUpdateRegistration
     {
-        public static void RegisterAll(Solas.Containers.EntityPool pool)
+        internal static void RegisterAll()
         {
 ");
 
@@ -87,7 +87,7 @@ using Solas.Containers;
 using Solas.Interfaces;
 namespace Solas.Generated
 {{
-    public class {runnerName} : Solas.Interfaces.IUpdateRunner
+    internal class {runnerName} : Solas.Interfaces.IUpdateRunner
     {{
         List<{fullName}> _updatables = [];
     
@@ -134,7 +134,7 @@ namespace Solas.Generated
             """);
 
         register.Append($@"
-            pool.{registerMethod}(new {runnerName}());
+            Solas.Command.{registerMethod}(new {runnerName}());
 ");
     }
 }

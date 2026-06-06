@@ -63,32 +63,32 @@ public class InjectGenerator : IIncrementalGenerator
                     };
                 
                 var sb = new StringBuilder($@"
+using Solas;
 namespace {ns}
 {{
     public partial {keyword} {className}
     {{
         public void Inject((Guid, Guid)[] guids)
         {{
-            var sys = Solas.Engine.Context.DISystem;
 ");
                 var count = 0;
                 foreach (var field in fieldsSymbols)
                 {
                     if (field.GetAttributes().Any(a => a.AttributeClass?.Name is "AutoInjectAttribute"))
                     {
-                        sb.AppendLine($"            {field.Name} ??= sys.AutoInject<{field.Type.ToDisplayString()}>(Entity.CurrentSpace);");
+                        sb.AppendLine($"            {field.Name} ??= Command.AutoInject<{field.Type.ToDisplayString()}>(Entity.CurrentSpace);");
                     }
                     else if (field.Type.BaseType?.ToDisplayString() is "Solas.Components.Logic")
                     {
-                        sb.AppendLine($"            {field.Name} ??= sys.Inject(guids[{count}].Item1, guids[{count}].Item2).GetLogic<{field.Type.ToDisplayString()}>();");
+                        sb.AppendLine($"            {field.Name} ??= Command.Inject(guids[{count}].Item1, guids[{count}].Item2).GetLogic<{field.Type.ToDisplayString()}>();");
                     }
                     else if (field.Type.Interfaces.Any(x => x.ToDisplayString() is "Solas.Components.IData"))
                     {
-                        sb.AppendLine($"            {field.Name} ??= sys.Inject(guids[{count}].Item1, guids[{count}].Item2).GetData<{field.Type.ToDisplayString()}>();");
+                        sb.AppendLine($"            {field.Name} ??= Command.Inject(guids[{count}].Item1, guids[{count}].Item2).GetData<{field.Type.ToDisplayString()}>();");
                     }
                     else
                     {
-                        sb.AppendLine($"            {field.Name} ??= sys.Inject<{field.Type.ToDisplayString()}>(guids[{count}].Item1);");
+                        sb.AppendLine($"            {field.Name} ??= Command.Inject<{field.Type.ToDisplayString()}>(guids[{count}].Item1);");
                     }
 
                     count++;

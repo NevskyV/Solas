@@ -1,4 +1,4 @@
 ﻿namespace Solas.Attributes;
 
-[AttributeUsage(AttributeTargets.Struct)]
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
 public class SettingsSectionAttribute : Attribute;

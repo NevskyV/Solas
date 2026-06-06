@@ -1,11 +1,11 @@
 ﻿namespace Solas.ComponentUtils;
 
-public static class ComponentRegistry
+internal static class ComponentRegistry
 {
     private static readonly Dictionary<Type, int> _typeIndices = new();
-    public static int Count { get; private set; }
+    internal static int Count { get; private set; }
 
-    public static int GetId(Type type)
+    internal static int GetId(Type type)
     {
         if (!_typeIndices.TryGetValue(type, out var id))
         {

@@ -5,11 +5,11 @@ using Solas.World;
 
 namespace Solas.Systems;
 
-public class InitializeSystem(Space space)
+internal class InitializeSystem(Space space)
 {
-    public InitializationPool Pool;
+    internal InitializationPool Pool;
     
-    public IEnumerable<Task> InitializeDependencies()
+    internal IEnumerable<Task> InitializeDependencies()
     {
         var entities = Engine.GetEntitiesIn(space).ToArray();
 
@@ -74,8 +74,6 @@ public class InitializeSystem(Space space)
 
     private async Task InitializeLogic(Logic logic)
     {
-        await Task.Run(((IInitializable)logic).Initialize);
+        await Task.Run((logic as IInitializable).Initialize);
     }
 }
-
-public enum InitializationOrder { Random, Prefixal, Suffixal, Custom }

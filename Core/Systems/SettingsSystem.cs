@@ -3,30 +3,28 @@ using Solas.Serialization;
 
 namespace Solas.Systems;
 
-public class SettingsSystem
+internal class SettingsSystem
 {
+    private readonly Dictionary<Type,IData> _settings = [];
     private readonly Dictionary<Type, string> _settingsPaths = new();
     
-    public IData[] ReadAllSettings(string pathToSettingsFolder)
+    internal void ReadAllSettings(string pathToSettingsFolder)
     {
         var files = Directory.GetFiles(pathToSettingsFolder,  "*.set");
-        IData[] settings = new IData[files.Length];
-        for(var i = 0; i < files.Length; i++)
+        foreach (var path in files)
         {
-            var stream = File.Open(files[i], FileMode.Open, FileAccess.Read);
+            var stream = File.Open(path, FileMode.Open, FileAccess.Read);
             using var reader = new BinaryReader(stream);
             
             var typeName = reader.ReadString();
             var data = DataSerializationRegistry.Read(typeName, reader, out _);
-            settings[i] = data;
+            _settings.Add(data.GetType(), data);
             
-            _settingsPaths.TryAdd(data.GetType(), files[i]);
+            _settingsPaths.TryAdd(data.GetType(), path);
         }
-        
-        return settings;
     }
     
-    public void WriteSettings(IData settings)
+    internal void WriteExistingSettings(IData settings)
     {
         var type = settings.GetType();
         
@@ -37,14 +35,14 @@ public class SettingsSystem
         DataSerializationRegistry.Write(writer, settings, null);
     }
     
-    public void WriteNewSettings(IData settings, string path)
+    internal void WriteNewSettings(IData settings, string path)
     {
         _settingsPaths.Add(settings.GetType(), path);
-        WriteSettings(settings);
+        WriteExistingSettings(settings);
     }
 
-    public T ReadSettings<T>() where T : struct, IData
+    internal T GetSettings<T>() where T : class, IData
     {
-        return (T)Engine.SettingsContext.First(x => x.GetType().IsAssignableTo(typeof(T)));
+        return (T)_settings[typeof(T)];
     }
 }

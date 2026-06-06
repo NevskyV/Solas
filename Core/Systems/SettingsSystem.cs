@@ -1,4 +1,5 @@
 ﻿using Solas.Components;
+using Solas.Serialization;
 
 namespace Solas.Systems;
 
@@ -16,12 +17,10 @@ public class SettingsSystem
             using var reader = new BinaryReader(stream);
             
             var typeName = reader.ReadString();
-            var type = Type.GetType(typeName)!;
-            var method = type.GetMethod("Read")!;
-            var data = method.Invoke(null, [reader]);
-            settings[i] = (IData)data;
+            var data = DataSerializationRegistry.Read(typeName, reader, out _);
+            settings[i] = data;
             
-            _settingsPaths.TryAdd(type, files[i]);
+            _settingsPaths.TryAdd(data.GetType(), files[i]);
         }
         
         return settings;
@@ -35,9 +34,7 @@ public class SettingsSystem
         using var writer = new BinaryWriter(stream);
         
         writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
-
-        var method = type.GetMethod("Write")!;
-        method.Invoke(settings, [writer, settings]);
+        DataSerializationRegistry.Write(writer, settings, null);
     }
     
     public void WriteNewSettings(IData settings, string path)

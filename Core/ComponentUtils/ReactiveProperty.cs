@@ -15,5 +15,5 @@ public class ReactiveProperty<T>()
             field = value;
             OnChange.Invoke(field);
         }
-    }
+    } = default;
 }

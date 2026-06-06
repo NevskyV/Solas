@@ -2,7 +2,7 @@
 
 namespace Solas.ComponentUtils;
 
-public partial class DataProperty<T>() : ReactiveProperty<T>(), IData
+public class DataProperty<T>() : ReactiveProperty<T>()
 {
     private readonly List<DataModifier<T>> _modifiers = [];
 

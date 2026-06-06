@@ -14,5 +14,8 @@
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="..\Core\Core.csproj" />
+        <ProjectReference Include="..\SourceGenerators\SourceGenerators.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
     </ItemGroup>
 </Project>

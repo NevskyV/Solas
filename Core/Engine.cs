@@ -17,7 +17,8 @@ public class Engine
         new UpdateSystem(),
         new EntityPool(),
         new SpacePool(),
-        new DependencyInjectionSystem(),
+        new AssetsPool(),
+        new DISystem(),
         new SettingsSystem()
     );
     
@@ -65,7 +66,6 @@ public class Engine
 
     public void CreateUpdateSystems()
     {
-        
         foreach (var typeName in _coreSettings.UpdateSystems)
         {
             var type = Type.GetType(typeName)!;
@@ -88,8 +88,12 @@ public class Engine
 
     public void CreateWorld()
     {
-        _globalSpace = _context.SpacePool.LoadSpace(_coreSettings.GlobalSpacePath);
-        _context.SpacePool.SetPaths(_coreSettings.LocalSpacesFolderPath);
+        _context.AssetsPool.ReadPointers();
+        
+        _globalSpace = _context.SpacePool.LoadSpace(_coreSettings.GlobalSpacePath, false);
+        _context.DISystem.BuildDependencies(_globalSpace);
+        
+        _context.SpacePool.SetPaths(_coreSettings.LocalSpacesDirectory);
         _context.SpacePool.LoadSavedSpaces();
     }
 
@@ -116,6 +120,7 @@ public class Engine
     {
         _context.Updater.Stop();
         _context.SpacePool.UnloadAllSpaces();
+        _context.AssetsPool.SaveAllNewAssets();
     }
 
     public static IEnumerable<Entity> GetEntitiesIn(Space space)

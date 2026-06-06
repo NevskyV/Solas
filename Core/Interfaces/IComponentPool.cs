@@ -6,4 +6,5 @@ public interface IComponentPool
 {
     void Add(object component, Entity entity);
     void Remove(Entity entity);
+    Entity? FindEntityFor(object component);
 }

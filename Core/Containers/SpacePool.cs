@@ -22,14 +22,19 @@ public class SpacePool
         _spaceFolders[space].Add(folder);
     }
     
-    public SpaceFolder GetSpaceFolderWith(Guid guid)
+    public SpaceFolder GetSpaceFolderWith(Guid guid, Space space)
     {
-        return _spaceFolders.Values.Select(x=>x.Find(y=>y.Id == guid)).FirstOrDefault();
+        return _spaceFolders[space].Find(x=>x.Id == guid);
     }
     
-    public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids)
+    public SpaceFolder GetSpaceFolderWith(Guid guid, Guid spaceId)
     {
-        return _spaceFolders.Values.Select(x => x.Find(y => guids.Contains(y.Id)));
+        return _spaceFolders[GetSpace(spaceId)].Find(x=>x.Id == guid);
+    }
+    
+    public IEnumerable<SpaceFolder> GetSpaceFoldersWith(List<Guid> guids, Space space)
+    {
+        return _spaceFolders[space].Where(x=>guids.Contains(x.Id));
     }
 
     public List<SpaceFolder> GetAllSpaceFoldersIn(Space space)
@@ -53,7 +58,7 @@ public class SpacePool
     
     public Space GetSpace(Guid guid)
     {
-        return _localSpaces.First(x => x.Id == guid);
+        return Engine.GlobalSpace.Id == guid? Engine.GlobalSpace : _localSpaces.FirstOrDefault(x => x.Id == guid);
     }
 
     public Space LoadLocalSpace(string path, Space rootSpace = null)
@@ -64,7 +69,7 @@ public class SpacePool
         return space;
     }
 
-    public Space LoadSpace(string path)
+    public Space LoadSpace(string path, bool immediateBuild = true)
     {
         Space space;
         if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0)
@@ -81,12 +86,14 @@ public class SpacePool
         {
             using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
             using var reader = new BinaryReader(stream);
-
+            
             space = new Space(Path.GetFileNameWithoutExtension(path), path, new Guid(reader.ReadBytes(16)));
-            space.Initializer.Pool = BinarySpaceSaver.LoadSpace(space, path);
+            space.Read(reader);
         }
+        Console.WriteLine(space.Id);
         Console.WriteLine($"Loading space: {space.Name}");
-        Engine.Context.InjectionSystem.BuildDependencies(space);
+        if(immediateBuild)
+            Engine.Context.DISystem.BuildDependencies(space);
         return space;
     }
 
@@ -99,8 +106,13 @@ public class SpacePool
 
             if(WorldSettings.SpaceIds.Contains(new Guid(reader.ReadBytes(16))))
             {
-                _localSpaces.Add(LoadSpace(path));
+                _localSpaces.Add(LoadSpace(path, false));
             }
+        }
+
+        foreach (var space in _localSpaces)
+        {
+            Engine.Context.DISystem.BuildDependencies(space);
         }
         SpaceTree.Create(_localSpaces);
     }
@@ -122,6 +134,19 @@ public class SpacePool
             UnloadSpace(_localSpaces[i]);
         }
         UnloadSpace(Engine.GlobalSpace);
+    }
+    
+    public void SaveSpace(Space space)
+    {
+        using var stream = File.Open(space.Path, FileMode.OpenOrCreate, FileAccess.Write);
+        using var writer = new BinaryWriter(stream);
+
+        space.Write(writer);
+    }
+
+    public bool IsLoaded(Guid id)
+    {
+        return _localSpaces.Exists(x => x.Id == id) || Engine.GlobalSpace.Id == id;
     }
     
     #endregion

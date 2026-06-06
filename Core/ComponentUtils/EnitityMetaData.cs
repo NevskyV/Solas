@@ -1,4 +1,4 @@
-﻿namespace Solas.Components;
+﻿namespace Solas.ComponentUtils;
 
 public record struct EntityMetaData(string Name, string Tag, ushort Icon)
 {

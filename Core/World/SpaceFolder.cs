@@ -3,12 +3,13 @@ using Solas.Interfaces;
 
 namespace Solas.World;
 
-public struct SpaceFolder : IBranchable
+public class SpaceFolder : IBranchable
 {
     public Guid Id { get; init; }
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; }
     private List<Guid> EntityIds { get; init; } = [];
+    public Space Space { get; init; }
     
     public void AddEntityId(Guid entityId) => EntityIds.Add(entityId);
     public void RemoveEntityId(Guid entityId) => EntityIds.Remove(entityId);
@@ -16,17 +17,62 @@ public struct SpaceFolder : IBranchable
     
     public IBranchable GetRoot()
     {
-        return Engine.Context.SpacePool.GetSpaceFolderWith(RootId);
+        return Engine.Context.SpacePool.GetSpaceFolderWith(RootId, Space);
     }
     
     public IEnumerable<IBranchable> GetBranches()
     {
-        return Engine.Context.SpacePool.GetSpaceFoldersWith(BranchesIds).Cast<IBranchable>();
+        return Engine.Context.SpacePool.GetSpaceFoldersWith(BranchesIds, Space);
     }
 
     public SpaceFolder(Guid id, Space space)
     {
         Id = id;
+        Space = space;
         Engine.Context.SpacePool.RegisterSpaceFolder(this, space);
     }
+
+    public Guid GetSpaceId() => Space.Id;
+
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write(Id.ToByteArray());
+        writer.Write(RootId.ToByteArray());
+            
+        writer.Write(BranchesIds.Count);
+        foreach (var branchId in BranchesIds)
+        {
+            writer.Write(branchId.ToByteArray());
+        }
+
+        var entityIds = GetEntityIds();
+        writer.Write(entityIds.Length);
+        foreach (var entityId in entityIds)
+        {
+            writer.Write(entityId.ToByteArray());
+        }
+    }
+
+    public IReferenceable Read(BinaryReader reader)
+    {
+        var folderRootId = new Guid(reader.ReadBytes(16));
+            
+        var folderBranchesCount = reader.ReadInt32();
+        var folderBranches = new Guid[folderBranchesCount];
+        for (var j = 0; j < folderBranchesCount; j++)
+        {
+            folderBranches[j] = new Guid(reader.ReadBytes(16));
+        }
+
+        RootId = folderRootId;
+        BranchesIds = folderBranches.ToList();
+            
+        var entityIdsCount = reader.ReadInt32();
+        for (var j = 0; j < entityIdsCount; j++)
+        {
+            AddEntityId(new Guid(reader.ReadBytes(16)));
+        }
+        return this;
+    }
+
 }

@@ -192,6 +192,46 @@ public class EntityPool
         return GetComponentsBySingleTypeInAllAvailable<T>(space).First();
     }
 
+    public Entity TryGetEntityFor(object component, Space? hintSpace = null)
+    {
+        if (component == null)
+            return null;
+
+        if (hintSpace != null)
+        {
+            Entity found = FindEntityForInSpace(component, hintSpace);
+            if (found != null)
+                return found;
+        }
+
+        foreach (var (space, _) in _componentPoolsInSpaces)
+        {
+            if (hintSpace != null && space == hintSpace)
+                continue;
+
+            Entity found = FindEntityForInSpace(component, space);
+            if (found != null)
+                return found;
+        }
+
+        return null;
+    }
+
+    private Entity FindEntityForInSpace(object component, Space space)
+    {
+        if (!_componentPoolsInSpaces.TryGetValue(space, out var pools))
+            return null;
+
+        foreach (var pool in pools.Values)
+        {
+            Entity entity = pool.FindEntityFor(component);
+            if (entity != null)
+                return entity;
+        }
+
+        return null;
+    }
+
     public IEnumerable<IComponentPool> GetComponentPoolsInSpace(Space space)
     {
         return _componentPoolsInSpaces[space].Values;

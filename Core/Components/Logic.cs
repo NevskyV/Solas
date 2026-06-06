@@ -1,6 +1,8 @@
-﻿namespace Solas.Components;
+﻿using Solas.Interfaces;
 
-public abstract class Logic
+namespace Solas.Components;
+
+public abstract class Logic : IInjectable
 {
     public Entity Entity { get; init; }
 }

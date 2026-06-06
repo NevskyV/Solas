@@ -37,4 +37,13 @@ public readonly record struct ComponentPool<T>() : IComponentPool
 
         _indices.Remove(entity);
     }
+
+    public Entity? FindEntityFor(object component)
+    {
+        if (component is not T typed)
+            return null;
+
+        var index = Components.IndexOf(typed);
+        return index >= 0 ? Entities[index] : null;
+    }
 }

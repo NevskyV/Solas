@@ -1,13 +1,15 @@
 ﻿using System.Runtime.InteropServices;
+using Solas.Attributes;
 using Solas.ComponentUtils;
 using Solas.Interfaces;
+using Solas.Serialization;
 using Solas.World;
 
 namespace Solas.Components;
 
-public class Entity : IDisposable, IToggleable
+public sealed class Entity : IDisposable, IToggleable, IReferenceable
 {
-    public Guid Id { get; private set; }
+    public Guid Id { get; init; }
     public EntityMetaData MetaData { get; set; }
     public ReactiveProperty<bool> IsEnabled { get; set; } = new();
     public Space CurrentSpace { get; set; }
@@ -38,12 +40,13 @@ public class Entity : IDisposable, IToggleable
 
     #region Data Method Group
 
-    public void AddData<T>(T data) where T : IData
+    public T AddData<T>(T data) where T : IData
     {
-        if (_data.Contains(data)) return;
+        if (_data.Contains(data)) return default;
         _data.Add(data);
         Engine.Context.EntityPool.AddReferences(data, this);
         UpdateMask<T>();
+        return data;
     }
 
     public void RemoveData<T>(T data) where T : IData
@@ -62,14 +65,13 @@ public class Entity : IDisposable, IToggleable
 
     #region Logic Method Group
 
-    public T AddLogic<T>() where T : Logic, new()
+    public T AddLogic<T>() where T : Logic, IInjectable, new()
     {
         var newLogic = new T() { Entity = this };
         if (_logics.Contains(newLogic)) return newLogic;
         _logics.Add(newLogic);
 
         Engine.Context.EntityPool.AddReferences(newLogic, this);
-        Engine.Context.InjectionSystem.InjectEntity(newLogic, CurrentSpace);
         
         UpdateMask<T>();
         return newLogic;
@@ -114,4 +116,118 @@ public class Entity : IDisposable, IToggleable
             IsEnabled.Value = oldValue;
         }
     }
+
+    #region Binary
+
+    public Guid GetSpaceId() => CurrentSpace.Id;
+
+    public void Write(BinaryWriter writer)
+    {
+        writer.Write(Id.ToByteArray());
+
+        writer.Write(MetaData.Name ?? string.Empty);
+        writer.Write(MetaData.Tag ?? string.Empty);
+        writer.Write(MetaData.Icon);
+
+        // =========================
+        // Data
+        // =========================
+
+        writer.Write(Data.Length);
+
+        foreach (var data in Data)
+        {
+            var type = data.GetType();
+            writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
+            DataSerializationRegistry.Write(writer, data, this);
+        }
+
+        // =========================
+        // Logic
+        // =========================
+
+        writer.Write(Logics.Length);
+
+        foreach (var logic in Logics)
+        {
+            var type = logic.GetType();
+            writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
+
+            var allInjected = type.GetFields().Where(x =>
+                x.CustomAttributes.Any(y => y.ToString() == nameof(AutoInjectAttribute))).ToArray();
+            
+            writer.Write(allInjected.Count());
+            foreach (var info in allInjected)
+            {
+                Logic obj = (Logic)info.GetValue(logic)!;
+                writer.Write(obj.Entity.Id.ToByteArray());
+                writer.Write(obj.Entity.CurrentSpace.Id.ToByteArray());
+            }
+        }
+    }
+
+    public IReferenceable Read(BinaryReader reader)
+    {
+        // =========================
+        // Data
+        // =========================
+
+        var dataCount = reader.ReadInt32();
+
+        for (var j = 0; j < dataCount; j++)
+        {
+            var typeName = reader.ReadString();
+            var data = DataSerializationRegistry.Read(typeName, reader, out var guids);
+            AddData(data);
+
+            if (guids.Length > 0)
+                Engine.Context.DISystem.AddInjectable(data, guids, CurrentSpace);
+        }
+
+        // =========================
+        // Logic
+        // =========================
+
+        var logicCount = reader.ReadInt32();
+
+        for (var j = 0; j < logicCount; j++)
+        {
+            var typeName = reader.ReadString();
+
+            var type = Type.GetType(typeName)!;
+
+            var method = GetType().GetMethod(nameof(AddLogic))!.MakeGenericMethod(type);
+
+            var l = (IInjectable)method.Invoke(this, null);
+            
+            var injectCount = reader.ReadInt32();
+            var ids = new (Guid, Guid)[injectCount];
+            for (var i = 0; i < injectCount; i++)
+            {
+                ids[i] = (new Guid(reader.ReadBytes(16)), new Guid(reader.ReadBytes(16)));
+            } 
+            
+            Engine.Context.DISystem.AddInjectable(l, ids, CurrentSpace);
+        }
+
+        return this;
+    }
+    
+    public static Entity StaticRead(BinaryReader reader, Space space)
+    {
+        var id = new Guid(reader.ReadBytes(16));
+
+        var metaData = new EntityMetaData(
+            reader.ReadString(),
+            reader.ReadString(),
+            reader.ReadUInt16());
+
+        var entity = new Entity(id, space, metaData);
+
+        entity.Read(reader);
+        
+        return entity;
+    }
+
+    #endregion
 }

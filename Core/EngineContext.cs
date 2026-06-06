@@ -8,5 +8,6 @@ public record struct EngineContext(
     UpdateSystem Updater,
     EntityPool EntityPool,
     SpacePool SpacePool,
-    DependencyInjectionSystem InjectionSystem,
+    AssetsPool AssetsPool,
+    DISystem DISystem,
     SettingsSystem SettingsSystem);

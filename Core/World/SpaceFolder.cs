@@ -17,12 +17,12 @@ public class SpaceFolder : IBranchable
     
     public IBranchable GetRoot()
     {
-        return EngineContext.SpacePool.GetSpaceFolderWith(RootId, Space);
+        return Query.GetSpaceFolderWith(RootId, Space);
     }
     
     public IEnumerable<IBranchable> GetBranches()
     {
-        return EngineContext.SpacePool.GetSpaceFoldersWith(BranchesIds, Space);
+        return Query.GetSpaceFoldersWith(BranchesIds, Space);
     }
 
     public SpaceFolder(Guid id, Space space)

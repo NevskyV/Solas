@@ -1,6 +1,6 @@
-﻿namespace Solas.Containers;
+﻿using Solas.Enums;
 
-public enum InitializationOrder { Random, Prefixal, Suffixal, Custom }
+namespace Solas.Containers;
 
 public struct InitializationPool()
 {

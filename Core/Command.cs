@@ -5,12 +5,10 @@ using Solas.World;
 
 namespace Solas;
 
-public class Command
+public static class Command
 {
     #region Settings System
     
-    public static void ReadAllSettings(string pathToSettingsFolder) => EngineContext.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
-    public static T GetSettings<T>() where T : class, IData => EngineContext.SettingsSystem.GetSettings<T>();
     public static void WriteExistingSettings(IData settings) => EngineContext.SettingsSystem.WriteExistingSettings(settings);
     public static void WriteNewSettings(IData settings, string path) => EngineContext.SettingsSystem.WriteNewSettings(settings, path);
     
@@ -31,13 +29,19 @@ public class Command
     public static void SaveNewAssets() => EngineContext.AssetsPool.SaveNewAssets();
     
     #endregion
+
+    #region Space Pool
+
+    public static Space LoadLocalSpace(string path, Space rootSpace = null) =>  EngineContext.SpacePool.LoadLocalSpace(path, rootSpace);
+    public static void UnloadSpace(Space space) => EngineContext.SpacePool.UnloadSpace(space);
+    public static void SaveSpace(Space space) => EngineContext.SpacePool.SaveSpace(space);
+
+    #endregion
     
     #region Entity Pool
 
     public static void RegisterRunner(IUpdateRunner runner) => EngineContext.EntityPool.RegisterRunner(runner);
-    
     public static void RegisterFixedRunner(IUpdateRunner runner) => EngineContext.EntityPool.RegisterFixedRunner(runner);
-    
     public static void RegisterLateRunner(IUpdateRunner runner) => EngineContext.EntityPool.RegisterLateRunner(runner);
 
     #endregion

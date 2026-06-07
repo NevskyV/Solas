@@ -92,17 +92,12 @@ internal class EntityPool
 
     #region Search
     
-    internal Dictionary<Type, IComponentPool> GetTypesWithComponentPoolsIn(Space space)
-    {
-        return _componentPoolsInSpaces[space];
-    }
-    
     internal IEnumerable<Entity> GetEntitiesIn(Space space)
     {
         return _entitiesInSpaces[space];
     }
     
-    internal IEnumerable<Entity> GetEntitiesInAllAvailable(Space space)
+    internal IEnumerable<Entity> GetEntitiesInAvailable(Space space)
     {
         return _entitiesInSpaces
             .Where(x => SpaceTree.GetAllAvailableSpacesFor(space).Contains(x.Key))
@@ -131,7 +126,7 @@ internal class EntityPool
         return result;
     }
     
-    internal IEnumerable<Entity> GetEntitiesInAllAvailableWith(Space space, params Type[] types)
+    internal IEnumerable<Entity> GetEntitiesInAvailableWith(Space space, params Type[] types)
     {
         return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(x => GetEntitiesWith(x, types));
     }
@@ -147,7 +142,7 @@ internal class EntityPool
         return true;
     }
 
-    internal IEnumerable<Entity> GetEntitiesBySingleType<T>(Space space)
+    internal IEnumerable<Entity> GetEntitiesByType<T>(Space space)
     {
         var type = typeof(T);
         if(_componentPoolsInSpaces[space].ContainsKey(type))
@@ -160,12 +155,12 @@ internal class EntityPool
         return [];
     }
     
-    internal IEnumerable<Entity> GetEntitiesBySingleTypeInAllAvailable<T>(Space space)
+    internal IEnumerable<Entity> GetEntitiesByTypeInAvailable<T>(Space space)
     {
-        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetEntitiesBySingleType<T>);
+        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetEntitiesByType<T>);
     }
 
-    internal IEnumerable<T> GetComponentsBySingleType<T>(Space space)
+    internal IEnumerable<T> GetComponentsByType<T>(Space space)
     {
         var type = typeof(T);
         if(_componentPoolsInSpaces[space].TryGetValue(type, out var value))
@@ -177,19 +172,19 @@ internal class EntityPool
         return [];
     }
     
-    internal IEnumerable<T> GetComponentsBySingleTypeInAllAvailable<T>(Space space)
+    internal IEnumerable<T> GetComponentsByTypeInAvailable<T>(Space space)
     {
-        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetComponentsBySingleType<T>);
+        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetComponentsByType<T>);
     }
     
-    internal T GetComponentBySingleType<T>(Space space)
+    internal T GetComponentByType<T>(Space space)
     {
-        return GetComponentsBySingleType<T>(space).First();
+        return GetComponentsByType<T>(space).First();
     }
     
-    internal T GetComponentBySingleTypeInAllAvailable<T>(Space space)
+    internal T GetComponentByTypeInAvailable<T>(Space space)
     {
-        return GetComponentsBySingleTypeInAllAvailable<T>(space).First();
+        return GetComponentsByTypeInAvailable<T>(space).First();
     }
 
     internal Entity TryGetEntityFor(object component, Space hintSpace = null)

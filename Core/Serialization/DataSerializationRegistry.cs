@@ -35,7 +35,7 @@ public static class DataSerializationRegistry
             throw new InvalidOperationException(
                 $"Type '{typeName}' is not registered for binary deserialization.");
 
-        (IData data, (Guid, Guid)[] readGuids) = factory(reader);
+        var (data, readGuids) = factory(reader);
         guids = readGuids;
         return data;
     }

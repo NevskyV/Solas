@@ -7,7 +7,7 @@ namespace Solas.Systems;
 internal class DISystem
 {
     private readonly Dictionary<Space, List<Logic>> _cache = [];
-    private Dictionary<Space,Dictionary<IInjectable, (Guid, Guid)[]>> _injectables = [];
+    private readonly Dictionary<Space,Dictionary<IInjectable, (Guid, Guid)[]>> _injectables = [];
 
     internal void AddInjectable(IInjectable injectable, (Guid, Guid)[] guids, Space space)
     {
@@ -39,13 +39,13 @@ internal class DISystem
             result = (T)logics.FirstOrDefault(x=>x.GetType() == typeof(T));
             if (result == null)
             {
-                result = EngineContext.EntityPool.GetComponentBySingleTypeInAllAvailable<T>(space);
+                result = EngineContext.EntityPool.GetComponentByTypeInAvailable<T>(space);
                 _cache[space].Add(result);
             }
         }
         else
         {
-            result = EngineContext.EntityPool.GetComponentBySingleTypeInAllAvailable<T>(space);
+            result = EngineContext.EntityPool.GetComponentByTypeInAvailable<T>(space);
             _cache.Add(space, [result]);
         }
 
@@ -66,7 +66,7 @@ internal class DISystem
         var loadedSpace = EngineContext.SpacePool.GetSpace(spaceId);
         if (loadedSpace != null)
         {
-            return EngineContext.EntityPool.GetEntitiesInAllAvailable(loadedSpace).First(x=>x.Id==id); 
+            return EngineContext.EntityPool.GetEntitiesInAvailable(loadedSpace).First(x=>x.Id==id); 
         }
 
         return EngineContext.AssetsPool.LoadEntity(id);

@@ -100,9 +100,4 @@ public static class Engine
         EngineContext.SpacePool.UnloadAllSpaces();
         EngineContext.AssetsPool.SaveNewAssets();
     }
-
-    public static IEnumerable<Entity> GetEntitiesIn(Space space)
-    {
-        return EngineContext.EntityPool.GetEntitiesIn(space);
-    }
 }

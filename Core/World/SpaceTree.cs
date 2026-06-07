@@ -15,7 +15,7 @@ internal static class SpaceTree
     {
         if (space.Id == spaceToAttach.Id) return;
 
-        EngineContext.SpacePool.GetSpace(space.RootId).BranchesIds.Remove(spaceToAttach.Id);
+        Query.GetSpace(space.RootId).BranchesIds.Remove(spaceToAttach.Id);
         space.RootId = spaceToAttach.Id;
         spaceToAttach.BranchesIds.Add(space.Id);
     }
@@ -43,7 +43,7 @@ internal static class SpaceTree
             var nextRootId = lookupSpace.RootId;
             if (!visited.Add(nextRootId)) break;
 
-            lookupSpace = EngineContext.SpacePool.GetSpace(nextRootId);
+            lookupSpace = Query.GetSpace(nextRootId);
             result.Add(lookupSpace);
         }
         
@@ -59,7 +59,7 @@ internal static class SpaceTree
     {
         foreach (var id in branchIds)
         {
-            var space = EngineContext.SpacePool.GetSpace(id);
+            var space = Query.GetSpace(id);
             accumulator.Add(space);
             if (space.BranchesIds.Count > 0)
             {

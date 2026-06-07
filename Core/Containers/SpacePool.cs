@@ -10,7 +10,7 @@ internal class SpacePool
     private string[] _localSpacesPaths;
     private readonly List<Space> _localSpaces = [];
     private readonly Dictionary<Space,List<SpaceFolder>> _spaceFolders = [];
-    private WorldSettings WorldSettings => EngineContext.SettingsSystem.GetSettings<WorldSettings>();
+    private WorldSettings WorldSettings => Query.GetSettings<WorldSettings>();
 
     #region SpaceFolders
 
@@ -96,7 +96,7 @@ internal class SpacePool
         return space;
     }
 
-    public void LoadSavedSpaces()
+    internal void LoadSavedSpaces()
     {
         foreach (var path in _localSpacesPaths)
         {
@@ -116,7 +116,7 @@ internal class SpacePool
         SpaceTree.Create(_localSpaces);
     }
 
-    public void UnloadSpace(Space space)
+    internal void UnloadSpace(Space space)
     {
         if(_localSpaces.Contains(space))
             _localSpaces.Remove(space);
@@ -125,7 +125,7 @@ internal class SpacePool
         EngineContext.EntityPool.UnregisterSpace(space);
     }
     
-    public void UnloadAllSpaces()
+    internal void UnloadAllSpaces()
     {
         var count = _localSpaces.Count;
         for (var i = 0; i < count; i++)
@@ -135,7 +135,7 @@ internal class SpacePool
         UnloadSpace(WorldContext.GlobalSpace);
     }
     
-    public void SaveSpace(Space space)
+    internal void SaveSpace(Space space)
     {
         using var stream = File.Open(space.Path, FileMode.OpenOrCreate, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
@@ -143,7 +143,7 @@ internal class SpacePool
         space.Write(writer);
     }
 
-    public bool IsLoaded(Guid id)
+    internal bool IsLoaded(Guid id)
     {
         return _localSpaces.Exists(x => x.Id == id) || WorldContext.GlobalSpace.Id == id;
     }

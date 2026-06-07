@@ -27,6 +27,7 @@ internal class UpdateSystem
 
     private bool _isRunning;
     private readonly EntityPool _entityPool = EngineContext.EntityPool;
+    private readonly SpacePool _spacePool = EngineContext.SpacePool;
 
     internal readonly List<IUpdateSystem> UpdateSystems = [];
     internal readonly List<IUpdateSystem> FixedUpdateSystems = [];
@@ -41,7 +42,7 @@ internal class UpdateSystem
         _accumulator = 0;
         _isRunning = true;
 
-        var injectAction = EngineContext.SpacePool.InjectPoolsInUpdateRunners;
+        var injectAction = _spacePool.InjectPoolsInUpdateRunners;
         
         while (Engine.State != GameState.None)
         {

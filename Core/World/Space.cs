@@ -1,5 +1,6 @@
 ﻿using Solas.Components;
 using Solas.Containers;
+using Solas.Enums;
 using Solas.Interfaces;
 using Solas.Systems;
 
@@ -26,12 +27,12 @@ public class Space : IBranchable
     
     public IBranchable GetRoot()
     {
-        return RootId == Guid.Empty ? WorldContext.GlobalSpace : EngineContext.SpacePool.GetSpace(RootId);
+        return RootId == Guid.Empty ? WorldContext.GlobalSpace : Query.GetSpace(RootId);
     }
 
     public IEnumerable<IBranchable> GetBranches()
     {
-        return BranchesIds.Select(x => EngineContext.SpacePool.GetSpace(x));
+        return BranchesIds.Select(Query.GetSpace);
     }
 
     public Guid GetSpaceId() => Id;
@@ -59,7 +60,7 @@ public class Space : IBranchable
         // SpaceFolders
         // =========================
 
-        var folders = EngineContext.SpacePool.GetAllSpaceFoldersIn(this);
+        var folders = Query.GetAllSpaceFoldersIn(this);
         writer.Write(folders.Count);
         foreach (var folder in folders)
         {
@@ -70,7 +71,7 @@ public class Space : IBranchable
         // Entities
         // =========================
         
-        var entities = Engine.GetEntitiesIn(this).ToArray();
+        var entities = Query.GetEntitiesIn(this).ToArray();
         
         writer.Write(entities.Length);
 

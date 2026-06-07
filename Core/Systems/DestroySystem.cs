@@ -7,7 +7,7 @@ internal class DestroySystem
 {
     internal void DestroyIn(Space space)
     {
-        var entities =  Engine.GetEntitiesIn(space).ToArray();
+        var entities =  Query.GetEntitiesIn(space).ToArray();
         foreach (var entity in entities) 
             DestroyEntity(entity);
     }

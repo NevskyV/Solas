@@ -1,5 +1,6 @@
 ﻿using Solas.Components;
 using Solas.Containers;
+using Solas.Enums;
 using Solas.Interfaces;
 using Solas.World;
 
@@ -11,7 +12,7 @@ internal class InitializeSystem(Space space)
     
     internal IEnumerable<Task> InitializeDependencies()
     {
-        var entities = Engine.GetEntitiesIn(space).ToArray();
+        var entities = Query.GetEntitiesIn(space).ToArray();
 
         var guidsCount = Pool.OrderedEntitiesIds.Length;
         Entity[] orderedEntities = new Entity[guidsCount];

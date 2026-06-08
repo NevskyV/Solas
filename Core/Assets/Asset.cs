@@ -4,7 +4,7 @@ namespace Solas.Assets;
 
 public abstract class Asset : IReferenceable
 {
-    public Guid Id { get; init; }
+    public Guid Id { get; init; } = Guid.NewGuid();
 
     public Guid GetSpaceId() => Guid.Empty;
     public abstract void Write(BinaryWriter writer);

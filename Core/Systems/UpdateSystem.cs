@@ -26,8 +26,7 @@ internal class UpdateSystem
     private readonly double _tickToSeconds = 1.0 / Stopwatch.Frequency;
 
     private bool _isRunning;
-    private readonly EntityPool _entityPool = EngineContext.EntityPool;
-    private readonly SpacePool _spacePool = EngineContext.SpacePool;
+    private EntityPool EntityPool => EngineContext.EntityPool;
 
     internal readonly List<IUpdateSystem> UpdateSystems = [];
     internal readonly List<IUpdateSystem> FixedUpdateSystems = [];
@@ -42,16 +41,15 @@ internal class UpdateSystem
         _accumulator = 0;
         _isRunning = true;
 
-        var injectAction = _spacePool.InjectPoolsInUpdateRunners;
-        
+        var injectAction = EngineContext.SpacePool.InjectPoolsInUpdateRunners;
         while (Engine.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
             
             //Injecting runners before Tick
-            injectAction.Invoke(CollectionsMarshal.AsSpan(_entityPool.UpdateRunners));
-            injectAction.Invoke(CollectionsMarshal.AsSpan(_entityPool.FixedUpdateRunners));
-            injectAction.Invoke(CollectionsMarshal.AsSpan(_entityPool.LateUpdateRunners));
+            injectAction(CollectionsMarshal.AsSpan(EntityPool.UpdateRunners));
+            injectAction(CollectionsMarshal.AsSpan(EntityPool.FixedUpdateRunners));
+            injectAction(CollectionsMarshal.AsSpan(EntityPool.LateUpdateRunners));
             
             Tick();
 
@@ -91,7 +89,7 @@ internal class UpdateSystem
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
             for (var i = 0; i < FixedUpdateSystems.Count; i++) FixedUpdateSystems[i].Update();
-            var fixedUpdatables = _entityPool.FixedUpdateRunners;
+            var fixedUpdatables = EntityPool.FixedUpdateRunners;
             for (var i = 0; i < fixedUpdatables.Count; i++) fixedUpdatables[i].Run();
             
             _accumulator -= Time.FixedDeltaTime;
@@ -104,11 +102,11 @@ internal class UpdateSystem
         Time.Alpha = _accumulator * invFixedDelta;
 
         for (var i = 0; i < UpdateSystems.Count; i++) UpdateSystems[i].Update();
-        var updatables = _entityPool.UpdateRunners;
+        var updatables = EntityPool.UpdateRunners;
         for (var i = 0; i < updatables.Count; i++) updatables[i].Run();
         
         for (var i = 0; i < LateUpdateSystems.Count; i++) LateUpdateSystems[i].Update();
-        var lateUpdatables = _entityPool.LateUpdateRunners;
+        var lateUpdatables = EntityPool.LateUpdateRunners;
         for (var i = 0; i < lateUpdatables.Count; i++) lateUpdatables[i].Run();
         
     }

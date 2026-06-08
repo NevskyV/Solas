@@ -29,7 +29,7 @@ internal static class SearchIdSerializer
         using var reader = new BinaryReader(stream);
 
         var result = new Dictionary<Guid, uint>();
-        while (reader.PeekChar() != -1)
+        while (stream.Position < stream.Length)
         {
             var spaceId = new Guid(reader.ReadBytes(16));
             if (!result.ContainsKey(spaceId))

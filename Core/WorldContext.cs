@@ -3,7 +3,7 @@ using Solas.World;
 
 namespace Solas;
 
-public static class WorldContext
+public static partial class WorldContext
 {
     public static Space GlobalSpace
     {
@@ -14,6 +14,6 @@ public static class WorldContext
     public static CoreSettings CoreSettings
     {
         get;
-        internal set => field = field.Equals(default) ? value : field;
+        internal set => field ??= value;
     }
 }

@@ -2,8 +2,8 @@
 
 public sealed class TextAsset : Asset
 {
-    public string[] Lines;
-    
+    public string[] Lines = [];
+
     public override void Write(BinaryWriter writer)
     {
         var count = Lines.Length;

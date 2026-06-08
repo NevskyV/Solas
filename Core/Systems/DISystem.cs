@@ -66,7 +66,7 @@ internal class DISystem
         var loadedSpace = EngineContext.SpacePool.GetSpace(spaceId);
         if (loadedSpace != null)
         {
-            return EngineContext.EntityPool.GetEntitiesInAvailable(loadedSpace).First(x=>x.Id==id); 
+            return EngineContext.EntityPool.GetEntitiesIn(loadedSpace).First(x=>x.Id==id); 
         }
 
         return EngineContext.AssetsPool.LoadEntity(id);

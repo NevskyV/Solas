@@ -7,8 +7,6 @@ namespace Solas.Settings;
 public partial class CoreSettings() : IData
 {
     public float TargetFrameTime = 60.0f;
-    
-    public string AssetsDirectory = Directory.GetCurrentDirectory() + @"\Assets\";
     public string AssetsPackPath = Directory.GetCurrentDirectory() + @"\Solas\Assets.pack";
     public string GlobalSpacePath = Directory.GetCurrentDirectory() + @"\Solas\Global.space";
     public string AssetsSpacePath = Directory.GetCurrentDirectory() + @"\Solas\Assets.space";

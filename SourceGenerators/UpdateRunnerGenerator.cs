@@ -1,12 +1,12 @@
 ﻿using System.Collections.Immutable;
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Solas.SourceGenerators.Utils;
 
 namespace Solas.SourceGenerators;
 
 [Generator]
-public class UpdateRunnerGenerator : IIncrementalGenerator
+public sealed class UpdateRunnerGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -23,35 +23,51 @@ public class UpdateRunnerGenerator : IIncrementalGenerator
         {
             var (compilation, classes) = source;
 
-            var runners = new StringBuilder();
-            var register = new StringBuilder(@"
-namespace Solas.Generated
-{
-    internal static class GeneratedUpdateRegistration
-    {
-        internal static void RegisterAll()
-        {
-");
+            var runnersWriter = new CodeWriter();
+            var registerWriter = new CodeWriter();
+
+            runnersWriter.WriteLine("using System;");
+            runnersWriter.WriteLine("using System.Collections.Generic;");
+            runnersWriter.WriteLine("using Solas.Containers;");
+            runnersWriter.WriteLine("using Solas.Interfaces;");
+            runnersWriter.WriteLine();
+
+            registerWriter.WriteLine("using System;");
+            registerWriter.WriteLine();
+            registerWriter.WriteLine("namespace Solas.Generated");
+            registerWriter.WriteLine("{");
+            registerWriter.Indent();
+            registerWriter.WriteLine("internal static class GeneratedUpdateRegistration");
+            registerWriter.WriteLine("{");
+            registerWriter.Indent();
+            registerWriter.WriteLine("internal static void RegisterAll()");
+            registerWriter.WriteLine("{");
+            registerWriter.Indent();
 
             foreach (var cls in classes)
             {
+                if (cls == null) continue;
                 var model = compilation.GetSemanticModel(cls.SyntaxTree);
                 if (model.GetDeclaredSymbol(cls) is not INamedTypeSymbol symbol) continue;
 
                 var attrs = symbol.GetAttributes();
 
-                Process(symbol, attrs, "UpdateAttribute", "Update", "RegisterRunner", runners, register);
-                Process(symbol, attrs, "FixedUpdateAttribute", "FixedUpdate", "RegisterFixedRunner", runners, register);
-                Process(symbol, attrs, "LateUpdateAttribute", "LateUpdate", "RegisterLateRunner", runners, register);
+                Process(symbol, attrs, "UpdateAttribute", "Update", "RegisterRunner", runnersWriter, registerWriter);
+                Process(symbol, attrs, "FixedUpdateAttribute", "FixedUpdate", "RegisterFixedRunner", runnersWriter,
+                    registerWriter);
+                Process(symbol, attrs, "LateUpdateAttribute", "LateUpdate", "RegisterLateRunner", runnersWriter,
+                    registerWriter);
             }
 
-            register.Append(@"
-        }
-    }
-}");
-            
-            spc.AddSource(@"GeneratedUpdateRunners.g.cs", runners.ToString());
-            spc.AddSource(@"GeneratedUpdateRegistration.g.cs", register.ToString());
+            registerWriter.Unindent();
+            registerWriter.WriteLine("}");
+            registerWriter.Unindent();
+            registerWriter.WriteLine("}");
+            registerWriter.Unindent();
+            registerWriter.WriteLine("}");
+
+            spc.AddSource("GeneratedUpdateRunners.g.cs", runnersWriter.ToString());
+            spc.AddSource("GeneratedUpdateRegistration.g.cs", registerWriter.ToString());
         });
     }
 
@@ -61,8 +77,8 @@ namespace Solas.Generated
         string attrName,
         string methodName,
         string registerMethod,
-        StringBuilder runners,
-        StringBuilder register)
+        CodeWriter runners,
+        CodeWriter register)
     {
         var attr = attrs.FirstOrDefault(a => a.AttributeClass?.Name == attrName);
         if (attr == null) return;
@@ -74,67 +90,71 @@ namespace Solas.Generated
             .FirstOrDefault(a => a.Key == "Parallel").Value.Value as bool? ?? false;
 
         var runnerName = $"{className}_{methodName}Runner";
-        
+
         var hasMethod = symbol.GetMembers()
             .OfType<IMethodSymbol>()
             .Any(m => m.Name == methodName && m.Parameters.Length == 0);
 
-        if (!hasMethod)
-            return;
+        if (!hasMethod) return;
 
-        runners.Append($@"
-using Solas.Containers;
-using Solas.Interfaces;
-namespace Solas.Generated
-{{
-    internal class {runnerName} : Solas.Interfaces.IUpdateRunner
-    {{
-        List<{fullName}> _updatables = [];
-    
-        public void InjectPools(ReadOnlySpan<IComponentPool> pools)
-        {{
-            _updatables.Clear();
-            foreach (var pool in pools)
-            {{
-                if (pool is ComponentPool<{fullName}> castedPool)
-                {{
-                    _updatables.AddRange(castedPool.Components);
-                }}
-            }}
-        }}
-
-        public void Run()
-        {{");
+        runners.WriteLine("namespace Solas.Generated");
+        runners.WriteLine("{");
+        runners.Indent();
+        runners.WriteLine($"internal class {runnerName} : Solas.Interfaces.IUpdateRunner");
+        runners.WriteLine("{");
+        runners.Indent();
+        runners.WriteLine($"private readonly List<{fullName}> _updatables = new();");
+        runners.WriteLine();
+        runners.WriteLine("public void InjectPools(ReadOnlySpan<IComponentPool> pools)");
+        runners.WriteLine("{");
+        runners.Indent();
+        runners.WriteLine("_updatables.Clear();");
+        runners.WriteLine("foreach (var pool in pools)");
+        runners.WriteLine("{");
+        runners.Indent();
+        runners.WriteLine($"if (pool is ComponentPool<{fullName}> castedPool)");
+        runners.WriteLine("{");
+        runners.Indent();
+        runners.WriteLine("_updatables.AddRange(castedPool.Components);");
+        runners.Unindent();
+        runners.WriteLine("}");
+        runners.Unindent();
+        runners.WriteLine("}");
+        runners.Unindent();
+        runners.WriteLine("}");
+        runners.WriteLine();
+        runners.WriteLine("public void Run()");
+        runners.WriteLine("{");
+        runners.Indent();
 
         if (parallel)
         {
-            runners.Append($@"
-            System.Threading.Tasks.Parallel.ForEach(
-                System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 64),
-                range =>
-                {{
-                    for (int i = range.Item1; i < range.Item2; i++)
-                        _updatables[i].{methodName}();
-                }});
-");
+            runners.WriteLine("System.Threading.Tasks.Parallel.ForEach(");
+            runners.Indent();
+            runners.WriteLine("System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 64),");
+            runners.WriteLine("range =>");
+            runners.WriteLine("{");
+            runners.Indent();
+            runners.WriteLine("for (int i = range.Item1; i < range.Item2; i++)");
+            runners.WriteLine($"    _updatables[i].{methodName}();");
+            runners.Unindent();
+            runners.WriteLine("});");
+            runners.Unindent();
         }
         else
         {
-            runners.Append($@"
-            for (int i = 0; i < _updatables.Count; i++)
-                _updatables[i].{methodName}();
-");
+            runners.WriteLine("for (int i = 0; i < _updatables.Count; i++)");
+            runners.WriteLine($"    _updatables[i].{methodName}();");
         }
 
-        runners.Append(
-            """
-                    }
-                }
-            }
-            """);
+        runners.Unindent();
+        runners.WriteLine("}");
+        runners.Unindent();
+        runners.WriteLine("}");
+        runners.Unindent();
+        runners.WriteLine("}");
+        runners.WriteLine();
 
-        register.Append($@"
-            Solas.Command.{registerMethod}(new {runnerName}());
-");
+        register.WriteLine($"Solas.Command.{registerMethod}(new {runnerName}());");
     }
 }

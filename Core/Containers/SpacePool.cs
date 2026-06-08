@@ -152,7 +152,7 @@ internal class SpacePool
 
     #region Update
 
-    public void InjectPoolsInUpdateRunners(ReadOnlySpan<IUpdateRunner> runners)
+    internal void InjectPoolsInUpdateRunners(ReadOnlySpan<IUpdateRunner> runners)
     {
         foreach (var runner in runners)
         {

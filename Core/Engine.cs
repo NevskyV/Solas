@@ -41,6 +41,17 @@ public static class Engine
         EngineContext.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
         WorldContext.CoreSettings = EngineContext.SettingsSystem.GetSettings<CoreSettings>();
     }
+    
+    public static void EnsureNeededDirectories(params string[] directories)
+    {
+        foreach (var directory in directories)
+        {
+            if (!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory!);
+            }
+        }
+    }
 
     public static void CreateUpdateSystems()
     {

@@ -3,7 +3,7 @@ using Solas.World;
 
 namespace Solas;
 
-public static partial class WorldContext
+public static class WorldContext
 {
     public static Space GlobalSpace
     {

@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using Solas.Containers;
 using Solas.Enums;
 using Solas.Interfaces;
-using Solas.Settings;
 
 namespace Solas.Systems;
 
@@ -17,20 +16,19 @@ public static class Time
 
 internal class UpdateSystem
 {
-    private readonly Stopwatch _stopwatch = new();
-
-    private double _previousTime;
-    private double _accumulator;
-
     private const int MaxFixedStepsPerTick = 5;
+    private readonly Stopwatch _stopwatch = new();
     private readonly double _tickToSeconds = 1.0 / Stopwatch.Frequency;
-
-    private bool _isRunning;
-    private EntityPool EntityPool => EngineContext.EntityPool;
-
-    internal readonly List<IUpdateSystem> UpdateSystems = [];
     internal readonly List<IUpdateSystem> FixedUpdateSystems = [];
     internal readonly List<IUpdateSystem> LateUpdateSystems = [];
+
+    internal readonly List<IUpdateSystem> UpdateSystems = [];
+    private double _accumulator;
+
+    private bool _isRunning;
+
+    private double _previousTime;
+    private EntityPool EntityPool => EngineContext.EntityPool;
 
     internal void Start()
     {
@@ -45,12 +43,12 @@ internal class UpdateSystem
         while (Engine.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
-            
+
             //Injecting runners before Tick
             injectAction(CollectionsMarshal.AsSpan(EntityPool.UpdateRunners));
             injectAction(CollectionsMarshal.AsSpan(EntityPool.FixedUpdateRunners));
             injectAction(CollectionsMarshal.AsSpan(EntityPool.LateUpdateRunners));
-            
+
             Tick();
 
             var targetTicks = 1.0 / WorldContext.CoreSettings.TargetFrameTime * Stopwatch.Frequency;
@@ -91,7 +89,7 @@ internal class UpdateSystem
             for (var i = 0; i < FixedUpdateSystems.Count; i++) FixedUpdateSystems[i].Update();
             var fixedUpdatables = EntityPool.FixedUpdateRunners;
             for (var i = 0; i < fixedUpdatables.Count; i++) fixedUpdatables[i].Run();
-            
+
             _accumulator -= Time.FixedDeltaTime;
             steps++;
         }
@@ -104,11 +102,10 @@ internal class UpdateSystem
         for (var i = 0; i < UpdateSystems.Count; i++) UpdateSystems[i].Update();
         var updatables = EntityPool.UpdateRunners;
         for (var i = 0; i < updatables.Count; i++) updatables[i].Run();
-        
+
         for (var i = 0; i < LateUpdateSystems.Count; i++) LateUpdateSystems[i].Update();
         var lateUpdatables = EntityPool.LateUpdateRunners;
         for (var i = 0; i < lateUpdatables.Count; i++) lateUpdatables[i].Run();
-        
     }
 
     internal void Stop()

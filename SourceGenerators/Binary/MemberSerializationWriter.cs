@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Solas.SourceGenerators.Utils;
 
 namespace Solas.SourceGenerators.Binary;
@@ -15,9 +14,10 @@ public static class MemberSerializationWriter
         BinarySerializerGenerator.GenerationContext context,
         string containingTypeName)
     {
-        if (memberType.IsDataProperty(out ITypeSymbol? innerType))
+        if (memberType.IsDataProperty(out var innerType))
         {
-            GenerateDataPropertyWrite(write, writeAccess, innerType, context, injectableFields, name, containingTypeName, memberType);
+            GenerateDataPropertyWrite(write, writeAccess, innerType, context, injectableFields, name,
+                containingTypeName, memberType);
             return;
         }
 
@@ -35,11 +35,9 @@ public static class MemberSerializationWriter
         ITypeSymbol memberType)
     {
         if (!memberType.CanBeNull() && memberType.CanBeNewed())
-        {
             writer.WriteLine($"{writeAccess} ??= new {memberType.ToDisplayString()}();");
-        }
 
-        string valueAccess = $"{writeAccess}.Value";
+        var valueAccess = $"{writeAccess}.Value";
 
         writer.WriteLine($"writer.Write({writeAccess} != null);");
         writer.WriteLine($"if ({writeAccess} != null)");
@@ -47,24 +45,18 @@ public static class MemberSerializationWriter
         writer.Indent();
 
         if (!innerType.CanBeNull() && !innerType.IsValueType && innerType.CanBeNewed())
-        {
             writer.WriteLine($"{valueAccess} ??= new {innerType.ToDisplayString()}();");
-        }
 
         if (innerType.IsReferenceField(context))
-        {
             GenerateReferenceWrite(writer, valueAccess, innerType, context);
-        }
         else
-        {
             GenerateWrite(writer, valueAccess, innerType, context, injectableFields, name, containingTypeName);
-        }
 
         writer.Unindent();
         writer.WriteLine("}");
     }
 
-    public static void GenerateWrite(
+    private static void GenerateWrite(
         CodeWriter writer,
         string access,
         ITypeSymbol type,
@@ -73,13 +65,14 @@ public static class MemberSerializationWriter
         string name,
         string containingTypeName)
     {
-        if (type.IsNullable(out ITypeSymbol? innerNullable))
+        if (type.IsNullable(out var innerNullable))
         {
             writer.WriteLine($"writer.Write({access} != null);");
             writer.WriteLine($"if ({access} != null)");
             writer.WriteLine("{");
             writer.Indent();
-            GenerateWrite(writer, $"{access}.Value", innerNullable!, context, injectableFields, name, containingTypeName);
+            GenerateWrite(writer, $"{access}.Value", innerNullable!, context, injectableFields, name,
+                containingTypeName);
             writer.Unindent();
             writer.WriteLine("}");
             return;
@@ -119,7 +112,7 @@ public static class MemberSerializationWriter
 
         if (type.SpecialType is not SpecialType.System_String && type is IArrayTypeSymbol array)
         {
-            bool nullable = type.CanBeNull();
+            var nullable = type.CanBeNull();
             writer.WriteLine($"writer.Write({access} != null);");
             writer.WriteLine($"if ({access} != null)");
             writer.WriteLine("{");
@@ -135,7 +128,7 @@ public static class MemberSerializationWriter
 
             writer.Unindent();
             writer.WriteLine("}");
-            
+
             if (!nullable)
             {
                 writer.WriteLine("else");
@@ -145,12 +138,13 @@ public static class MemberSerializationWriter
                 writer.Unindent();
                 writer.WriteLine("}");
             }
+
             return;
         }
 
-        if (type.SpecialType is not SpecialType.System_String && type.IsEnumerable(out ITypeSymbol? itemType))
+        if (type.SpecialType is not SpecialType.System_String && type.IsEnumerable(out var itemType))
         {
-            bool nullable = type.CanBeNull();
+            var nullable = type.CanBeNull();
             writer.WriteLine($"writer.Write({access} != null);");
             writer.WriteLine($"if ({access} != null)");
             writer.WriteLine("{");
@@ -176,6 +170,7 @@ public static class MemberSerializationWriter
                 writer.Unindent();
                 writer.WriteLine("}");
             }
+
             return;
         }
 
@@ -217,6 +212,7 @@ public static class MemberSerializationWriter
                     writer.Unindent();
                     writer.WriteLine("}");
                 }
+
                 break;
         }
     }
@@ -230,30 +226,24 @@ public static class MemberSerializationWriter
     {
         string[] statements;
         if (type.IsLogic(context))
-        {
-            statements = new[]
-            {
+            statements =
+            [
                 $"writer.Write({access}.Entity.Id.ToByteArray());",
                 $"writer.Write({access}.Entity.GetSpaceId().ToByteArray());"
-            };
-        }
+            ];
         else if (type.IsData(context))
-        {
-            statements = new[]
-            {
+            statements =
+            [
                 $"var owner = Solas.Query.TryGetEntityFor({access}, {entityParameter}?.CurrentSpace);",
                 "writer.Write(owner.Id.ToByteArray());",
                 "writer.Write(owner.GetSpaceId().ToByteArray());"
-            };
-        }
+            ];
         else
-        {
-            statements = new[]
-            {
+            statements =
+            [
                 $"writer.Write({access}.Id.ToByteArray());",
                 $"writer.Write({access}.GetSpaceId().ToByteArray());"
-            };
-        }
+            ];
 
         if (type.IsValueType)
         {

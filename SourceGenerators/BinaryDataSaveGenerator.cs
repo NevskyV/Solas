@@ -43,9 +43,6 @@ public sealed class BinarySerializerGenerator : IIncrementalGenerator
                     if (semantic.GetDeclaredSymbol(syntax) is not INamedTypeSymbol symbol)
                         continue;
 
-                    // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Исключаем интерфейсы, абстрактные классы и делегаты.
-                    // Генератор должен работать исключительно с конкретными структурами и классами,
-                    // которые можно создать через конструктор.
                     if (symbol.TypeKind is not (TypeKind.Class or TypeKind.Struct) || symbol.IsAbstract)
                         continue;
 

@@ -7,21 +7,21 @@ namespace Solas.Containers;
 
 internal class EntityPool
 {
-    private readonly Dictionary<Space, List<Entity>> _entitiesInSpaces = [];
     private readonly Dictionary<Space, Dictionary<Type, IComponentPool>> _componentPoolsInSpaces = [];
-    
+    private readonly Dictionary<Space, List<Entity>> _entitiesInSpaces = [];
+
     internal List<IUpdateRunner> UpdateRunners { get; } = [];
     internal List<IUpdateRunner> FixedUpdateRunners { get; } = [];
     internal List<IUpdateRunner> LateUpdateRunners { get; } = [];
-    
+
     #region Registration
-    
+
     internal void RegisterSpace(Space space)
     {
         _entitiesInSpaces.Add(space, new List<Entity>());
         _componentPoolsInSpaces.Add(space, new Dictionary<Type, IComponentPool>());
     }
-    
+
     internal void UnregisterSpace(Space space)
     {
         _entitiesInSpaces.Remove(space);
@@ -31,10 +31,10 @@ internal class EntityPool
     private ComponentPool<T> RegisterPool<T>(Space space)
     {
         var type = typeof(T);
-        if(_componentPoolsInSpaces[space].TryGetValue(type, out var componentPool)) 
+        if (_componentPoolsInSpaces[space].TryGetValue(type, out var componentPool))
             return (ComponentPool<T>)componentPool;
         var pool = new ComponentPool<T>();
-        if(!_componentPoolsInSpaces[space].ContainsKey(type))
+        if (!_componentPoolsInSpaces[space].ContainsKey(type))
             _componentPoolsInSpaces[space].Add(type, pool);
         _componentPoolsInSpaces[space][type] = pool;
         return pool;
@@ -64,12 +64,12 @@ internal class EntityPool
     {
         UpdateRunners.Add(runner);
     }
-    
+
     internal void RegisterFixedRunner(IUpdateRunner runner)
     {
         FixedUpdateRunners.Add(runner);
     }
-    
+
     internal void RegisterLateRunner(IUpdateRunner runner)
     {
         LateUpdateRunners.Add(runner);
@@ -91,12 +91,12 @@ internal class EntityPool
     #endregion
 
     #region Search
-    
+
     internal IEnumerable<Entity> GetEntitiesIn(Space space)
     {
         return _entitiesInSpaces[space];
     }
-    
+
     internal IEnumerable<Entity> GetEntitiesInAvailable(Space space)
     {
         return _entitiesInSpaces
@@ -106,7 +106,7 @@ internal class EntityPool
 
     internal IEnumerable<Entity> GetEntitiesWith(Space space, params Type[] types)
     {
-        if (types == null || types.Length == 0) throw new NullReferenceException("No entities found with "  + types);
+        if (types == null || types.Length == 0) throw new NullReferenceException("No entities found with " + types);
 
         var totalChunks = ComponentRegistry.Count / 32 + 1;
         Span<uint> filter = stackalloc uint[totalChunks];
@@ -125,7 +125,7 @@ internal class EntityPool
 
         return result;
     }
-    
+
     internal IEnumerable<Entity> GetEntitiesInAvailableWith(Space space, params Type[] types)
     {
         return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(x => GetEntitiesWith(x, types));
@@ -145,7 +145,7 @@ internal class EntityPool
     internal IEnumerable<Entity> GetEntitiesByType<T>(Space space)
     {
         var type = typeof(T);
-        if(_componentPoolsInSpaces[space].ContainsKey(type))
+        if (_componentPoolsInSpaces[space].ContainsKey(type))
         {
             var pool = (ComponentPool<T>)_componentPoolsInSpaces[space][type];
             if (pool.Entities.Count > 0)
@@ -154,7 +154,7 @@ internal class EntityPool
 
         return [];
     }
-    
+
     internal IEnumerable<Entity> GetEntitiesByTypeInAvailable<T>(Space space)
     {
         return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetEntitiesByType<T>);
@@ -163,25 +163,26 @@ internal class EntityPool
     internal IEnumerable<T> GetComponentsByType<T>(Space space)
     {
         var type = typeof(T);
-        if(_componentPoolsInSpaces[space].TryGetValue(type, out var value))
+        if (_componentPoolsInSpaces[space].TryGetValue(type, out var value))
         {
             var pool = (ComponentPool<T>)value;
             if (pool.Entities.Count > 0)
                 return pool.Components;
         }
+
         return [];
     }
-    
+
     internal IEnumerable<T> GetComponentsByTypeInAvailable<T>(Space space)
     {
         return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetComponentsByType<T>);
     }
-    
+
     internal T GetComponentByType<T>(Space space)
     {
         return GetComponentsByType<T>(space).First();
     }
-    
+
     internal T GetComponentByTypeInAvailable<T>(Space space)
     {
         return GetComponentsByTypeInAvailable<T>(space).First();
@@ -194,7 +195,7 @@ internal class EntityPool
 
         if (hintSpace != null)
         {
-            Entity found = FindEntityForInSpace(component, hintSpace);
+            var found = FindEntityForInSpace(component, hintSpace);
             if (found != null)
                 return found;
         }
@@ -204,7 +205,7 @@ internal class EntityPool
             if (hintSpace != null && space == hintSpace)
                 continue;
 
-            Entity found = FindEntityForInSpace(component, space);
+            var found = FindEntityForInSpace(component, space);
             if (found != null)
                 return found;
         }
@@ -219,7 +220,7 @@ internal class EntityPool
 
         foreach (var pool in pools.Values)
         {
-            Entity entity = pool.FindEntityFor(component);
+            var entity = pool.FindEntityFor(component);
             if (entity != null)
                 return entity;
         }

@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Solas.SourceGenerators.Utils;
 
 namespace Solas.SourceGenerators.Binary;
@@ -15,9 +14,10 @@ public static class MemberSerializationReader
         BinarySerializerGenerator.GenerationContext context,
         string containingTypeName)
     {
-        if (memberType.IsDataProperty(out ITypeSymbol? innerType))
+        if (memberType.IsDataProperty(out var innerType))
         {
-            GenerateDataPropertyRead(read, readAccess, innerType, context, injectableFields, name, containingTypeName, memberType);
+            GenerateDataPropertyRead(read, readAccess, innerType, context, injectableFields, name, containingTypeName,
+                memberType);
             return;
         }
 
@@ -39,21 +39,15 @@ public static class MemberSerializationReader
         writer.Indent();
         writer.WriteLine($"{readAccess} ??= new Solas.ComponentUtils.DataProperty<{innerType.ToDisplayString()}>();");
 
-        string valueAccess = $"{readAccess}.Value";
+        var valueAccess = $"{readAccess}.Value";
 
         if (!innerType.CanBeNull() && !innerType.IsValueType && innerType.CanBeNewed())
-        {
             writer.WriteLine($"{valueAccess} ??= new {innerType.ToDisplayString()}();");
-        }
 
         if (innerType.IsReferenceField(context))
-        {
             GenerateReferenceRead(writer, innerType, context);
-        }
         else
-        {
             GenerateRead(writer, valueAccess, innerType, context, injectableFields, name, containingTypeName);
-        }
 
         writer.Unindent();
         writer.WriteLine("}");
@@ -62,18 +56,11 @@ public static class MemberSerializationReader
         writer.Indent();
 
         if (!memberType.CanBeNull() && memberType.CanBeNewed())
-        {
             writer.WriteLine($"{readAccess} = new {memberType.ToDisplayString()}();");
-        }
         else
-        {
             writer.WriteLine($"{readAccess} = null;");
-        }
 
-        if (innerType.IsReferenceField(context))
-        {
-            writer.WriteLine("guids.Add((Guid.Empty, Guid.Empty));");
-        }
+        if (innerType.IsReferenceField(context)) writer.WriteLine("guids.Add((Guid.Empty, Guid.Empty));");
 
         writer.Unindent();
         writer.WriteLine("}");
@@ -88,7 +75,7 @@ public static class MemberSerializationReader
         string name,
         string containingTypeName)
     {
-        if (type.IsNullable(out ITypeSymbol? innerNullable))
+        if (type.IsNullable(out var innerNullable))
         {
             writer.WriteLine("if (reader.ReadBoolean())");
             writer.WriteLine("{");
@@ -130,7 +117,8 @@ public static class MemberSerializationReader
 
         if (type is ITypeParameterSymbol)
         {
-            writer.WriteLine($"{access} = ({type.ToDisplayString()})BinarySerializer.Read(reader, typeof({type.ToDisplayString()}));");
+            writer.WriteLine(
+                $"{access} = ({type.ToDisplayString()})BinarySerializer.Read(reader, typeof({type.ToDisplayString()}));");
             return;
         }
 
@@ -145,7 +133,8 @@ public static class MemberSerializationReader
             writer.WriteLine("for (int i = 0; i < length; i++)");
             writer.WriteLine("{");
             writer.Indent();
-            GenerateRead(writer, $"{access}[i]", array.ElementType, context, injectableFields, name, containingTypeName);
+            GenerateRead(writer, $"{access}[i]", array.ElementType, context, injectableFields, name,
+                containingTypeName);
             writer.Unindent();
             writer.WriteLine("}");
 
@@ -160,14 +149,14 @@ public static class MemberSerializationReader
             return;
         }
 
-        if (type.SpecialType is not SpecialType.System_String && type.IsEnumerable(out ITypeSymbol? itemType))
+        if (type.SpecialType is not SpecialType.System_String && type.IsEnumerable(out var itemType))
         {
             writer.WriteLine("if (reader.ReadBoolean())");
             writer.WriteLine("{");
             writer.Indent();
 
-            string collection = type.ToDisplayString();
-            string item = itemType!.ToDisplayString();
+            var collection = type.ToDisplayString();
+            var item = itemType!.ToDisplayString();
 
             writer.WriteLine("int count = reader.ReadInt32();");
             writer.WriteLine($"{access} = new {collection}();");
@@ -256,11 +245,13 @@ public static class MemberSerializationReader
                     writer.Unindent();
                     writer.WriteLine("}");
                 }
+
                 break;
         }
     }
 
-    private static void GenerateReferenceRead(CodeWriter writer, ITypeSymbol type, BinarySerializerGenerator.GenerationContext context)
+    private static void GenerateReferenceRead(CodeWriter writer, ITypeSymbol type,
+        BinarySerializerGenerator.GenerationContext context)
     {
         if (type.IsValueType)
         {

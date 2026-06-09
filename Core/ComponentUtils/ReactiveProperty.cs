@@ -1,6 +1,6 @@
 ﻿namespace Solas.ComponentUtils;
 
-public class ReactiveProperty<T>()
+public class ReactiveProperty<T>
 {
     public Action<T> OnChange = delegate { };
 

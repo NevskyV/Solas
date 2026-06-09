@@ -7,27 +7,20 @@ namespace Solas.Systems;
 internal class DISystem
 {
     private readonly Dictionary<Space, List<Logic>> _cache = [];
-    private readonly Dictionary<Space,Dictionary<IInjectable, (Guid, Guid)[]>> _injectables = [];
+    private readonly Dictionary<Space, Dictionary<IInjectable, (Guid, Guid)[]>> _injectables = [];
 
     internal void AddInjectable(IInjectable injectable, (Guid, Guid)[] guids, Space space)
     {
         if (_injectables.TryGetValue(space, out var inSpace))
-        {
             inSpace.Add(injectable, guids);
-        }
         else
-        {
-            _injectables.Add(space, new Dictionary<IInjectable, (Guid, Guid)[]>{{injectable, guids}});
-        }
+            _injectables.Add(space, new Dictionary<IInjectable, (Guid, Guid)[]> { { injectable, guids } });
     }
-    
+
     internal void BuildDependencies(Space space)
     {
         if (!_injectables.TryGetValue(space, out var inSpace)) return;
-        foreach (var (obj, guids) in inSpace)
-        {
-            obj.Inject(guids);
-        }
+        foreach (var (obj, guids) in inSpace) obj.Inject(guids);
         _injectables.Clear();
     }
 
@@ -36,7 +29,7 @@ internal class DISystem
         T result;
         if (_cache.TryGetValue(space, out var logics))
         {
-            result = (T)logics.FirstOrDefault(x=>x.GetType() == typeof(T));
+            result = (T)logics.FirstOrDefault(x => x.GetType() == typeof(T));
             if (result == null)
             {
                 result = EngineContext.EntityPool.GetComponentByTypeInAvailable<T>(space);
@@ -55,19 +48,14 @@ internal class DISystem
     internal T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable, new()
     {
         if (EngineContext.SpacePool.IsLoaded(spaceId))
-        {
             return EngineContext.SpacePool.GetSpaceFolderWith(id, spaceId) as T;
-        }
         return EngineContext.AssetsPool.LoadAsset<T>(id);
     }
-    
+
     internal Entity Inject(Guid id, Guid spaceId)
     {
         var loadedSpace = EngineContext.SpacePool.GetSpace(spaceId);
-        if (loadedSpace != null)
-        {
-            return EngineContext.EntityPool.GetEntitiesIn(loadedSpace).First(x=>x.Id==id); 
-        }
+        if (loadedSpace != null) return EngineContext.EntityPool.GetEntitiesIn(loadedSpace).First(x => x.Id == id);
 
         return EngineContext.AssetsPool.LoadEntity(id);
     }

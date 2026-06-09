@@ -12,10 +12,9 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
     {
         var classDeclarations = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: static (node, _) => node is ClassDeclarationSyntax cds && cds.AttributeLists.Count > 0,
-                transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node
-            )
-            .Where(static c => c is not null);
+                static (node, _) => node is ClassDeclarationSyntax { AttributeLists.Count: > 0 },
+                static (ctx, _) => (ClassDeclarationSyntax)ctx.Node
+            );
 
         var compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect());
 
@@ -46,7 +45,6 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
 
             foreach (var cls in classes)
             {
-                if (cls == null) continue;
                 var model = compilation.GetSemanticModel(cls.SyntaxTree);
                 if (model.GetDeclaredSymbol(cls) is not INamedTypeSymbol symbol) continue;
 
@@ -86,7 +84,7 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
         var fullName = symbol.ToDisplayString();
         var className = symbol.Name;
 
-        bool parallel = attr.NamedArguments
+        var parallel = attr.NamedArguments
             .FirstOrDefault(a => a.Key == "Parallel").Value.Value as bool? ?? false;
 
         var runnerName = $"{className}_{methodName}Runner";

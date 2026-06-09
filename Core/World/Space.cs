@@ -8,12 +8,6 @@ namespace Solas.World;
 
 public class Space : IBranchable
 {
-    public string Name { get; }
-    public string Path { get; }
-
-    public Guid Id { get; init; }
-    public Guid RootId { get; set; }
-    public List<Guid> BranchesIds { get; set; } = [];
     internal readonly InitializeSystem Initializer;
 
     public Space(string name, string path, Guid id)
@@ -24,7 +18,14 @@ public class Space : IBranchable
         Initializer = new InitializeSystem(this);
         EngineContext.EntityPool.RegisterSpace(this);
     }
-    
+
+    public string Name { get; }
+    public string Path { get; }
+
+    public Guid Id { get; init; }
+    public Guid RootId { get; set; }
+    public List<Guid> BranchesIds { get; set; } = [];
+
     public IBranchable GetRoot()
     {
         return RootId == Guid.Empty ? WorldContext.GlobalSpace : Query.GetSpace(RootId);
@@ -35,60 +36,54 @@ public class Space : IBranchable
         return BranchesIds.Select(Query.GetSpace);
     }
 
-    public Guid GetSpaceId() => Id;
-    
+    public Guid GetSpaceId()
+    {
+        return Id;
+    }
+
     public void Write(BinaryWriter writer)
     {
         writer.Write(Id.ToByteArray());
         writer.Write(RootId.ToByteArray());
-        
+
         // =========================
         // Initialization pool
         // =========================
-        
+
         var pool = Initializer.Pool;
         writer.Write((ushort)pool.OrderType);
 
         writer.Write(pool.OrderedEntitiesIds.Length);
 
-        foreach (var guid in pool.OrderedEntitiesIds)
-        {
-            writer.Write(guid.ToByteArray());
-        }
-        
+        foreach (var guid in pool.OrderedEntitiesIds) writer.Write(guid.ToByteArray());
+
         // =========================
         // SpaceFolders
         // =========================
 
         var folders = Query.GetAllSpaceFoldersIn(this);
         writer.Write(folders.Count);
-        foreach (var folder in folders)
-        {
-            folder.Write(writer);
-        }
+        foreach (var folder in folders) folder.Write(writer);
 
         // =========================
         // Entities
         // =========================
-        
+
         var entities = Query.GetEntitiesIn(this).ToArray();
-        
+
         writer.Write(entities.Length);
 
-        foreach (var entity in entities)
-        {
-            entity.Write(writer);
-        }
+        foreach (var entity in entities) entity.Write(writer);
     }
 
     public IReferenceable Read(BinaryReader reader)
     {
         RootId = new Guid(reader.ReadBytes(16));
-        
+
         // =========================
         // Initialization pool
         // =========================
-        
+
         var pool = new InitializationPool
         {
             OrderType = (InitializationOrder)reader.ReadUInt16()
@@ -98,14 +93,11 @@ public class Space : IBranchable
 
         var ordered = new Guid[orderedCount];
 
-        for (var i = 0; i < orderedCount; i++)
-        {
-            ordered[i] = new Guid(reader.ReadBytes(16));
-        }
+        for (var i = 0; i < orderedCount; i++) ordered[i] = new Guid(reader.ReadBytes(16));
 
         pool.OrderedEntitiesIds = ordered;
         Initializer.Pool = pool;
-        
+
         // =========================
         // SpaceFolders
         // =========================
@@ -123,10 +115,7 @@ public class Space : IBranchable
 
         var entityCount = reader.ReadInt32();
 
-        for (var i = 0; i < entityCount; i++)
-        {
-            Entity.StaticRead(reader, this);
-        }
+        for (var i = 0; i < entityCount; i++) Entity.StaticRead(reader, this);
 
         return this;
     }

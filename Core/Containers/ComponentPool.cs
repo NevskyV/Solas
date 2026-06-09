@@ -3,12 +3,11 @@ using Solas.Interfaces;
 
 namespace Solas.Containers;
 
-public class ComponentPool<T>() : IComponentPool
+public class ComponentPool<T> : IComponentPool
 {
+    private readonly Dictionary<Entity, int> _indices = [];
     public List<T> Components { get; } = [];
     public List<Entity> Entities { get; } = [];
-
-    private readonly Dictionary<Entity, int> _indices = [];
 
     public void Add(object component, Entity entity)
     {

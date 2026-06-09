@@ -1,15 +1,12 @@
-﻿using System.Collections.Generic;
-using System.Linq;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Solas.SourceGenerators.Utils;
 
 namespace Solas.SourceGenerators.Binary;
 
 public static class BinarySerializationBuilder
 {
-    private record SerializableMember(string Name, ITypeSymbol Type);
-
-    public static string Generate(INamedTypeSymbol type, BinarySerializerGenerator.GenerationContext context, string? assemblyName)
+    public static string Generate(INamedTypeSymbol type, BinarySerializerGenerator.GenerationContext context,
+        string? assemblyName)
     {
         var writer = new CodeWriter();
         var ns = type.ContainingNamespace.ToDisplayString();
@@ -39,21 +36,17 @@ public static class BinarySerializationBuilder
         var binaryClassName = $"{name}Binary";
         var serializableMembers = GetSerializableMembers(type);
 
-        // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: Наполняем injectableFields строго один раз здесь
         var injectableFields = new List<BinarySerializerGenerator.InjectableField>();
         foreach (var member in serializableMembers)
-        {
-            if (member.Type.IsDataProperty(out ITypeSymbol? innerType))
+            if (member.Type.IsDataProperty(out var innerType))
             {
                 if (innerType!.IsReferenceField(context))
-                {
                     injectableFields.Add(new BinarySerializerGenerator.InjectableField
                     {
                         Name = member.Name,
                         Type = innerType,
                         IsDataProperty = true
                     });
-                }
             }
             else if (member.Type.IsReferenceField(context))
             {
@@ -64,7 +57,6 @@ public static class BinarySerializationBuilder
                     IsDataProperty = false
                 });
             }
-        }
 
         var writeBuilder = new CodeWriter();
         var readBuilder = new CodeWriter();
@@ -107,9 +99,11 @@ public static class BinarySerializationBuilder
             writer.Indent();
             writer.WriteLine("public (Guid, Guid)[] SerializationGuids => Array.Empty<(Guid, Guid)>();");
             writer.WriteLine();
-            writer.WriteLine($"public void Write(BinaryWriter writer, Entity entity) => {binaryClassName}.Write(writer, this, entity);");
+            writer.WriteLine(
+                $"public void Write(BinaryWriter writer, Entity entity) => {binaryClassName}.Write(writer, this, entity);");
             writer.WriteLine();
-            writer.WriteLine($"public static void Write(BinaryWriter writer, {name}{typeParameters} value, Entity entity = null) => {binaryClassName}.Write(writer, value, entity);");
+            writer.WriteLine(
+                $"public static void Write(BinaryWriter writer, {name}{typeParameters} value, Entity entity = null) => {binaryClassName}.Write(writer, value, entity);");
             GenerateInjectMethod(writer, injectableFields, context);
             writer.Unindent();
             writer.WriteLine("}");
@@ -144,9 +138,7 @@ public static class BinarySerializationBuilder
                                  !f.IsImplicitlyDeclared &&
                                  f.Type.TypeKind != TypeKind.Delegate &&
                                  f.DeclaredAccessibility == Accessibility.Public))
-        {
             members.Add(new SerializableMember(field.Name, field.Type));
-        }
 
         foreach (var property in type.GetMembers().OfType<IPropertySymbol>()
                      .Where(p => !p.IsStatic &&
@@ -155,9 +147,7 @@ public static class BinarySerializationBuilder
                                  p.GetMethod != null &&
                                  p.SetMethod != null &&
                                  p.DeclaredAccessibility == Accessibility.Public))
-        {
             members.Add(new SerializableMember(property.Name, property.Type));
-        }
 
         return members;
     }
@@ -188,7 +178,8 @@ public static class BinarySerializationBuilder
     {
         writer.WriteLine("public const int BinaryVersion = 1;");
         writer.WriteLine();
-        writer.WriteLine($"public static void Write(BinaryWriter writer, {name}{typeParameters} value, Entity entity = null)");
+        writer.WriteLine(
+            $"public static void Write(BinaryWriter writer, {name}{typeParameters} value, Entity entity = null)");
         writer.WriteLine("{");
         writer.Indent();
         writer.WriteLine("writer.Write(BinaryVersion);");
@@ -197,7 +188,8 @@ public static class BinarySerializationBuilder
         writer.WriteLine("}");
         writer.WriteLine();
 
-        writer.WriteLine($"public static ({name}{typeParameters} data, (Guid, Guid)[] guids) ReadInternal(BinaryReader reader)");
+        writer.WriteLine(
+            $"public static ({name}{typeParameters} data, (Guid, Guid)[] guids) ReadInternal(BinaryReader reader)");
         writer.WriteLine("{");
         writer.Indent();
         writer.WriteLine("_ = reader.ReadInt32();");
@@ -215,7 +207,8 @@ public static class BinarySerializationBuilder
     {
         if (isStruct)
         {
-            writer.WriteLine($"public static {name}{typeParameters} Read(BinaryReader reader) => ReadInternal(reader).data;");
+            writer.WriteLine(
+                $"public static {name}{typeParameters} Read(BinaryReader reader) => ReadInternal(reader).data;");
         }
         else
         {
@@ -230,7 +223,9 @@ public static class BinarySerializationBuilder
         }
     }
 
-    private static void GenerateInjectMethod(CodeWriter writer, List<BinarySerializerGenerator.InjectableField> injectableFields, BinarySerializerGenerator.GenerationContext context)
+    private static void GenerateInjectMethod(CodeWriter writer,
+        List<BinarySerializerGenerator.InjectableField> injectableFields,
+        BinarySerializerGenerator.GenerationContext context)
     {
         if (injectableFields.Count == 0) return;
 
@@ -239,33 +234,28 @@ public static class BinarySerializationBuilder
         writer.WriteLine("{");
         writer.Indent();
 
-        int index = 0;
-        foreach (var field in injectableFields)
-        {
-            writer.WriteLine(GenerateInjectAssignment(field, index++, context));
-        }
+        var index = 0;
+        foreach (var field in injectableFields) writer.WriteLine(GenerateInjectAssignment(field, index++, context));
 
         writer.Unindent();
         writer.WriteLine("}");
     }
 
-    private static string GenerateInjectAssignment(BinarySerializerGenerator.InjectableField field, int index, BinarySerializerGenerator.GenerationContext context)
+    private static string GenerateInjectAssignment(BinarySerializerGenerator.InjectableField field, int index,
+        BinarySerializerGenerator.GenerationContext context)
     {
-        string access = field.IsDataProperty ? $"{field.Name}.Value" : field.Name;
+        var access = field.IsDataProperty ? $"{field.Name}.Value" : field.Name;
 
         if (field.Type.IsEntity(context))
-        {
             return $"{access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2);";
-        }
         if (field.Type.IsLogic(context))
-        {
-            return $"{access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2).GetLogic<{field.Type.ToDisplayString()}>();";
-        }
+            return
+                $"{access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2).GetLogic<{field.Type.ToDisplayString()}>();";
         if (field.Type.IsData(context))
-        {
-            return $"{access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2).GetData<{field.Type.ToDisplayString()}>();";
-        }
-        return $"{access} = Solas.Command.Inject<{field.Type.ToDisplayString()}>(guids[{index}].Item1, guids[{index}].Item2);";
+            return
+                $"{access} = Solas.Command.Inject(guids[{index}].Item1, guids[{index}].Item2).GetData<{field.Type.ToDisplayString()}>();";
+        return
+            $"{access} = Solas.Command.Inject<{field.Type.ToDisplayString()}>(guids[{index}].Item1, guids[{index}].Item2);";
     }
 
     private static string GetConstraints(INamedTypeSymbol type)
@@ -282,6 +272,9 @@ public static class BinarySerializationBuilder
             return parts.Count > 0 ? $"where {p.Name} : {string.Join(", ", parts)}" : "";
         }).Where(s => !string.IsNullOrEmpty(s));
 
-        return constraintsList.Any() ? "\n" + string.Join("\n", constraintsList) : "";
+        var enumerable = constraintsList as string[] ?? constraintsList.ToArray();
+        return enumerable.Length != 0 ? "\n" + string.Join("\n", enumerable) : "";
     }
+
+    private record SerializableMember(string Name, ITypeSymbol Type);
 }

@@ -4,6 +4,6 @@ namespace Solas.Interfaces;
 
 public interface IUpdateSystem
 {
-    public UpdateType UpdateType { get;}
+    public UpdateType UpdateType { get; }
     public void Update();
 }

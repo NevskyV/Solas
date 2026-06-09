@@ -1,9 +1,7 @@
-﻿using Solas.Components;
-using Solas.Enums;
+﻿using Solas.Enums;
 using Solas.Interfaces;
 using Solas.Settings;
 using Solas.Systems;
-using Solas.World;
 
 namespace Solas;
 
@@ -41,16 +39,12 @@ public static class Engine
         EngineContext.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
         WorldContext.CoreSettings = EngineContext.SettingsSystem.GetSettings<CoreSettings>();
     }
-    
+
     public static void EnsureNeededDirectories(params string[] directories)
     {
         foreach (var directory in directories)
-        {
             if (!Directory.Exists(directory))
-            {
                 Directory.CreateDirectory(directory!);
-            }
-        }
     }
 
     public static void CreateUpdateSystems()
@@ -58,30 +52,29 @@ public static class Engine
         foreach (var typeName in WorldContext.CoreSettings.UpdateSystems)
         {
             var type = Type.GetType(typeName)!;
-            IUpdateSystem instance = (IUpdateSystem)Activator.CreateInstance(type)!;
+            var instance = (IUpdateSystem)Activator.CreateInstance(type)!;
             switch (instance.UpdateType)
             {
-                case UpdateType.Update: 
+                case UpdateType.Update:
                     EngineContext.Updater.UpdateSystems.Add(instance);
                     break;
-                case UpdateType.FixedUpdate: 
+                case UpdateType.FixedUpdate:
                     EngineContext.Updater.FixedUpdateSystems.Add(instance);
                     break;
-                case UpdateType.LateUpdate: 
+                case UpdateType.LateUpdate:
                     EngineContext.Updater.LateUpdateSystems.Add(instance);
                     break;
             }
-            
         }
     }
 
     public static void CreateWorld()
     {
         EngineContext.AssetsPool.ReadPointers();
-        
+
         WorldContext.GlobalSpace = EngineContext.SpacePool.LoadSpace(WorldContext.CoreSettings.GlobalSpacePath, false);
         EngineContext.DISystem.BuildDependencies(WorldContext.GlobalSpace);
-        
+
         EngineContext.SpacePool.SetPaths(WorldContext.CoreSettings.LocalSpacesDirectory);
         EngineContext.SpacePool.LoadSavedSpaces();
     }

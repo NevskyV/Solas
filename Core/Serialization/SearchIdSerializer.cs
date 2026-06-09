@@ -6,11 +6,11 @@ internal static class SearchIdSerializer
     {
         using var stream = File.Open(path, FileMode.Append, FileAccess.Write);
         using var writer = new BinaryWriter(stream);
-        
+
         writer.Write(objectId.ToByteArray());
         writer.Write(offset);
     }
-    
+
     internal static void WriteAll(string path, IEnumerable<(Guid, uint)> objects)
     {
         using var stream = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write);
@@ -22,7 +22,7 @@ internal static class SearchIdSerializer
             writer.Write(offset);
         }
     }
-    
+
     internal static Dictionary<Guid, uint> ReadAll(string lookupPath)
     {
         using var stream = File.Open(lookupPath, FileMode.OpenOrCreate, FileAccess.Read);

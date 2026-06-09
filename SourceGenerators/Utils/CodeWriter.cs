@@ -7,8 +7,15 @@ public sealed class CodeWriter
     private readonly StringBuilder _builder = new();
     private int _indentLevel;
 
-    public void Indent() => _indentLevel++;
-    public void Unindent() => _indentLevel = Math.Max(0, _indentLevel - 1);
+    public void Indent()
+    {
+        _indentLevel++;
+    }
+
+    public void Unindent()
+    {
+        _indentLevel = Math.Max(0, _indentLevel - 1);
+    }
 
     public void WriteLine(string line = "")
     {
@@ -26,11 +33,11 @@ public sealed class CodeWriter
     {
         if (string.IsNullOrEmpty(text)) return;
         var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-        foreach (var line in lines)
-        {
-            WriteLine(line);
-        }
+        foreach (var line in lines) WriteLine(line);
     }
 
-    public override string ToString() => _builder.ToString();
+    public override string ToString()
+    {
+        return _builder.ToString();
+    }
 }

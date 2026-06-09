@@ -2,8 +2,7 @@
 
 public interface IInjectable
 {
-    public virtual void Inject((Guid, Guid)[] guids)
+    public void Inject((Guid, Guid)[] guids)
     {
-        
     }
 }

@@ -11,8 +11,8 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
     {
         var structDeclaration = context.SyntaxProvider
             .CreateSyntaxProvider(
-                predicate: static (node, _) => node is ClassDeclarationSyntax cds && cds.AttributeLists.Count > 0,
-                transform: static (ctx, _) => ctx.Node as ClassDeclarationSyntax
+                static (node, _) => node is ClassDeclarationSyntax { AttributeLists.Count: > 0 },
+                static (ctx, _) => ctx.Node as ClassDeclarationSyntax
             )
             .Where(static c => c is not null);
 
@@ -21,7 +21,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(compilationAndStructs, (spc, source) =>
         {
             var (compilation, structs) = source;
-            string assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
+            var assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
             foreach (var sds in structs)
             {
                 if (sds == null) continue;
@@ -34,7 +34,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
 
                 var fullName = symbol.ToDisplayString();
                 var className = symbol.Name;
-                string ns = symbol.ContainingNamespace.ToDisplayString();
+                var ns = symbol.ContainingNamespace.ToDisplayString();
 
                 var writer = new CodeWriter();
                 writer.WriteLine("using System;");
@@ -46,7 +46,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
                 writer.WriteLine($"namespace {ns}");
                 writer.WriteLine("{");
                 writer.Indent();
-                writer.WriteLine($"public partial class {className} : IData");
+                writer.WriteLine($"public partial class {className}");
                 writer.WriteLine("{");
                 writer.Indent();
                 writer.WriteLine("[ModuleInitializer]");

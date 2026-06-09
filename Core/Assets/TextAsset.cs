@@ -8,20 +8,14 @@ public sealed class TextAsset : Asset
     {
         var count = Lines.Length;
         writer.Write(count);
-        for(var i = 0; i < count; i++)
-        {
-            writer.Write(Lines[i]);
-        }
+        for (var i = 0; i < count; i++) writer.Write(Lines[i]);
     }
 
     public override Asset Read(BinaryReader reader)
     {
         var count = reader.ReadInt32();
         Lines = new string[count];
-        for(var i = 0; i < count; i++)
-        {
-            Lines[i] = reader.ReadString();
-        }
+        for (var i = 0; i < count; i++) Lines[i] = reader.ReadString();
         return this;
     }
 }

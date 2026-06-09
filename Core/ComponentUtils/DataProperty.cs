@@ -1,6 +1,6 @@
 ﻿namespace Solas.ComponentUtils;
 
-public class DataProperty<T>() : ReactiveProperty<T>()
+public class DataProperty<T> : ReactiveProperty<T>
 {
     private readonly List<DataModifier<T>> _modifiers = [];
 
@@ -9,10 +9,10 @@ public class DataProperty<T>() : ReactiveProperty<T>()
         var newModifier = _modifiers.FirstOrDefault(m => m is TModifier) as TModifier;
         if (newModifier == null)
         {
-            newModifier = new TModifier() { Property = this };
+            newModifier = new TModifier { Property = this };
             _modifiers.Add(newModifier);
         }
-        
+
         return newModifier;
     }
 
@@ -20,7 +20,7 @@ public class DataProperty<T>() : ReactiveProperty<T>()
     {
         _modifiers.RemoveAll(m => m is TModifier);
     }
-    
+
     public TModifier GetModifier<TModifier>() where TModifier : DataModifier<T>
     {
         return _modifiers.Find(m => m is TModifier) as TModifier;

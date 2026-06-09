@@ -5,7 +5,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
         <RootNamespace>Solas</RootNamespace>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild> 
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>Solas.Core</PackageId>
         <Version>0.1.0</Version>
         <Authors>NevskyV</Authors>
@@ -17,7 +17,7 @@
     <ItemGroup>
         <ProjectReference Include="..\SourceGenerators\SourceGenerators.csproj"
                           OutputItemType="Analyzer"
-                          ReferenceOutputAssembly="false" />
+                          ReferenceOutputAssembly="false"/>
     </ItemGroup>
 
 </Project>

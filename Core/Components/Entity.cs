@@ -9,26 +9,18 @@ namespace Solas.Components;
 
 public sealed class Entity : IDisposable, IToggleable, IReferenceable
 {
-    public Guid Id { get; init; }
-    public EntityMetaData MetaData { get; set; }
-    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
-    public Space CurrentSpace { get; set; }
-    
     private readonly List<IData> _data = [];
     private readonly List<Logic> _logics = [];
-    
-    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
-    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
-    
+
     public uint[] MaskChunks = [];
-    
+
     public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
     {
         //Set default values
         id = id == Guid.Empty ? Guid.NewGuid() : id;
         entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
         space ??= WorldContext.GlobalSpace;
-        
+
         //Fill properties
         Id = id;
         MetaData = entityMetaData;
@@ -36,6 +28,44 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
 
         //Register
         EngineContext.EntityPool.RegisterEntity(this);
+    }
+
+    public EntityMetaData MetaData { get; set; }
+    public Space CurrentSpace { get; set; }
+
+    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
+    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
+
+    public void Dispose()
+    {
+        foreach (var logic in _logics) logic.Dispose();
+        foreach (var data in _data) data.Dispose();
+
+        EngineContext.EntityPool.UnregisterEntity(this);
+    }
+
+    public Guid Id { get; init; }
+    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
+
+    private void UpdateMask<T>()
+    {
+        var id = ComponentRegistry.GetId(typeof(T));
+        var chunkIndex = id / 32;
+        var bitIndex = id % 32;
+
+        if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
+        MaskChunks[chunkIndex] |= 1u << bitIndex;
+    }
+
+    public async Task SwitchState(bool newState, uint setTime = 0)
+    {
+        var oldValue = IsEnabled.Value;
+        IsEnabled.Value = newState;
+        if (setTime > 0)
+        {
+            await Task.Delay((int)setTime);
+            IsEnabled.Value = oldValue;
+        }
     }
 
     #region Data Method Group
@@ -67,12 +97,12 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
 
     public T AddLogic<T>() where T : Logic, IInjectable, new()
     {
-        var newLogic = new T() { Entity = this };
+        var newLogic = new T { Entity = this };
         if (_logics.Contains(newLogic)) return newLogic;
         _logics.Add(newLogic);
 
         EngineContext.EntityPool.AddReferences(newLogic, this);
-        
+
         UpdateMask<T>();
         return newLogic;
     }
@@ -89,44 +119,14 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         return (T)_logics.First(x => x is T);
     }
 
-    public void Dispose()
-    {
-        foreach (var logic in _logics)
-        {
-            logic.Dispose();
-        }
-        foreach (var data in _data)
-        {
-            data.Dispose();
-        }
-    }
-
     #endregion
-
-    private void UpdateMask<T>()
-    {
-        var id = ComponentRegistry.GetId(typeof(T));
-        var chunkIndex = id / 32;
-        var bitIndex = id % 32;
-
-        if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
-        MaskChunks[chunkIndex] |= 1u << bitIndex;
-    }
-
-    public async Task SwitchState(bool newState, uint setTime = 0)
-    {
-        var oldValue = IsEnabled.Value;
-        IsEnabled.Value = newState;
-        if (setTime > 0)
-        {
-            await Task.Delay((int)setTime);
-            IsEnabled.Value = oldValue;
-        }
-    }
 
     #region Binary
 
-    public Guid GetSpaceId() => CurrentSpace.Id;
+    public Guid GetSpaceId()
+    {
+        return CurrentSpace.Id;
+    }
 
     public void Write(BinaryWriter writer)
     {
@@ -162,11 +162,11 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
 
             var allInjected = type.GetFields().Where(x =>
                 x.CustomAttributes.Any(y => y.ToString() == nameof(AutoInjectAttribute))).ToArray();
-            
+
             writer.Write(allInjected.Count());
             foreach (var info in allInjected)
             {
-                Logic obj = (Logic)info.GetValue(logic)!;
+                var obj = (Logic)info.GetValue(logic)!;
                 writer.Write(obj.Entity.Id.ToByteArray());
                 writer.Write(obj.Entity.CurrentSpace.Id.ToByteArray());
             }
@@ -206,20 +206,18 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
             var method = GetType().GetMethod(nameof(AddLogic))!.MakeGenericMethod(type);
 
             var l = (IInjectable)method.Invoke(this, null);
-            
+
             var injectCount = reader.ReadInt32();
             var ids = new (Guid, Guid)[injectCount];
             for (var i = 0; i < injectCount; i++)
-            {
                 ids[i] = (new Guid(reader.ReadBytes(16)), new Guid(reader.ReadBytes(16)));
-            } 
-            
+
             EngineContext.DISystem.AddInjectable(l, ids, CurrentSpace);
         }
 
         return this;
     }
-    
+
     public static Entity StaticRead(BinaryReader reader, Space space)
     {
         var id = new Guid(reader.ReadBytes(16));
@@ -232,11 +230,9 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         var entity = new Entity(id, space, metaData);
 
         entity.Read(reader);
-        
+
         return entity;
     }
 
     #endregion
-    
-    public void Destroy() => EngineContext.Destroyer.DestroyEntity(this);
 }

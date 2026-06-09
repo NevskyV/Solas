@@ -9,37 +9,33 @@ namespace Solas.Systems;
 internal class InitializeSystem(Space space)
 {
     internal InitializationPool Pool;
-    
+
     internal IEnumerable<Task> InitializeDependencies()
     {
         var entities = Query.GetEntitiesIn(space).ToArray();
 
         var guidsCount = Pool.OrderedEntitiesIds.Length;
-        Entity[] orderedEntities = new Entity[guidsCount];
+        var orderedEntities = new Entity[guidsCount];
 
         if (Pool.OrderType == InitializationOrder.Custom)
         {
             var entitiesCopy = entities.ToArray();
             for (var i = 0; i < guidsCount; i++)
-            {
                 entities[i] = entitiesCopy.First(e => e.Id == Pool.OrderedEntitiesIds[i]);
-            }
         }
         else if (Pool.OrderType != InitializationOrder.Random)
         {
-            Entity[] result = new Entity[entities.Length];
+            var result = new Entity[entities.Length];
             var count = 0;
             for (var i = 0; i < entities.Length; i++)
             {
                 for (var j = 0; j < guidsCount; j++)
-                {
                     if (entities[i].Id == Pool.OrderedEntitiesIds[j])
                     {
                         orderedEntities[j] = entities[i];
                         entities[i] = null;
                         break;
                     }
-                }
 
                 if (entities[i] != null && Pool.OrderType == InitializationOrder.Suffixal)
                 {
@@ -55,17 +51,13 @@ internal class InitializeSystem(Space space)
             }
 
             if (Pool.OrderType == InitializationOrder.Prefixal)
-            {
                 foreach (var entity in entities)
-                {
                     if (entity != null)
                     {
                         result[count] = entity;
                         count++;
                     }
-                }
-            }
-            
+
             entities = result;
         }
 

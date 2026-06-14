@@ -35,6 +35,11 @@ internal class SpacePool
             _spaceFolders.Add(space, []);
         _spaceFolders[space].Add(folder);
     }
+    
+    internal void UnregisterSpaceFolder(SpaceFolder folder, Space space)
+    {
+        _spaceFolders[space].Remove(folder);
+    }
 
     internal SpaceFolder GetSpaceFolderWith(Guid guid, Space space)
     {
@@ -90,8 +95,10 @@ internal class SpacePool
         Space space;
         if (!File.Exists(path) || File.ReadAllBytes(path).Length == 0)
         {
-            space = new Space(Path.GetFileNameWithoutExtension(path), path, Guid.NewGuid())
+            space = new Space(Guid.NewGuid())
             {
+                Name =  Path.GetFileNameWithoutExtension(path),
+                Path = path,
                 Initializer =
                 {
                     Pool = new InitializationPool()
@@ -101,10 +108,11 @@ internal class SpacePool
         else
         {
             using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
-            using var reader = new BinaryReader(stream);
 
-            space = new Space(Path.GetFileNameWithoutExtension(path), path, new Guid(reader.ReadBytes(16)));
-            space.Read(reader);
+            space = EngineContext.Serializer.Read<Space>(stream);
+            if (space == null) throw new NullReferenceException();
+            space.Name = Path.GetFileNameWithoutExtension(path);
+            space.Path = path;
         }
 
         Console.WriteLine(space.Id);
@@ -116,13 +124,9 @@ internal class SpacePool
 
     internal void LoadSavedSpaces()
     {
-        foreach (var path in _localSpacesPaths)
+        foreach (var path in WorldSettings.Spaces)
         {
-            using var stream = File.Open(path, FileMode.Open, FileAccess.Read);
-            using var reader = new BinaryReader(stream);
-
-            if (WorldSettings.SpaceIds.Contains(new Guid(reader.ReadBytes(16))))
-                _localSpaces.Add(LoadSpace(path, false));
+            _localSpaces.Add(LoadSpace(path, false));
         }
 
         foreach (var space in _localSpaces) EngineContext.DISystem.BuildDependencies(space);
@@ -148,14 +152,7 @@ internal class SpacePool
     internal void SaveSpace(Space space)
     {
         using var stream = File.Open(space.Path, FileMode.OpenOrCreate, FileAccess.Write);
-        using var writer = new BinaryWriter(stream);
-
-        space.Write(writer);
-    }
-
-    internal bool IsLoaded(Guid id)
-    {
-        return _localSpaces.Exists(x => x.Id == id) || WorldContext.GlobalSpace.Id == id;
+        EngineContext.Serializer.Write(space, stream);
     }
 
     #endregion

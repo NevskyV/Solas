@@ -1,5 +1,8 @@
 ﻿using Solas.Components;
+using Solas.Generated;
+using Solas.Registries;
 using Solas.Serialization;
+using Solas.Serialization.Core;
 
 namespace Solas.Systems;
 
@@ -10,16 +13,16 @@ internal class SettingsSystem
 
     internal void ReadAllSettings(string pathToSettingsFolder)
     {
+        SettingsFileGenerator.CreateFiles();
         var files = Directory.GetFiles(pathToSettingsFolder, "*.set");
         foreach (var path in files)
         {
             var stream = File.Open(path, FileMode.Open, FileAccess.Read);
-            using var reader = new BinaryReader(stream);
-
-            var typeName = reader.ReadString();
-            var data = DataSerializationRegistry.Read(typeName, reader, out _);
+            EngineContext.Serializer.Open(stream);
+            var typeName = EngineContext.Serializer.ReadString(stream);
+            var data = EngineContext.DataReadingRegistry.Read(typeName, stream);
             _settings.Add(data.GetType(), data);
-
+            EngineContext.Serializer.Close(stream);
             _settingsPaths.TryAdd(data.GetType(), path);
         }
     }
@@ -29,10 +32,9 @@ internal class SettingsSystem
         var type = settings.GetType();
 
         using var stream = File.Open(_settingsPaths[type], FileMode.OpenOrCreate, FileAccess.Write);
-        using var writer = new BinaryWriter(stream);
 
-        writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
-        DataSerializationRegistry.Write(writer, settings, null);
+        EngineContext.Serializer.Write($"{type.FullName}, {type.Assembly.GetName().Name}", stream);
+        EngineContext.Serializer.Write(settings, stream);
     }
 
     internal void WriteNewSettings(IData settings, string path)

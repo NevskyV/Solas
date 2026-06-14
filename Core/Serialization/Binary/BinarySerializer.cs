@@ -2,87 +2,87 @@
 
 namespace Solas.Serialization.Binary;
 
-public class BinarySerializer() : Serializer(typeof(CustomBinarySerializer<>))
+public class BinarySerializer : Serializer
 {
-    public override void Write(byte value, FileStream stream)
+    public override void Write(byte value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(byte[] value, FileStream stream)
+    public override void Write(byte[] value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(bool value, FileStream stream)
+    public override void Write(bool value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(char value, FileStream stream)
+    public override void Write(char value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(string value, FileStream stream)
+    public override void Write(string value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(short value, FileStream stream)
+    public override void Write(short value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(int value, FileStream stream)
+    public override void Write(int value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(long value, FileStream stream)
+    public override void Write(long value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(ushort value, FileStream stream)
+    public override void Write(ushort value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(uint value, FileStream stream)
+    public override void Write(uint value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(ulong value, FileStream stream)
+    public override void Write(ulong value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(float value, FileStream stream)
+    public override void Write(float value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(double value, FileStream stream)
+    public override void Write(double value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value);
     }
 
-    public override void Write(Guid value, FileStream stream)
+    public override void Write(Guid value, FileStream stream, string name = null)
     {
         using var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true);
         writer.Write(value.ToByteArray());

@@ -1,5 +1,6 @@
 ﻿using Solas.Assets;
 using Solas.Components;
+using Solas.Serialization.Core;
 using Solas.World;
 
 namespace Solas;
@@ -116,4 +117,6 @@ public static class Query
     }
 
     #endregion
+
+    public static Serializer Serializer => EngineContext.Serializer;
 }

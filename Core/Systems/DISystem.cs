@@ -7,20 +7,17 @@ namespace Solas.Systems;
 internal class DISystem
 {
     private readonly Dictionary<Space, List<Logic>> _cache = [];
-    private readonly Dictionary<Space, Dictionary<IInjectable, (Guid, Guid)[]>> _injectables = [];
+    private readonly Dictionary<IInjectable, (Guid, Guid)[]> _injectables = [];
 
-    internal void AddInjectable(IInjectable injectable, (Guid, Guid)[] guids, Space space)
+    internal void AddInjectable(IInjectable injectable, (Guid, Guid)[] guids)
     {
-        if (_injectables.TryGetValue(space, out var inSpace))
-            inSpace.Add(injectable, guids);
-        else
-            _injectables.Add(space, new Dictionary<IInjectable, (Guid, Guid)[]> { { injectable, guids } });
+        _injectables.Add(injectable, guids);
     }
 
     internal void BuildDependencies(Space space)
     {
-        if (!_injectables.TryGetValue(space, out var inSpace)) return;
-        foreach (var (obj, guids) in inSpace) obj.Inject(guids);
+        foreach (var (obj, guids) in _injectables)
+            obj.Inject(guids);
         _injectables.Clear();
     }
 
@@ -45,18 +42,6 @@ internal class DISystem
         return result;
     }
 
-    internal T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable, new()
-    {
-        if (EngineContext.SpacePool.IsLoaded(spaceId))
-            return EngineContext.SpacePool.GetSpaceFolderWith(id, spaceId) as T;
-        return EngineContext.AssetsPool.LoadAsset<T>(id);
-    }
-
-    internal Entity Inject(Guid id, Guid spaceId)
-    {
-        var loadedSpace = EngineContext.SpacePool.GetSpace(spaceId);
-        if (loadedSpace != null) return EngineContext.EntityPool.GetEntitiesIn(loadedSpace).First(x => x.Id == id);
-
-        return EngineContext.AssetsPool.LoadEntity(id);
-    }
+    internal T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable, new() => 
+        T.SearchReferenceable<T>(id, spaceId) as T;
 }

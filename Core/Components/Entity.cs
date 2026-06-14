@@ -13,6 +13,15 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     private readonly List<Logic> _logics = [];
 
     public uint[] MaskChunks = [];
+    
+    public Guid Id { get; init; }
+    public EntityMetaData MetaData { get; set; }
+    public Space CurrentSpace { get; set; }
+    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
+    
+    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
+    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
+
 
     public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
     {
@@ -30,31 +39,14 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         EngineContext.EntityPool.RegisterEntity(this);
     }
 
-    public EntityMetaData MetaData { get; set; }
-    public Space CurrentSpace { get; set; }
+    public Guid GetSpaceId() => CurrentSpace.Id;
 
-    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
-    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
-
-    public void Dispose()
+    public static IReferenceable SearchReferenceable(Guid id, Guid spaceId)
     {
-        foreach (var logic in _logics) logic.Dispose();
-        foreach (var data in _data) data.Dispose();
-
-        EngineContext.EntityPool.UnregisterEntity(this);
-    }
-
-    public Guid Id { get; init; }
-    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
-
-    private void UpdateMask<T>()
-    {
-        var id = ComponentRegistry.GetId(typeof(T));
-        var chunkIndex = id / 32;
-        var bitIndex = id % 32;
-
-        if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
-        MaskChunks[chunkIndex] |= 1u << bitIndex;
+        var space = EngineContext.SpacePool.GetSpace(spaceId);
+        if(space != null)
+            return EngineContext.EntityPool.GetEntitiesIn(space).First(x => x.Id == id);
+        return EngineContext.AssetsPool.LoadEntity(id);
     }
 
     public async Task SwitchState(bool newState, uint setTime = 0)
@@ -66,6 +58,16 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
             await Task.Delay((int)setTime);
             IsEnabled.Value = oldValue;
         }
+    }
+    
+    private void UpdateMask<T>()
+    {
+        var id = ComponentRegistry.GetId(typeof(T));
+        var chunkIndex = id / 32;
+        var bitIndex = id % 32;
+
+        if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
+        MaskChunks[chunkIndex] |= 1u << bitIndex;
     }
 
     #region Data Method Group
@@ -120,119 +122,12 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     }
 
     #endregion
-
-    #region Binary
-
-    public Guid GetSpaceId()
+    
+    public void Dispose()
     {
-        return CurrentSpace.Id;
+        foreach (var logic in _logics) logic.Dispose();
+        foreach (var data in _data) data.Dispose();
+
+        EngineContext.EntityPool.UnregisterEntity(this);
     }
-
-    public void Write(BinaryWriter writer)
-    {
-        writer.Write(Id.ToByteArray());
-
-        writer.Write(MetaData.Name ?? string.Empty);
-        writer.Write(MetaData.Tag ?? string.Empty);
-        writer.Write(MetaData.Icon);
-
-        // =========================
-        // Data
-        // =========================
-
-        writer.Write(_data.Count);
-
-        foreach (var data in _data)
-        {
-            var type = data.GetType();
-            writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
-            DataSerializationRegistry.Write(writer, data, this);
-        }
-
-        // =========================
-        // Logic
-        // =========================
-
-        writer.Write(_logics.Count);
-
-        foreach (var logic in _logics)
-        {
-            var type = logic.GetType();
-            writer.Write($"{type.FullName}, {type.Assembly.GetName().Name}");
-
-            var allInjected = type.GetFields().Where(x =>
-                x.CustomAttributes.Any(y => y.ToString() == nameof(AutoInjectAttribute))).ToArray();
-
-            writer.Write(allInjected.Count());
-            foreach (var info in allInjected)
-            {
-                var obj = (Logic)info.GetValue(logic)!;
-                writer.Write(obj.Entity.Id.ToByteArray());
-                writer.Write(obj.Entity.CurrentSpace.Id.ToByteArray());
-            }
-        }
-    }
-
-    public IReferenceable Read(BinaryReader reader)
-    {
-        // =========================
-        // Data
-        // =========================
-
-        var dataCount = reader.ReadInt32();
-
-        for (var j = 0; j < dataCount; j++)
-        {
-            var typeName = reader.ReadString();
-            var data = DataSerializationRegistry.Read(typeName, reader, out var guids);
-            AddData(data);
-
-            if (guids.Length > 0)
-                EngineContext.DISystem.AddInjectable(data, guids, CurrentSpace);
-        }
-
-        // =========================
-        // Logic
-        // =========================
-
-        var logicCount = reader.ReadInt32();
-
-        for (var j = 0; j < logicCount; j++)
-        {
-            var typeName = reader.ReadString();
-
-            var type = Type.GetType(typeName)!;
-
-            var method = GetType().GetMethod(nameof(AddLogic))!.MakeGenericMethod(type);
-
-            var l = (IInjectable)method.Invoke(this, null);
-
-            var injectCount = reader.ReadInt32();
-            var ids = new (Guid, Guid)[injectCount];
-            for (var i = 0; i < injectCount; i++)
-                ids[i] = (new Guid(reader.ReadBytes(16)), new Guid(reader.ReadBytes(16)));
-
-            EngineContext.DISystem.AddInjectable(l, ids, CurrentSpace);
-        }
-
-        return this;
-    }
-
-    public static Entity StaticRead(BinaryReader reader, Space space)
-    {
-        var id = new Guid(reader.ReadBytes(16));
-
-        var metaData = new EntityMetaData(
-            reader.ReadString(),
-            reader.ReadString(),
-            reader.ReadUInt16());
-
-        var entity = new Entity(id, space, metaData);
-
-        entity.Read(reader);
-
-        return entity;
-    }
-
-    #endregion
 }

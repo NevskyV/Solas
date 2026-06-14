@@ -4,7 +4,7 @@ using Solas.Components;
 namespace Solas.Settings;
 
 [SettingsSection]
-public partial class CoreSettings : IData
+public class CoreSettings : IData
 {
     public string AssetsPackPath = Directory.GetCurrentDirectory() + @"\Solas\Assets.pack";
     public string AssetsSpacePath = Directory.GetCurrentDirectory() + @"\Solas\Assets.space";

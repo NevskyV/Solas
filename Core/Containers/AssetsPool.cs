@@ -2,6 +2,8 @@
 using Solas.Components;
 using Solas.Interfaces;
 using Solas.Serialization;
+using Solas.Serialization.Binary;
+using Solas.Serialization.Core;
 using Solas.Settings;
 
 namespace Solas.Containers;
@@ -20,8 +22,8 @@ internal class AssetsPool
         if (!File.Exists(CoreSettings.AssetsPackPath)) File.Create(CoreSettings.AssetsPackPath).Close();
         if (!File.Exists(CoreSettings.AssetsSpacePath)) File.Create(CoreSettings.AssetsSpacePath).Close();
 
-        _assetsPointers = SearchIdSerializer.ReadAll(CoreSettings.AssetsPackPath + ".lookup");
-        _entitiesPointers = SearchIdSerializer.ReadAll(CoreSettings.AssetsSpacePath + ".lookup");
+        _assetsPointers = IdLookupSerializer.ReadAll(CoreSettings.AssetsPackPath + ".lookup");
+        _entitiesPointers = IdLookupSerializer.ReadAll(CoreSettings.AssetsSpacePath + ".lookup");
     }
 
     internal void RegisterNewAsset(Asset asset)
@@ -41,48 +43,56 @@ internal class AssetsPool
         return (T)_loadedAssets.Find(x => x.Id == id);
     }
 
+    private void WriteAsset(Asset asset, FileStream stream, BinaryWriter binaryWriter)
+    {
+        IdLookupSerializer.Write(binaryWriter, asset.Id, (uint)stream.Position);
+        EngineContext.Serializer.Write(asset, stream);
+    }
+
     internal void SaveNewAssets()
     {
         using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
-        using var writer = new BinaryWriter(stream);
-
+        EngineContext.Serializer.Open(stream);
+        BinaryWriter binaryWriter = new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
+        
         foreach (var asset in _createdAssets)
-        {
-            SearchIdSerializer.Write(CoreSettings.AssetsPackPath + ".lookup", asset.Id, (uint)stream.Position);
-
-            asset.Write(writer);
-        }
+            WriteAsset(asset, stream, binaryWriter);
+        
+        EngineContext.Serializer.Close(stream);
     }
 
     internal void SaveAsset(Asset asset)
     {
         using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
-        using var writer = new BinaryWriter(stream);
+        EngineContext.Serializer.Open(stream);
+        BinaryWriter binaryWriter = new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
 
-        SearchIdSerializer.Write(CoreSettings.AssetsPackPath + ".lookup", asset.Id, (uint)stream.Position);
-
-        asset.Write(writer);
+        WriteAsset(asset, stream, binaryWriter);
+        EngineContext.Serializer.Close(stream);
     }
 
     internal T LoadAsset<T>(Guid id) where T : IReferenceable, new()
     {
         using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Open, FileAccess.Read);
-        using var reader = new BinaryReader(stream);
-
+        EngineContext.Serializer.Open(stream);
         stream.Position = _assetsPointers[id];
-        var asset = (T)new T { Id = id }.Read(reader);
+        var asset = EngineContext.Serializer.Read<T>(stream);
         _loadedAssets.Add(asset as Asset);
+        
+        EngineContext.Serializer.Close(stream);
         return asset;
     }
 
     internal Entity LoadEntity(Guid id)
     {
         using var stream = File.Open(CoreSettings.AssetsSpacePath, FileMode.Open, FileAccess.Read);
-        using var reader = new BinaryReader(stream);
-
+        EngineContext.Serializer.Open(stream);
         stream.Position = _entitiesPointers[id];
-        var entity = Entity.StaticRead(reader, WorldContext.GlobalSpace);
+        var entity = EngineContext.Serializer.Read<Entity>(stream);
+
         EngineContext.DISystem.BuildDependencies(WorldContext.GlobalSpace);
+        
+        EngineContext.Serializer.Close(stream);
         return entity;
     }
 }

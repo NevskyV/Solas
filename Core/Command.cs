@@ -23,21 +23,13 @@ public static class Command
 
     #region DI System
 
-    public static T AutoInject<T>(Space space) where T : Logic
-    {
-        return EngineContext.DISystem.AutoInject<T>(space);
-    }
+    public static T AutoInject<T>(Space space) where T : Logic => 
+        EngineContext.DISystem.AutoInject<T>(space);
+    
 
-    public static T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable, new()
-    {
-        return EngineContext.DISystem.Inject<T>(id, spaceId);
-    }
-
-    public static Entity Inject(Guid id, Guid spaceId)
-    {
-        return EngineContext.DISystem.Inject(id, spaceId);
-    }
-
+    public static T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable, new() =>
+        EngineContext.DISystem.Inject<T>(id, spaceId);
+    
     #endregion
 
     #region Assets Pool
@@ -97,5 +89,16 @@ public static class Command
 
     #endregion
 
-    //TODO: else
+    #region Registries
+
+    public static void RegisterInjectMethods<T>(
+        string typeName,
+        Action<FileStream> write,
+        Func<FileStream, (Guid, Guid)[]> read) =>
+        EngineContext.InjectSerializationRegistry.Register<T>(typeName, write, read);
+
+    public static void RegisterDataRead<T>(string typeName) where T : IData => EngineContext.DataReadingRegistry.Register<T>(typeName);
+    public static void RegisterLogicAdd<T>(string typeName) where T : Logic, new() => EngineContext.LogicAddingRegistry.Register<T>(typeName);
+    
+    #endregion
 }

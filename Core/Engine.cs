@@ -1,5 +1,7 @@
 ﻿using Solas.Enums;
 using Solas.Interfaces;
+using Solas.Registries;
+using Solas.Serialization.Core;
 using Solas.Settings;
 using Solas.Systems;
 
@@ -32,6 +34,14 @@ public static class Engine
                     break;
             }
         }
+    }
+
+    public static void SetSerializer(Serializer serializer)
+    {
+        EngineContext.Serializer = serializer;
+        EngineContext.InjectSerializationRegistry = new InjectSerializationRegistry();
+        EngineContext.DataReadingRegistry = new DataReadingRegistry();
+        EngineContext.LogicAddingRegistry = new LogicAddingRegistry();
     }
 
     public static void LoadEngineSettings(string pathToSettingsFolder)

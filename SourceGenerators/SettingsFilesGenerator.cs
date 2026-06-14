@@ -22,6 +22,52 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
         {
             var (compilation, structs) = source;
             var assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
+            
+            var writer = new CodeWriter();
+            writer.WriteLine("using System;");
+            writer.WriteLine("using System.IO;");
+            writer.WriteLine("using Solas.Attributes;");
+            writer.WriteLine("using Solas.Components;");
+            writer.WriteLine("using Solas.Serialization.Json;");
+            writer.WriteLine("using System.Runtime.CompilerServices;");
+            writer.WriteLine();
+            writer.WriteLine("namespace Solas.Generated");
+            writer.WriteLine("{");
+            writer.Indent();
+            writer.WriteLine($"public partial class SettingsFileGenerator");
+            writer.WriteLine("{");
+            writer.Indent();
+            writer.WriteLine("private static void CreateFile<T>(string fileName, string fullName) where T : new()");
+            writer.WriteLine("{");
+            writer.Indent();
+            writer.WriteLine(@"var dir = Directory.GetCurrentDirectory() + @""\Solas\Settings\"";");
+            writer.WriteLine(@"var path = dir + $""{fileName}.set"";");
+            writer.WriteLine();
+            writer.WriteLine("if (!File.Exists(path))");
+            writer.WriteLine("{");
+            writer.Indent();
+            writer.WriteLine("using var stream = File.Open(path, FileMode.Create, FileAccess.Write);");
+            writer.WriteLine("Query.Serializer.Open(stream);");
+            writer.WriteLine("Query.Serializer.Write(fullName, stream);");
+            writer.WriteLine("try {");
+            writer.Indent();
+            writer.WriteLine("Query.Serializer.Write(new T(), stream);");
+            writer.Unindent();
+            writer.WriteLine("}");
+            writer.WriteLine("catch (Exception ex) {");
+            writer.Indent();
+            writer.WriteLine("throw new Exception(ex.ToString());");
+            writer.Unindent();
+            writer.WriteLine("}");
+            writer.WriteLine("Query.Serializer.Close(stream);");
+            writer.Unindent();
+            writer.WriteLine("}");
+            writer.Unindent();
+            writer.WriteLine("}");
+            writer.WriteLine("public static void CreateFiles()");
+            writer.WriteLine("{");
+            writer.Indent();
+        
             foreach (var sds in structs)
             {
                 if (sds == null) continue;
@@ -34,48 +80,18 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
 
                 var fullName = symbol.ToDisplayString();
                 var className = symbol.Name;
-                var ns = symbol.ContainingNamespace.ToDisplayString();
 
-                var writer = new CodeWriter();
-                writer.WriteLine("using System;");
-                writer.WriteLine("using System.IO;");
-                writer.WriteLine("using Solas.Attributes;");
-                writer.WriteLine("using Solas.Components;");
-                writer.WriteLine("using System.Runtime.CompilerServices;");
-                writer.WriteLine();
-                writer.WriteLine($"namespace {ns}");
-                writer.WriteLine("{");
-                writer.Indent();
-                writer.WriteLine($"public partial class {className}");
-                writer.WriteLine("{");
-                writer.Indent();
-                writer.WriteLine("[ModuleInitializer]");
-                writer.WriteLine("public static void CreateBinary()");
-                writer.WriteLine("{");
-                writer.Indent();
-                writer.WriteLine(
-                    @"Engine.EnsureNeededDirectories(Directory.GetCurrentDirectory() + @""\Solas\"", Directory.GetCurrentDirectory() + @""\Solas\Settings\"", Directory.GetCurrentDirectory() + @""\Assets\"");");
-                writer.WriteLine(@"var dir = Directory.GetCurrentDirectory() + @""\Solas\Settings\"";");
-                writer.WriteLine($@"var path = dir + ""{className}.set"";");
-                writer.WriteLine();
-                writer.WriteLine("if (!File.Exists(path))");
-                writer.WriteLine("{");
-                writer.Indent();
-                writer.WriteLine("using var stream = File.Open(path, FileMode.Create, FileAccess.Write);");
-                writer.WriteLine("using var writer = new BinaryWriter(stream);");
-                writer.WriteLine($@"writer.Write(""{fullName}, {assemblyName}"");");
-                writer.WriteLine($"Write(writer, new {fullName}());");
-                writer.Unindent();
-                writer.WriteLine("}");
-                writer.Unindent();
-                writer.WriteLine("}");
-                writer.Unindent();
-                writer.WriteLine("}");
-                writer.Unindent();
-                writer.WriteLine("}");
-
-                spc.AddSource($"{className}FileGenerator.g.cs", writer.ToString());
+                writer.WriteLine($"CreateFile<{fullName}>(\"{className}\", \"{fullName + ", " + assemblyName}\");");
             }
+            
+            writer.Unindent();
+            writer.WriteLine("}");
+            writer.Unindent();
+            writer.WriteLine("}");
+            writer.Unindent();
+            writer.WriteLine("}");
+            
+            spc.AddSource($"SettingsFileGenerator.g.cs", writer.ToString());
         });
     }
 }

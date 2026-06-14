@@ -1,106 +1,74 @@
-﻿using System.Reflection;
+﻿using Solas.Generated;
 
 namespace Solas.Serialization.Core;
 
 public abstract class Serializer
 {
-    private readonly Dictionary<Type, Delegate> _writers = [];
-    private readonly Dictionary<Type, Delegate> _readers = [];
+    private readonly Dictionary<Type, object> _serializers = [];
 
-    protected Serializer(Type customSerializerType)
+    protected Serializer()
     {
-        _writers.Add(typeof(byte), new Action<byte, FileStream>(Write));
-        _writers.Add(typeof(byte[]), new Action<byte[], FileStream>(Write));
-        _writers.Add(typeof(bool), new Action<bool, FileStream>(Write));
-        _writers.Add(typeof(char), new Action<char, FileStream>(Write));
-        _writers.Add(typeof(string), new Action<string, FileStream>(Write));
-        _writers.Add(typeof(short), new Action<short, FileStream>(Write));
-        _writers.Add(typeof(int), new Action<int, FileStream>(Write));
-        _writers.Add(typeof(long), new Action<long, FileStream>(Write));
-        _writers.Add(typeof(ushort), new Action<ushort, FileStream>(Write));
-        _writers.Add(typeof(uint), new Action<uint, FileStream>(Write));
-        _writers.Add(typeof(ulong), new Action<ulong, FileStream>(Write));
-        _writers.Add(typeof(float), new Action<float, FileStream>(Write));
-        _writers.Add(typeof(double), new Action<double, FileStream>(Write));
-        _writers.Add(typeof(Guid), new Action<Guid, FileStream>(Write));
+        SerializationRegistration.Add(this);
+    }
+
+    public void AddSerializer<T>(ICustomSerializer<T> serializer)
+    {
+        _serializers.Add(typeof(T), serializer);
+    }
+
+    private ICustomSerializer<T> GetSerializer<T>()
+    {
+        return (ICustomSerializer<T>)_serializers[typeof(T)];
+    }
+    
+    public virtual void Open(FileStream stream) { }
+    public virtual void Close(FileStream stream) { }
+    public virtual void BeginObject(FileStream stream, string name = null) { }
+    public virtual void EndObject(FileStream stream) { }
+
+    public void Write<T>(T value, FileStream stream, string name = null)
+    {
+        GetSerializer<T>().Write(value, stream, name);
+    }
+    
+    public virtual void WriteArray<T>(T[] value, FileStream stream, Action<T, FileStream, string> action = null, string name = null)
+    {
+        Write(value.Length, stream);
+        action ??= Write;
+        foreach (var item in value) 
+            action(item, stream, name);
+    }
+    
+    public abstract void Write(byte value, FileStream stream, string name = null);
+    public abstract void Write(byte[] value, FileStream stream, string name = null);
+    public abstract void Write(bool value, FileStream stream, string name = null);
+    public abstract void Write(char value, FileStream stream, string name = null);
+    public abstract void Write(string value, FileStream stream, string name = null);
+    public abstract void Write(short value, FileStream stream, string name = null);
+    public abstract void Write(int value, FileStream stream, string name = null);
+    public abstract void Write(long value, FileStream stream, string name = null);
+    public abstract void Write(ushort value, FileStream stream, string name = null);
+    public abstract void Write(uint value, FileStream stream, string name = null);
+    public abstract void Write(ulong value, FileStream stream, string name = null);
+    public abstract void Write(float value, FileStream stream, string name = null);
+    public abstract void Write(double value, FileStream stream, string name = null);
+    public abstract void Write(Guid value, FileStream stream, string name = null);
+    
+    public T Read<T>(FileStream stream)
+    {
+        return GetSerializer<T>().Read(stream);
+    }
+    
+    public T[] ReadArray<T>(FileStream stream, Func<FileStream, T> func = null)
+    {
+        var length = ReadInt32(stream);
+        var result = new T[length];
+        func ??= Read<T>;
+        for(var i = 0;  i < length; i++)
+            result[i] = func(stream);
         
-        _readers.Add(typeof(byte), ReadByte);
-        _readers.Add(typeof(byte[]), ReadBytes);
-        _readers.Add(typeof(bool), ReadBool);
-        _readers.Add(typeof(char), ReadChar);
-        _readers.Add(typeof(string), ReadString);
-        _readers.Add(typeof(short), ReadInt16);
-        _readers.Add(typeof(int), ReadInt32);
-        _readers.Add(typeof(long), ReadInt64);
-        _readers.Add(typeof(ushort), ReadUInt16);
-        _readers.Add(typeof(uint), ReadUInt32);
-        _readers.Add(typeof(ulong), ReadUInt64);
-        _readers.Add(typeof(float), ReadFloat);
-        _readers.Add(typeof(double), ReadDouble);
-        _readers.Add(typeof(Guid), ReadGuid);
-
-        GetAllCustomTypes(customSerializerType);
+        return result;
     }
-
-    private void GetAllCustomTypes(Type customSerializerType)
-    {
-        var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-
-        foreach (var assembly in assemblies)
-        {
-            if (assembly.FullName != null &&
-                (assembly.FullName.StartsWith("System") || assembly.FullName.StartsWith("Microsoft")))
-                continue;
-
-            Type[] types;
-            try
-            {
-                types = assembly.GetTypes();
-            }
-            catch (ReflectionTypeLoadException ex)
-            {
-                types = ex.Types.Where(t => t != null).ToArray();
-            }
-
-            var inheritors = types.Where(t =>
-                t.IsClass && !t.IsAbstract && t.IsAssignableTo(customSerializerType));
-
-            foreach (var type in inheritors)
-            {
-                var writeMethod = type.GetMethod("Write", BindingFlags.Public | BindingFlags.Instance);
-                var readMethod = type.GetMethod("Read", BindingFlags.Public | BindingFlags.Instance);
-
-                if (readMethod == null) continue;
-
-                var instance = Activator.CreateInstance(type);
-                var writeDelegate = Delegate.CreateDelegate(typeof(Action), instance, readMethod);
-                var readDelegate = Delegate.CreateDelegate(typeof(Action), instance, readMethod);
-                AddWriter(type, writeDelegate);
-                AddReader(type, readDelegate);
-            }
-        }
-    }
-    
-    public void AddWriter(Type type, Delegate writer) => _writers.Add(type, writer);
-    public Delegate GetWriter(Type type) => _writers[type];
-    
-    public void AddReader(Type type, Delegate writer) => _readers.Add(type, writer);
-    public Delegate GetReader(Type type) => _readers[type];
-    
-    public abstract void Write(byte value, FileStream stream);
-    public abstract void Write(byte[] value, FileStream stream);
-    public abstract void Write(bool value, FileStream stream);
-    public abstract void Write(char value, FileStream stream);
-    public abstract void Write(string value, FileStream stream);
-    public abstract void Write(short value, FileStream stream);
-    public abstract void Write(int value, FileStream stream);
-    public abstract void Write(long value, FileStream stream);
-    public abstract void Write(ushort value, FileStream stream);
-    public abstract void Write(uint value, FileStream stream);
-    public abstract void Write(ulong value, FileStream stream);
-    public abstract void Write(float value, FileStream stream);
-    public abstract void Write(double value, FileStream stream);
-    public abstract void Write(Guid value, FileStream stream);
     
     public abstract byte ReadByte(FileStream stream);
     public abstract byte[] ReadBytes(int count, FileStream stream);

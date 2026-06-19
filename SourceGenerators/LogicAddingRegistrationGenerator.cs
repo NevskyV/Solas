@@ -34,9 +34,7 @@ public sealed class LogicAddingRegistrationGenerator : IIncrementalGenerator
                 if (model.GetDeclaredSymbol(syntax) is not INamedTypeSymbol symbol) continue;
 
                 if (symbol.InheritsFrom(logicBaseType) && !symbol.IsAbstract)
-                {
                     registeredLogics.Add(symbol.ToDisplayString());
-                }
             }
 
             var sb = new StringBuilder();
@@ -49,9 +47,7 @@ public sealed class LogicAddingRegistrationGenerator : IIncrementalGenerator
             sb.AppendLine("    public static void Add(Solas.Registries.LogicAddingRegistry registry)");
             sb.AppendLine("    {");
             foreach (var logic in registeredLogics)
-            {
                 sb.AppendLine($"        registry.Register<{logic}>(\"{logic}, {assemblyName}\");");
-            }
             sb.AppendLine("    }");
             sb.AppendLine("}");
 

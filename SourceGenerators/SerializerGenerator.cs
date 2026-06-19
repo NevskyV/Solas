@@ -24,8 +24,15 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             var assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
 
             var dataInterface = compilation.GetTypeByMetadataName("Solas.Components.IData");
-            var customSerializerInterface = compilation.GetTypeByMetadataName("Solas.Serialization.Core.ICustomSerializer`1");
-            
+            var logicBaseType = compilation.GetTypeByMetadataName("Solas.Components.Logic");
+            var referenceableInterface = compilation.GetTypeByMetadataName("Solas.Interfaces.IReferenceable");
+
+            var customSerializerInterface =
+                compilation.GetTypeByMetadataName("Solas.Serialization.Core.ICustomSerializer`1")
+                ?? compilation.GetTypeByMetadataName("Solas.Serialization.ICustomSerializer`1");
+
+            if (dataInterface == null) return;
+
             var userCustomSerializers = new HashSet<string>();
             var candidatesForGeneration = new List<INamedTypeSymbol>();
             var allSerializers = new List<(TypeMetadata Type, string SerializerName)>();
@@ -34,40 +41,54 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             {
                 var model = compilation.GetSemanticModel(syntax!.SyntaxTree);
                 if (model.GetDeclaredSymbol(syntax) is not INamedTypeSymbol symbol) continue;
-                
+
                 if (customSerializerInterface != null)
                 {
-                    var serializerImpl = symbol.AllInterfaces.FirstOrDefault(i => 
+                    var serializerImpl = symbol.AllInterfaces.FirstOrDefault(i =>
                         SymbolEqualityComparer.Default.Equals(i.OriginalDefinition, customSerializerInterface));
-        
+
                     if (serializerImpl != null)
                     {
                         var targetType = serializerImpl.TypeArguments[0];
-                        userCustomSerializers.Add(targetType.ToDisplayString());
-            
-                        var customMeta = new TypeMetadata(
-                            targetType.Name,
-                            targetType.ToDisplayString(),
-                            targetType.ContainingNamespace.ToDisplayString(),
-                            assemblyName,
-                            targetType.TypeKind == TypeKind.Struct,
-                            targetType.IsValueType
-                        );
-            
-                        allSerializers.Add((customMeta, symbol.ToDisplayString()));
+                        var targetTypeFullName = targetType.ToDisplayString();
+
+                        if (userCustomSerializers.Add(targetTypeFullName))
+                        {
+                            var targetAssembly = targetType.ContainingAssembly?.Name ?? assemblyName;
+
+                            var customMeta = new TypeMetadata(
+                                targetType.Name,
+                                targetTypeFullName,
+                                targetType.ContainingNamespace.ToDisplayString(),
+                                targetAssembly,
+                                targetType.TypeKind == TypeKind.Struct,
+                                targetType.IsValueType
+                            );
+
+                            allSerializers.Add((customMeta, symbol.ToDisplayString()));
+                        }
+
                         continue;
                     }
                 }
-                
-                if (symbol.ImplementsInterface(dataInterface) && symbol is { IsAbstract: false, TypeKind: TypeKind.Class or TypeKind.Struct })
+
+                var isData = symbol.ImplementsInterface(dataInterface);
+                var isLogic = logicBaseType != null && symbol.InheritsFrom(logicBaseType);
+
+                if ((isData || isLogic) && !symbol.IsAbstract && symbol.TypeKind is TypeKind.Class or TypeKind.Struct)
                 {
-                    candidatesForGeneration.Add(symbol);
+                    var injectSource = DependencyInjectionBuilder.Generate(symbol, dataInterface, logicBaseType,
+                        referenceableInterface);
+                    if (injectSource != null)
+                        ctx.AddSource($"{symbol.Name}.Inject.g.cs", SourceText.From(injectSource, Encoding.UTF8));
+
+                    if (isData) candidatesForGeneration.Add(symbol);
                 }
             }
-            
+
             var processedTypes = new HashSet<string>(userCustomSerializers);
             var queue = new Queue<INamedTypeSymbol>(candidatesForGeneration);
-            
+
             while (queue.Count > 0)
             {
                 var symbol = queue.Dequeue();
@@ -87,47 +108,56 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 var members = GetSerializableMembers(symbol);
                 var generatedSource = GenerateSerializerCode(metadata, members);
 
-                var serializerName = $"{symbol.Name}Serializer";
+                var sanitizedName = GetSanitizedTypeName(symbol);
+                var serializerName = $"{sanitizedName}Serializer";
+
                 ctx.AddSource($"{serializerName}.g.cs", SourceText.From(generatedSource, Encoding.UTF8));
                 allSerializers.Add((metadata, $"Solas.Generated.{serializerName}"));
 
-                // Проверяем вложенные типы членов
                 foreach (var member in symbol.GetMembers().OfType<IFieldSymbol>())
-                {
-                    var memberType = member.Type;
-                    if (memberType is IArrayTypeSymbol arrayType)
-                    {
-                        memberType = arrayType.ElementType;
-                    }
-
-                    if (memberType is INamedTypeSymbol namedMemberType && 
-                        !namedMemberType.IsPrimitive() && 
-                        namedMemberType.TypeKind is TypeKind.Class or TypeKind.Struct)
-                    {
-                        queue.Enqueue(namedMemberType);
-                    }
-                }
+                    EnqueueMemberType(member.Type, queue);
                 foreach (var member in symbol.GetMembers().OfType<IPropertySymbol>())
-                {
-                    var memberType = member.Type;
-                    if (memberType is IArrayTypeSymbol arrayType)
-                    {
-                        memberType = arrayType.ElementType;
-                    }
-
-                    if (memberType is INamedTypeSymbol namedMemberType && 
-                        !namedMemberType.IsPrimitive() && 
-                        namedMemberType.TypeKind is TypeKind.Class or TypeKind.Struct)
-                    {
-                        queue.Enqueue(namedMemberType);
-                    }
-                }
+                    EnqueueMemberType(member.Type, queue);
             }
 
-            // Генерируем реестр SerializationRegistration
             var registrySource = GenerateRegistryCode(allSerializers);
             ctx.AddSource("SerializationRegistration.g.cs", SourceText.From(registrySource, Encoding.UTF8));
         });
+    }
+
+    private static void EnqueueMemberType(ITypeSymbol type, Queue<INamedTypeSymbol> queue)
+    {
+        var memberType = type;
+        if (memberType is IArrayTypeSymbol arrayType) memberType = arrayType.ElementType;
+
+        if (memberType is INamedTypeSymbol namedMemberType)
+        {
+            if (namedMemberType.IsDataProperty(out var innerType))
+            {
+                if (innerType is INamedTypeSymbol namedInner && !namedInner.IsPrimitive() &&
+                    namedInner.TypeKind is TypeKind.Class or TypeKind.Struct) queue.Enqueue(namedInner);
+                return;
+            }
+
+            if (!namedMemberType.IsPrimitive() && namedMemberType.TypeKind is TypeKind.Class or TypeKind.Struct)
+                queue.Enqueue(namedMemberType);
+        }
+    }
+
+    private static string GetSanitizedTypeName(INamedTypeSymbol symbol)
+    {
+        if (!symbol.IsGenericType)
+            return symbol.Name;
+
+        var sb = new StringBuilder();
+        sb.Append(symbol.Name);
+        foreach (var arg in symbol.TypeArguments)
+        {
+            sb.Append('_');
+            sb.Append(arg.Name);
+        }
+
+        return sb.ToString();
     }
 
     private static List<MemberMetadata> GetSerializableMembers(INamedTypeSymbol type)
@@ -137,25 +167,20 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         var fields = type.GetMembers().OfType<IFieldSymbol>()
             .Where(f => !f.IsStatic && !f.IsImplicitlyDeclared && f.DeclaredAccessibility == Accessibility.Public);
 
-        foreach (var f in fields)
-        {
-            members.Add(CreateMemberMetadata(f.Name, f.Type));
-        }
+        foreach (var f in fields) members.Add(CreateMemberMetadata(f.Name, f.Type));
 
         var properties = type.GetMembers().OfType<IPropertySymbol>()
-            .Where(p => !p.IsStatic && p.GetMethod != null && p.SetMethod != null && p.DeclaredAccessibility == Accessibility.Public);
+            .Where(p => !p.IsStatic && p.GetMethod != null && p.SetMethod != null &&
+                        p.DeclaredAccessibility == Accessibility.Public);
 
-        foreach (var p in properties)
-        {
-            members.Add(CreateMemberMetadata(p.Name, p.Type));
-        }
+        foreach (var p in properties) members.Add(CreateMemberMetadata(p.Name, p.Type));
 
         return members;
     }
 
     private static MemberMetadata CreateMemberMetadata(string name, ITypeSymbol type)
     {
-        bool isArray = type is IArrayTypeSymbol;
+        var isArray = type is IArrayTypeSymbol;
         var elementType = isArray ? ((IArrayTypeSymbol)type).ElementType : type;
 
         return new MemberMetadata(
@@ -181,69 +206,70 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine($"public sealed class {type.Name}Serializer : ICustomSerializer<{type.FullName}>");
         sb.AppendLine("{");
-        
+
         sb.AppendLine($"    public void Write({type.FullName} value, FileStream stream, string name = null)");
         sb.AppendLine("    {");
-        sb.AppendLine($"        Query.Serializer.BeginObject(stream);");
+        sb.AppendLine("        Query.Serializer.BeginObject(stream);");
         foreach (var member in members)
-        {
             if (member.IsNullable)
             {
                 sb.AppendLine($"        Query.Serializer.Write(value.{member.Name} != null, stream);");
                 sb.AppendLine($"        if (value.{member.Name} != null)");
-                sb.AppendLine($"        {{");
+                sb.AppendLine("        {");
                 if (member.IsArray)
                 {
                     if (member.IsPrimitive)
-                        sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write);");
+                        sb.AppendLine(
+                            $"            Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write);");
                     else
                         sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream);");
                 }
                 else
+                {
                     sb.AppendLine($"            Query.Serializer.Write(value.{member.Name}, stream);");
-                sb.AppendLine($"        }}");
+                }
+
+                sb.AppendLine("        }");
             }
             else
             {
                 if (member.IsArray)
                 {
                     if (member.IsPrimitive)
-                        sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write);");
+                        sb.AppendLine(
+                            $"        Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write);");
                     else
                         sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream);");
                 }
                 else
+                {
                     sb.AppendLine($"        Query.Serializer.Write(value.{member.Name}, stream);");
+                }
             }
-        }
-        sb.AppendLine($"        Query.Serializer.EndObject(stream);");
+
+        sb.AppendLine("        Query.Serializer.EndObject(stream);");
         sb.AppendLine("    }");
         sb.AppendLine();
-        
+
         sb.AppendLine($"    public {type.FullName} Read(FileStream stream)");
         sb.AppendLine("    {");
         if (type.IsStruct)
-        {
             sb.AppendLine($"        {type.FullName} result = default;");
-        }
         else
-        {
             sb.AppendLine($"        {type.FullName} result = new {type.FullName}();");
-        }
         foreach (var member in members)
-        {
             if (member.IsNullable)
             {
                 sb.AppendLine("        if (Query.Serializer.ReadBool(stream))");
-                sb.AppendLine("        {{");
+                sb.AppendLine("        {");
                 sb.AppendLine($"            result.{member.Name} = {GenerateReadCall(member)};");
-                sb.AppendLine("        }}");
+                sb.AppendLine("        }");
             }
             else
             {
                 sb.AppendLine($"        result.{member.Name} = {GenerateReadCall(member)};");
             }
-        }
+
         sb.AppendLine("        return result;");
         sb.AppendLine("    }");
         sb.AppendLine("}");
@@ -254,11 +280,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     private static string GenerateReadCall(MemberMetadata member)
     {
         if (member.IsArray)
-        {
             return member.IsPrimitive
                 ? $"Query.Serializer.ReadArray(stream, Query.Serializer.Read{GetPrimitiveMethodSuffix(member.ElementTypeFullName)})"
                 : $"Query.Serializer.ReadArray<{member.ElementTypeFullName}>(stream)";
-        }
 
         return member.IsPrimitive
             ? $"Query.Serializer.Read{GetPrimitiveMethodSuffix(member.TypeFullName)}(stream)"
@@ -302,6 +326,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             var key = $"{s.Type.FullName}, {s.Type.AssemblyName}";
             sb.AppendLine($"        serializer.AddSerializer<{s.Type.FullName}>(new {s.SerializerName}());");
         }
+
         sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();

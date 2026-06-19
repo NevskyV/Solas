@@ -17,8 +17,8 @@ public class EntityMetaDataSerializer : ICustomSerializer<EntityMetaData>
     public EntityMetaData Read(FileStream stream)
     {
         return new EntityMetaData(
-        EngineContext.Serializer.ReadString(stream),
-        EngineContext.Serializer.ReadString(stream),
-        EngineContext.Serializer.ReadUInt16(stream));
+            EngineContext.Serializer.ReadString(stream),
+            EngineContext.Serializer.ReadString(stream),
+            EngineContext.Serializer.ReadUInt16(stream));
     }
 }

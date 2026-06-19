@@ -1,8 +1,6 @@
 ﻿using System.Runtime.InteropServices;
-using Solas.Attributes;
 using Solas.ComponentUtils;
 using Solas.Interfaces;
-using Solas.Serialization;
 using Solas.World;
 
 namespace Solas.Components;
@@ -13,14 +11,6 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     private readonly List<Logic> _logics = [];
 
     public uint[] MaskChunks = [];
-    
-    public Guid Id { get; init; }
-    public EntityMetaData MetaData { get; set; }
-    public Space CurrentSpace { get; set; }
-    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
-    
-    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
-    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
 
 
     public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
@@ -39,15 +29,36 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         EngineContext.EntityPool.RegisterEntity(this);
     }
 
-    public Guid GetSpaceId() => CurrentSpace.Id;
+    public EntityMetaData MetaData { get; set; }
+    public Space CurrentSpace { get; set; }
 
-    public static IReferenceable SearchReferenceable(Guid id, Guid spaceId)
+    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
+    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
+
+    public void Dispose()
+    {
+        foreach (var logic in _logics) logic.Dispose();
+        foreach (var data in _data) data.Dispose();
+
+        EngineContext.EntityPool.UnregisterEntity(this);
+    }
+
+    public Guid Id { get; init; }
+
+    public Guid GetSpaceId()
+    {
+        return CurrentSpace.Id;
+    }
+
+    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
     {
         var space = EngineContext.SpacePool.GetSpace(spaceId);
-        if(space != null)
+        if (space != null)
             return EngineContext.EntityPool.GetEntitiesIn(space).First(x => x.Id == id);
         return EngineContext.AssetsPool.LoadEntity(id);
     }
+
+    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
 
     public async Task SwitchState(bool newState, uint setTime = 0)
     {
@@ -59,7 +70,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
             IsEnabled.Value = oldValue;
         }
     }
-    
+
     private void UpdateMask<T>()
     {
         var id = ComponentRegistry.GetId(typeof(T));
@@ -122,12 +133,4 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     }
 
     #endregion
-    
-    public void Dispose()
-    {
-        foreach (var logic in _logics) logic.Dispose();
-        foreach (var data in _data) data.Dispose();
-
-        EngineContext.EntityPool.UnregisterEntity(this);
-    }
 }

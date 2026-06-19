@@ -2,9 +2,9 @@
 
 public sealed class InjectSerializationRegistry
 {
-    private readonly Dictionary<Type, Action<FileStream>> _writers = [];
     private readonly Dictionary<string, Func<FileStream, (Guid, Guid)[]>> _readers = [];
-    
+    private readonly Dictionary<Type, Action<FileStream>> _writers = [];
+
     internal InjectSerializationRegistry()
     {
         //InjectSerializationRegistration.Add(this);
@@ -19,21 +19,12 @@ public sealed class InjectSerializationRegistry
         _readers[typeName] = read;
     }
 
-    internal void Write(object data, FileStream stream)
-    {
-        if (!_writers.TryGetValue(data.GetType(), out var action))
-            throw new InvalidOperationException(
-                $"Type '{data.GetType()}' is not registered for binary serialization.");
-
-        action(stream);
-    }
-
     internal (Guid, Guid)[] Read(string typeName, FileStream stream)
     {
         if (!_readers.TryGetValue(typeName, out var func))
             throw new InvalidOperationException(
                 $"Type '{typeName}' is not registered for binary deserialization.");
-        
+
         return func(stream);
     }
 }

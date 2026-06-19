@@ -20,25 +20,37 @@ public abstract class Serializer
     {
         return (ICustomSerializer<T>)_serializers[typeof(T)];
     }
-    
-    public virtual void Open(FileStream stream) { }
-    public virtual void Close(FileStream stream) { }
-    public virtual void BeginObject(FileStream stream, string name = null) { }
-    public virtual void EndObject(FileStream stream) { }
+
+    public virtual void Open(FileStream stream)
+    {
+    }
+
+    public virtual void Close(FileStream stream)
+    {
+    }
+
+    public virtual void BeginObject(FileStream stream, string name = null)
+    {
+    }
+
+    public virtual void EndObject(FileStream stream)
+    {
+    }
 
     public void Write<T>(T value, FileStream stream, string name = null)
     {
         GetSerializer<T>().Write(value, stream, name);
     }
-    
-    public virtual void WriteArray<T>(T[] value, FileStream stream, Action<T, FileStream, string> action = null, string name = null)
+
+    public virtual void WriteArray<T>(T[] value, FileStream stream, Action<T, FileStream, string> action = null,
+        string name = null)
     {
         Write(value.Length, stream);
         action ??= Write;
-        foreach (var item in value) 
+        foreach (var item in value)
             action(item, stream, name);
     }
-    
+
     public abstract void Write(byte value, FileStream stream, string name = null);
     public abstract void Write(byte[] value, FileStream stream, string name = null);
     public abstract void Write(bool value, FileStream stream, string name = null);
@@ -53,23 +65,23 @@ public abstract class Serializer
     public abstract void Write(float value, FileStream stream, string name = null);
     public abstract void Write(double value, FileStream stream, string name = null);
     public abstract void Write(Guid value, FileStream stream, string name = null);
-    
+
     public T Read<T>(FileStream stream)
     {
         return GetSerializer<T>().Read(stream);
     }
-    
+
     public T[] ReadArray<T>(FileStream stream, Func<FileStream, T> func = null)
     {
         var length = ReadInt32(stream);
         var result = new T[length];
         func ??= Read<T>;
-        for(var i = 0;  i < length; i++)
+        for (var i = 0; i < length; i++)
             result[i] = func(stream);
-        
+
         return result;
     }
-    
+
     public abstract byte ReadByte(FileStream stream);
     public abstract byte[] ReadBytes(int count, FileStream stream);
     public abstract bool ReadBool(FileStream stream);

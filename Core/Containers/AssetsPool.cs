@@ -1,9 +1,7 @@
 ﻿using Solas.Assets;
 using Solas.Components;
 using Solas.Interfaces;
-using Solas.Serialization;
 using Solas.Serialization.Binary;
-using Solas.Serialization.Core;
 using Solas.Settings;
 
 namespace Solas.Containers;
@@ -37,10 +35,16 @@ internal class AssetsPool
         return res;
     }
 
-    internal T GetAsset<T>(Guid id) where T : Asset, new()
+    internal T GetAsset<T>(Guid id) where T : Asset
     {
         if (!_loadedAssets.Exists(x => x.Id == id)) return LoadAsset<T>(id);
         return (T)_loadedAssets.Find(x => x.Id == id);
+    }
+
+    internal Asset GetUnknownAsset(FileStream stream)
+    {
+        var typeName = EngineContext.Serializer.ReadString(stream);
+        return EngineContext.AssetsReadingRegistry.Read(typeName, stream);
     }
 
     private void WriteAsset(Asset asset, FileStream stream, BinaryWriter binaryWriter)
@@ -53,11 +57,12 @@ internal class AssetsPool
     {
         using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
         EngineContext.Serializer.Open(stream);
-        BinaryWriter binaryWriter = new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
-        
+        var binaryWriter =
+            new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
+
         foreach (var asset in _createdAssets)
             WriteAsset(asset, stream, binaryWriter);
-        
+
         EngineContext.Serializer.Close(stream);
     }
 
@@ -65,20 +70,21 @@ internal class AssetsPool
     {
         using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
         EngineContext.Serializer.Open(stream);
-        BinaryWriter binaryWriter = new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
+        var binaryWriter =
+            new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
 
         WriteAsset(asset, stream, binaryWriter);
         EngineContext.Serializer.Close(stream);
     }
 
-    internal T LoadAsset<T>(Guid id) where T : IReferenceable, new()
+    internal T LoadAsset<T>(Guid id) where T : IReferenceable
     {
         using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Open, FileAccess.Read);
         EngineContext.Serializer.Open(stream);
         stream.Position = _assetsPointers[id];
         var asset = EngineContext.Serializer.Read<T>(stream);
         _loadedAssets.Add(asset as Asset);
-        
+
         EngineContext.Serializer.Close(stream);
         return asset;
     }
@@ -91,7 +97,7 @@ internal class AssetsPool
         var entity = EngineContext.Serializer.Read<Entity>(stream);
 
         EngineContext.DISystem.BuildDependencies(WorldContext.GlobalSpace);
-        
+
         EngineContext.Serializer.Close(stream);
         return entity;
     }

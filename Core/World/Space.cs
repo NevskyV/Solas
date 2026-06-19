@@ -31,6 +31,13 @@ public class Space : IBranchable
         return BranchesIds.Select(Query.GetSpace);
     }
 
-    public Guid GetSpaceId() => Guid.Empty;
-    public static IReferenceable SearchReferenceable(Guid id, Guid spaceId) => EngineContext.SpacePool.GetSpace(id);
+    public Guid GetSpaceId()
+    {
+        return Guid.Empty;
+    }
+
+    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    {
+        return EngineContext.SpacePool.GetSpace(id);
+    }
 }

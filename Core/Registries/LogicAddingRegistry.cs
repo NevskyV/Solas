@@ -6,7 +6,7 @@ namespace Solas.Registries;
 public sealed class LogicAddingRegistry
 {
     private readonly Dictionary<string, Func<Entity, Logic>> _readers = [];
-    
+
     public LogicAddingRegistry()
     {
         LogicAddingRegistration.Add(this);

@@ -31,7 +31,13 @@ public class SpaceFolder(Guid id) : IBranchable
         return Query.GetSpaceFoldersWith(BranchesIds, Space);
     }
 
-    public Guid GetSpaceId() => Space.Id;
+    public Guid GetSpaceId()
+    {
+        return Space.Id;
+    }
 
-    public static IReferenceable SearchReferenceable(Guid id, Guid spaceId) => EngineContext.SpacePool.GetSpaceFolderWith(id, spaceId);
+    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    {
+        return EngineContext.SpacePool.GetSpaceFolderWith(id, spaceId);
+    }
 }

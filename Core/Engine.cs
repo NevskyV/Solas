@@ -36,11 +36,12 @@ public static class Engine
         }
     }
 
-    public static void SetSerializer(Serializer serializer)
+    public static void SetSerializer(string typeName)
     {
-        EngineContext.Serializer = serializer;
+        EngineContext.Serializer = (Serializer)Activator.CreateInstance(Type.GetType(typeName));
         EngineContext.InjectSerializationRegistry = new InjectSerializationRegistry();
         EngineContext.DataReadingRegistry = new DataReadingRegistry();
+        EngineContext.AssetsReadingRegistry = new AssetsReadingRegistry();
         EngineContext.LogicAddingRegistry = new LogicAddingRegistry();
     }
 

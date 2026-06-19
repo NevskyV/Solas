@@ -17,10 +17,11 @@ internal record struct EngineContext
     internal static readonly EntityPool EntityPool = new();
     internal static readonly SpacePool SpacePool = new();
     internal static readonly AssetsPool AssetsPool = new();
-    
+
     //Serialization
     public static Serializer Serializer;
     public static InjectSerializationRegistry InjectSerializationRegistry;
     public static DataReadingRegistry DataReadingRegistry;
+    public static AssetsReadingRegistry AssetsReadingRegistry;
     public static LogicAddingRegistry LogicAddingRegistry;
 }

@@ -14,13 +14,14 @@ public static class SymbolExtensions
     public static bool InheritsFrom(this ITypeSymbol type, INamedTypeSymbol? baseSymbol)
     {
         if (baseSymbol == null) return false;
-        ITypeSymbol? current = type;
+        var current = type;
         while (current != null)
         {
             if (SymbolEqualityComparer.Default.Equals(current, baseSymbol))
                 return true;
             current = current.BaseType;
         }
+
         return false;
     }
 
@@ -42,5 +43,18 @@ public static class SymbolExtensions
                 SpecialType.System_Double => true,
             _ => type.ToDisplayString() == "System.Guid"
         };
+    }
+
+    public static bool IsDataProperty(this ITypeSymbol type, out ITypeSymbol? inner)
+    {
+        inner = null;
+        if (type is not INamedTypeSymbol named || !named.IsGenericType)
+            return false;
+
+        if (!named.ToDisplayString().StartsWith("Solas.ComponentUtils.DataProperty<"))
+            return false;
+
+        inner = named.TypeArguments[0];
+        return true;
     }
 }

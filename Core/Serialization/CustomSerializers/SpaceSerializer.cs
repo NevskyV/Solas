@@ -13,20 +13,20 @@ public class SpaceSerializer : ICustomSerializer<Space>
         EngineContext.Serializer.Open(stream);
         EngineContext.Serializer.Write(value.Id, stream);
         EngineContext.Serializer.Write(value.RootId, stream);
-        
+
         // Initialization pool
         var pool = value.Initializer.Pool;
         EngineContext.Serializer.BeginObject(stream, "InitializationPool");
         EngineContext.Serializer.Write((ushort)pool.OrderType, stream);
         EngineContext.Serializer.WriteArray(pool.OrderedEntitiesIds, stream, EngineContext.Serializer.Write);
         EngineContext.Serializer.EndObject(stream);
-        
+
         // SpaceFolders
-        EngineContext.Serializer.WriteArray(Query.GetAllSpaceFoldersIn(value).ToArray(), stream, name:"SpaceFolders");
-        
+        EngineContext.Serializer.WriteArray(Query.GetAllSpaceFoldersIn(value).ToArray(), stream, name: "SpaceFolders");
+
         // Entities
-        EngineContext.Serializer.WriteArray(Query.GetEntitiesIn(value).ToArray(), stream, name:"Entities");
-        
+        EngineContext.Serializer.WriteArray(Query.GetEntitiesIn(value).ToArray(), stream, name: "Entities");
+
         EngineContext.Serializer.Close(stream);
     }
 
@@ -38,21 +38,21 @@ public class SpaceSerializer : ICustomSerializer<Space>
         {
             RootId = EngineContext.Serializer.ReadGuid(stream)
         };
-        
+
         // Initialization pool
         var pool = new InitializationPool
         {
             OrderType = (InitializationOrder)EngineContext.Serializer.ReadUInt16(stream)
         };
-        
+
         var ordered = EngineContext.Serializer.ReadArray(stream, EngineContext.Serializer.ReadGuid);
 
         pool.OrderedEntitiesIds = ordered;
         space.Initializer.Pool = pool;
-        
+
         // SpaceFolders
         EngineContext.Serializer.ReadArray<SpaceFolder>(stream);
-        
+
         // Entities
         var entities = EngineContext.Serializer.ReadArray<Entity>(stream);
         foreach (var entity in entities)

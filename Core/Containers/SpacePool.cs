@@ -35,7 +35,7 @@ internal class SpacePool
             _spaceFolders.Add(space, []);
         _spaceFolders[space].Add(folder);
     }
-    
+
     internal void UnregisterSpaceFolder(SpaceFolder folder, Space space)
     {
         _spaceFolders[space].Remove(folder);
@@ -70,6 +70,11 @@ internal class SpacePool
         _localSpacesPaths = Directory.GetFiles(localSpacesFolder, "*.space", SearchOption.AllDirectories);
     }
 
+    internal string[] GetPaths()
+    {
+        return _localSpacesPaths;
+    }
+
     internal IEnumerable<Task> InitializeLocalSpaces()
     {
         return _localSpaces.SelectMany(x => x.Initializer.InitializeDependencies());
@@ -97,7 +102,7 @@ internal class SpacePool
         {
             space = new Space(Guid.NewGuid())
             {
-                Name =  Path.GetFileNameWithoutExtension(path),
+                Name = Path.GetFileNameWithoutExtension(path),
                 Path = path,
                 Initializer =
                 {
@@ -124,10 +129,7 @@ internal class SpacePool
 
     internal void LoadSavedSpaces()
     {
-        foreach (var path in WorldSettings.Spaces)
-        {
-            _localSpaces.Add(LoadSpace(path, false));
-        }
+        foreach (var path in WorldSettings.Spaces) _localSpaces.Add(LoadSpace(path, false));
 
         foreach (var space in _localSpaces) EngineContext.DISystem.BuildDependencies(space);
         SpaceTree.Create(_localSpaces);

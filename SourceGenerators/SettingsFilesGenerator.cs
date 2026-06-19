@@ -22,7 +22,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
         {
             var (compilation, structs) = source;
             var assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
-            
+
             var writer = new CodeWriter();
             writer.WriteLine("using System;");
             writer.WriteLine("using System.IO;");
@@ -34,7 +34,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
             writer.WriteLine("namespace Solas.Generated");
             writer.WriteLine("{");
             writer.Indent();
-            writer.WriteLine($"public partial class SettingsFileGenerator");
+            writer.WriteLine("public partial class SettingsFileGenerator");
             writer.WriteLine("{");
             writer.Indent();
             writer.WriteLine("private static void CreateFile<T>(string fileName, string fullName) where T : new()");
@@ -67,7 +67,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
             writer.WriteLine("public static void CreateFiles()");
             writer.WriteLine("{");
             writer.Indent();
-        
+
             foreach (var sds in structs)
             {
                 if (sds == null) continue;
@@ -83,15 +83,15 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
 
                 writer.WriteLine($"CreateFile<{fullName}>(\"{className}\", \"{fullName + ", " + assemblyName}\");");
             }
-            
+
             writer.Unindent();
             writer.WriteLine("}");
             writer.Unindent();
             writer.WriteLine("}");
             writer.Unindent();
             writer.WriteLine("}");
-            
-            spc.AddSource($"SettingsFileGenerator.g.cs", writer.ToString());
+
+            spc.AddSource("SettingsFileGenerator.g.cs", writer.ToString());
         });
     }
 }

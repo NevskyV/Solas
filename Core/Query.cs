@@ -7,6 +7,8 @@ namespace Solas;
 
 public static class Query
 {
+    public static Serializer Serializer => EngineContext.Serializer;
+
     #region Settings System
 
     public static T GetSettings<T>() where T : class, IData
@@ -26,6 +28,11 @@ public static class Query
     public static Asset GetLoadedAsset(Guid id)
     {
         return EngineContext.AssetsPool.GetLoadedAsset(id);
+    }
+
+    public static Asset GetUnknownAsset(FileStream stream)
+    {
+        return EngineContext.AssetsPool.GetUnknownAsset(stream);
     }
 
     #endregion
@@ -55,6 +62,11 @@ public static class Query
     public static Space GetSpace(Guid guid)
     {
         return EngineContext.SpacePool.GetSpace(guid);
+    }
+
+    public static string[] GetPaths()
+    {
+        return EngineContext.SpacePool.GetPaths();
     }
 
     #endregion
@@ -117,6 +129,4 @@ public static class Query
     }
 
     #endregion
-
-    public static Serializer Serializer => EngineContext.Serializer;
 }

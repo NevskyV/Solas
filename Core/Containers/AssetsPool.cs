@@ -1,6 +1,7 @@
 ﻿using Solas.Assets;
 using Solas.Components;
 using Solas.Interfaces;
+using Solas.Registries;
 using Solas.Serialization.Binary;
 using Solas.Settings;
 
@@ -44,13 +45,13 @@ internal class AssetsPool
     internal Asset GetUnknownAsset(FileStream stream)
     {
         var typeName = EngineContext.Serializer.ReadString(stream);
-        return EngineContext.AssetsReadingRegistry.Read(typeName, stream);
+        return EngineContext.AssetsSerializationRegistry.Read(typeName, stream);
     }
 
     private void WriteAsset(Asset asset, FileStream stream, BinaryWriter binaryWriter)
     {
         IdLookupSerializer.Write(binaryWriter, asset.Id, (uint)stream.Position);
-        EngineContext.Serializer.Write(asset, stream);
+        EngineContext.AssetsSerializationRegistry.Write(asset.GetType(), asset, stream);
     }
 
     internal void SaveNewAssets()

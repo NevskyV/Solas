@@ -8,11 +8,11 @@ public class SpaceFolderSerializer : ICustomSerializer<SpaceFolder>
     public void Write(SpaceFolder value, FileStream stream, string name = null)
     {
         EngineContext.Serializer.BeginObject(stream, name);
-        EngineContext.Serializer.Write(value.Id, stream);
-        EngineContext.Serializer.Write(value.RootId, stream);
+        EngineContext.Serializer.Write(value.Id, stream, "Id");
+        EngineContext.Serializer.Write(value.RootId, stream, "RootId");
 
-        EngineContext.Serializer.WriteArray(value.BranchesIds.ToArray(), stream, EngineContext.Serializer.Write);
-        EngineContext.Serializer.WriteArray(value.EntityIds.ToArray(), stream, EngineContext.Serializer.Write);
+        EngineContext.Serializer.WriteArray(value.BranchesIds.ToArray(), stream, EngineContext.Serializer.Write, "BranchesIds");
+        EngineContext.Serializer.WriteArray(value.EntityIds.ToArray(), stream, EngineContext.Serializer.Write, "EntityIds");
         EngineContext.Serializer.EndObject(stream);
     }
 

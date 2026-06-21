@@ -7,7 +7,7 @@ using Solas.SourceGenerators.Utils;
 namespace Solas.SourceGenerators;
 
 [Generator]
-public sealed class DataReadingRegistrationGenerator : IIncrementalGenerator
+public sealed class AssetsSerializationRegistrationGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -22,9 +22,9 @@ public sealed class DataReadingRegistrationGenerator : IIncrementalGenerator
         {
             var (compilation, syntaxes) = source;
             var assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
-            var dataInterface = compilation.GetTypeByMetadataName("Solas.Components.IData");
+            var assetType = compilation.GetTypeByMetadataName("Solas.Assets.Asset");
 
-            if (dataInterface == null) return;
+            if (assetType == null) return;
 
             var registeredTypes = new List<string>();
 
@@ -33,8 +33,7 @@ public sealed class DataReadingRegistrationGenerator : IIncrementalGenerator
                 var model = compilation.GetSemanticModel(syntax!.SyntaxTree);
                 if (model.GetDeclaredSymbol(syntax) is not INamedTypeSymbol symbol) continue;
 
-                if (symbol.ImplementsInterface(dataInterface) && !symbol.IsAbstract &&
-                    symbol.TypeKind is TypeKind.Class or TypeKind.Struct) registeredTypes.Add(symbol.ToDisplayString());
+                if (symbol.InheritsFrom(assetType) && !symbol.IsAbstract) registeredTypes.Add(symbol.ToDisplayString());
             }
 
             var sb = new StringBuilder();
@@ -42,16 +41,17 @@ public sealed class DataReadingRegistrationGenerator : IIncrementalGenerator
             sb.AppendLine();
             sb.AppendLine("namespace Solas.Generated;");
             sb.AppendLine();
-            sb.AppendLine("public static class DataReadingRegistration");
+            sb.AppendLine("public class AssetsSerializationRegistration : Solas.Registries.IAssetsRegistration");
             sb.AppendLine("{");
-            sb.AppendLine("    public static void Add(Solas.Registries.DataReadingRegistry registry)");
+            sb.AppendLine("    public void Add(Solas.Registries.Registry registry)");
             sb.AppendLine("    {");
+            sb.AppendLine("        var trueRegistry = (Solas.Registries.AssetsSerializationRegistry) registry;");
             foreach (var type in registeredTypes)
-                sb.AppendLine($"        registry.Register<{type}>(\"{type}, {assemblyName}\");");
+                sb.AppendLine($"        trueRegistry.Register<{type}>(\"{type}, {assemblyName}\");");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 
-            ctx.AddSource("DataReadingRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
+            ctx.AddSource("AssetsSerializationRegistration.g.cs", SourceText.From(sb.ToString(), Encoding.UTF8));
         });
     }
 }

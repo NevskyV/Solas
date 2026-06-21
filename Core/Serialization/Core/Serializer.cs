@@ -1,15 +1,12 @@
-﻿using Solas.Generated;
+﻿using Solas.Registries;
 
 namespace Solas.Serialization.Core;
 
-public abstract class Serializer
+public interface ISerializeRegistration : IRegistration;
+
+public abstract class Serializer() : Registry(typeof(ISerializeRegistration))
 {
     private readonly Dictionary<Type, object> _serializers = [];
-
-    protected Serializer()
-    {
-        SerializationRegistration.Add(this);
-    }
 
     public void AddSerializer<T>(ICustomSerializer<T> serializer)
     {
@@ -21,21 +18,11 @@ public abstract class Serializer
         return (ICustomSerializer<T>)_serializers[typeof(T)];
     }
 
-    public virtual void Open(FileStream stream)
-    {
-    }
-
-    public virtual void Close(FileStream stream)
-    {
-    }
-
-    public virtual void BeginObject(FileStream stream, string name = null)
-    {
-    }
-
-    public virtual void EndObject(FileStream stream)
-    {
-    }
+    //Decorators
+    public virtual void Open(FileStream stream) { }
+    public virtual void Close(FileStream stream){ }
+    public virtual void BeginObject(FileStream stream, string name = null) { }
+    public virtual void EndObject(FileStream stream) { }
 
     public void Write<T>(T value, FileStream stream, string name = null)
     {
@@ -45,10 +32,10 @@ public abstract class Serializer
     public virtual void WriteArray<T>(T[] value, FileStream stream, Action<T, FileStream, string> action = null,
         string name = null)
     {
-        Write(value.Length, stream);
+        Write(value.Length, stream, "ArrayLenght");
         action ??= Write;
         foreach (var item in value)
-            action(item, stream, name);
+            action(item, stream, null);
     }
 
     public abstract void Write(byte value, FileStream stream, string name = null);

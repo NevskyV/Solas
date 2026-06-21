@@ -17,7 +17,7 @@ internal class SettingsSystem
             var stream = File.Open(path, FileMode.Open, FileAccess.Read);
             EngineContext.Serializer.Open(stream);
             var typeName = EngineContext.Serializer.ReadString(stream);
-            var data = EngineContext.DataReadingRegistry.Read(typeName, stream);
+            var data = EngineContext.DataSerializationRegistry.Read(typeName, stream);
             _settings.Add(data.GetType(), data);
             EngineContext.Serializer.Close(stream);
             _settingsPaths.TryAdd(data.GetType(), path);

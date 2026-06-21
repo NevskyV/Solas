@@ -20,8 +20,7 @@ internal record struct EngineContext
 
     //Serialization
     public static Serializer Serializer;
-    public static InjectSerializationRegistry InjectSerializationRegistry;
-    public static DataReadingRegistry DataReadingRegistry;
-    public static AssetsReadingRegistry AssetsReadingRegistry;
+    public static DataSerializationRegistry DataSerializationRegistry;
+    public static AssetsSerializationRegistry AssetsSerializationRegistry;
     public static LogicAddingRegistry LogicAddingRegistry;
 }

@@ -24,10 +24,8 @@ public class EngineJsonSerializer : Serializer
         {
             _readQueue = new Queue<object>();
 
-            using (var doc = JsonDocument.Parse(stream))
-            {
-                FlattenJson(doc.RootElement, _readQueue);
-            }
+            using var doc = JsonDocument.Parse(stream);
+            FlattenJson(doc.RootElement, _readQueue);
         }
     }
 
@@ -99,10 +97,25 @@ public class EngineJsonSerializer : Serializer
     private object GetNextValue()
     {
         if (_readQueue == null || _readQueue.Count == 0)
-            throw new EndOfStreamException("Попытка считать данные за пределами JSON-потока.");
+            throw new EndOfStreamException();
         return _readQueue.Dequeue();
     }
+    
+    public override void WriteArray<T>(T[] value, FileStream stream, Action<T, FileStream, string> action = null,
+        string name = null)
+    {
+        Write(value.Length, stream, "ArrayLenght");
+        action ??= Write;
+        _writer!.WriteStartArray(GetPropertyName(name));
+        foreach (var item in value)
+        {
+            _writer.WriteStartObject();
+            action(item, stream, "ArrayItem");
+            _writer.WriteEndObject();
+        }
 
+        _writer!.WriteEndArray();
+    }
 
     public override void Write(byte value, FileStream stream, string name = null)
     {

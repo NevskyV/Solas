@@ -11,14 +11,14 @@ public class SpaceSerializer : ICustomSerializer<Space>
     public void Write(Space value, FileStream stream, string name = null)
     {
         EngineContext.Serializer.Open(stream);
-        EngineContext.Serializer.Write(value.Id, stream);
-        EngineContext.Serializer.Write(value.RootId, stream);
+        EngineContext.Serializer.Write(value.Id, stream, "SpaceId");
+        EngineContext.Serializer.Write(value.RootId, stream,  "RootId");
 
         // Initialization pool
         var pool = value.Initializer.Pool;
         EngineContext.Serializer.BeginObject(stream, "InitializationPool");
-        EngineContext.Serializer.Write((ushort)pool.OrderType, stream);
-        EngineContext.Serializer.WriteArray(pool.OrderedEntitiesIds, stream, EngineContext.Serializer.Write);
+        EngineContext.Serializer.Write((ushort)pool.OrderType, stream, "OrderType");
+        EngineContext.Serializer.WriteArray(pool.OrderedEntitiesIds, stream, EngineContext.Serializer.Write, "OrderedEntitiesIds");
         EngineContext.Serializer.EndObject(stream);
 
         // SpaceFolders

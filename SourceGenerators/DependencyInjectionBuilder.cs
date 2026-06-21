@@ -53,35 +53,35 @@ public static class DependencyInjectionBuilder
 
         var serializableMembers = injectableMembers.Where(m => m.InjectType == InjectType.Inject).ToList();
 
-        sb.AppendLine($"    public {overrideAttribute}void WriteInject(FileStream stream, Entity? entity = null)");
+        sb.AppendLine($"    public {overrideAttribute}void WriteInject(FileStream stream, Entity entity = null)");
         sb.AppendLine("    {");
         foreach (var member in serializableMembers)
         {
             sb.AppendLine($"        if (this.{member.Name} == null)");
             sb.AppendLine("        {");
-            sb.AppendLine("            Query.Serializer.Write(Guid.Empty, stream);");
-            sb.AppendLine("            Query.Serializer.Write(Guid.Empty, stream);");
+            sb.AppendLine($"            Query.Serializer.Write(Guid.Empty, stream, \"{member.Name}_Id\");");
+            sb.AppendLine($"            Query.Serializer.Write(Guid.Empty, stream, \"{member.Name}_SpaceId\");");
             sb.AppendLine("        }");
             sb.AppendLine("        else");
             sb.AppendLine("        {");
 
             if (member.ReferenceKind == ReferenceKind.Logic)
             {
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.Id, stream);");
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.GetSpaceId(), stream);");
+                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.Id, stream, \"{member.Name}_Id\");");
+                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
             }
             else if (member.ReferenceKind == ReferenceKind.IData)
             {
                 sb.AppendLine(
                     $"            var owner = Solas.Query.TryGetEntityFor(this.{member.Name}, entity?.CurrentSpace);");
-                sb.AppendLine("            Query.Serializer.Write(owner != null ? owner.Id : Guid.Empty, stream);");
+                sb.AppendLine($"            Query.Serializer.Write(owner != null ? owner.Id : Guid.Empty, stream, \"{member.Name}_Id\");");
                 sb.AppendLine(
-                    "            Query.Serializer.Write(owner != null ? owner.GetSpaceId() : Guid.Empty, stream);");
+                    $"            Query.Serializer.Write(owner != null ? owner.GetSpaceId() : Guid.Empty, stream, \"{member.Name}_SpaceId\");");
             }
             else
             {
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Id, stream);");
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.GetSpaceId(), stream);");
+                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Id, stream, \"{member.Name}_Id\");");
+                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
             }
 
             sb.AppendLine("        }");

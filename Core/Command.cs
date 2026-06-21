@@ -1,6 +1,7 @@
 ﻿using Solas.Assets;
 using Solas.Components;
 using Solas.Interfaces;
+using Solas.Systems;
 using Solas.World;
 
 namespace Solas;
@@ -28,10 +29,9 @@ public static class Command
         return EngineContext.DISystem.AutoInject<T>(space);
     }
 
-
     public static T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable
     {
-        return EngineContext.DISystem.Inject<T>(id, spaceId);
+        return DISystem.Inject<T>(id, spaceId);
     }
 
     #endregion
@@ -100,17 +100,9 @@ public static class Command
 
     #region Registries
 
-    public static void RegisterInjectMethods<T>(
-        string typeName,
-        Action<FileStream> write,
-        Func<FileStream, (Guid, Guid)[]> read)
-    {
-        EngineContext.InjectSerializationRegistry.Register<T>(typeName, write, read);
-    }
-
     public static void RegisterDataRead<T>(string typeName) where T : IData
     {
-        EngineContext.DataReadingRegistry.Register<T>(typeName);
+        EngineContext.DataSerializationRegistry.Register<T>(typeName);
     }
 
     public static void RegisterLogicAdd<T>(string typeName) where T : Logic, new()

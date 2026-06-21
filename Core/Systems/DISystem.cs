@@ -42,7 +42,7 @@ internal class DISystem
         return result;
     }
 
-    internal T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    internal static T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable
     {
         return T.SearchReferenceable<T>(id, spaceId) as T;
     }

@@ -28,8 +28,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             var referenceableInterface = compilation.GetTypeByMetadataName("Solas.Interfaces.IReferenceable");
 
             var customSerializerInterface =
-                compilation.GetTypeByMetadataName("Solas.Serialization.Core.ICustomSerializer`1")
-                ?? compilation.GetTypeByMetadataName("Solas.Serialization.ICustomSerializer`1");
+                compilation.GetTypeByMetadataName("Solas.Serialization.Core.ICustomSerializer`1");
 
             if (dataInterface == null) return;
 
@@ -95,7 +94,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 var fullTypeName = symbol.ToDisplayString();
 
                 if (!processedTypes.Add(fullTypeName)) continue;
-
+                var isFromCurrentAssembly = SymbolEqualityComparer.Default.Equals(symbol.ContainingAssembly, compilation.Assembly);
+                if (!isFromCurrentAssembly) continue;
+                
                 var metadata = new TypeMetadata(
                     symbol.Name,
                     fullTypeName,
@@ -105,7 +106,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                     symbol.IsValueType
                 );
 
-                var members = GetSerializableMembers(symbol);
+                var members = GetSerializableMembers(symbol, compilation);
                 var generatedSource = GenerateSerializerCode(metadata, members);
 
                 var sanitizedName = GetSanitizedTypeName(symbol);
@@ -160,28 +161,49 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static List<MemberMetadata> GetSerializableMembers(INamedTypeSymbol type)
+    private static List<MemberMetadata> GetSerializableMembers(INamedTypeSymbol type, Compilation compilation)
     {
         var members = new List<MemberMetadata>();
 
         var fields = type.GetMembers().OfType<IFieldSymbol>()
             .Where(f => !f.IsStatic && !f.IsImplicitlyDeclared && f.DeclaredAccessibility == Accessibility.Public);
 
-        foreach (var f in fields) members.Add(CreateMemberMetadata(f.Name, f.Type));
+        foreach (var f in fields) members.Add(CreateMemberMetadata(f.Name, f.Type, compilation));
 
         var properties = type.GetMembers().OfType<IPropertySymbol>()
             .Where(p => !p.IsStatic && p.GetMethod != null && p.SetMethod != null &&
                         p.DeclaredAccessibility == Accessibility.Public);
 
-        foreach (var p in properties) members.Add(CreateMemberMetadata(p.Name, p.Type));
+        foreach (var p in properties) members.Add(CreateMemberMetadata(p.Name, p.Type, compilation));
 
         return members;
     }
 
-    private static MemberMetadata CreateMemberMetadata(string name, ITypeSymbol type)
+    private static MemberMetadata CreateMemberMetadata(string name, ITypeSymbol type, Compilation compilation)
     {
-        var isArray = type is IArrayTypeSymbol;
+        bool isArray = type is IArrayTypeSymbol;
         var elementType = isArray ? ((IArrayTypeSymbol)type).ElementType : type;
+
+        bool isValueType = elementType.IsValueType; 
+        
+        if (elementType.IsDataProperty(out var inner))
+        {
+            isValueType = inner!.IsValueType;
+        }
+        
+        var checkType = type.IsDataProperty(out var unwrapped) ? unwrapped! : type;
+        if (checkType is IArrayTypeSymbol arraySymbol)
+        {
+            checkType = arraySymbol.ElementType;
+        }
+        
+        var dataInterface = compilation.GetTypeByMetadataName("Solas.Components.IData");
+        var logicBaseType = compilation.GetTypeByMetadataName("Solas.Components.Logic");
+        var referenceableInterface = compilation.GetTypeByMetadataName("Solas.Interfaces.IReferenceable");
+
+        bool isReferenceLink = checkType.ImplementsInterface(dataInterface) ||
+                               checkType.InheritsFrom(logicBaseType) ||
+                               checkType.ImplementsInterface(referenceableInterface);
 
         return new MemberMetadata(
             name,
@@ -189,7 +211,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             isArray,
             elementType.ToDisplayString(),
             elementType.IsPrimitive(),
-            type.NullableAnnotation == NullableAnnotation.Annotated
+            type.NullableAnnotation == NullableAnnotation.Annotated,
+            isValueType,
+            isReferenceLink
         );
     }
 
@@ -206,87 +230,174 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine($"public sealed class {type.Name}Serializer : ICustomSerializer<{type.FullName}>");
         sb.AppendLine("{");
-
+        
         sb.AppendLine($"    public void Write({type.FullName} value, FileStream stream, string name = null)");
         sb.AppendLine("    {");
-        sb.AppendLine("        Query.Serializer.BeginObject(stream);");
+        sb.AppendLine($"        Query.Serializer.BeginObject(stream);");
+        
         foreach (var member in members)
-            if (member.IsNullable)
-            {
-                sb.AppendLine($"        Query.Serializer.Write(value.{member.Name} != null, stream);");
-                sb.AppendLine($"        if (value.{member.Name} != null)");
-                sb.AppendLine("        {");
-                if (member.IsArray)
-                {
-                    if (member.IsPrimitive)
-                        sb.AppendLine(
-                            $"            Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write);");
-                    else
-                        sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream);");
-                }
-                else
-                {
-                    sb.AppendLine($"            Query.Serializer.Write(value.{member.Name}, stream);");
-                }
+        {
+            if (member.IsReferenceLink) continue;
+            
+            var isDataProperty = member.TypeFullName.StartsWith("Solas.ComponentUtils.DataProperty<");
+            var accessPath = isDataProperty ? $"{member.Name}.Value" : member.Name;
 
-                sb.AppendLine("        }");
+            if (isDataProperty)
+            {
+                sb.AppendLine($"        Query.Serializer.Write(value.{member.Name} != null, stream, \"IsDataPropertyNull\");");
+                sb.AppendLine($"        if (value.{member.Name} != null)");
+                sb.AppendLine($"        {{");
+                
+                if (member.IsValueType) 
+                {
+                    if (member.IsArray)
+                    {
+                        if (member.IsPrimitive)
+                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{accessPath}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                        else
+                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
+                    }
+                    else
+                        sb.AppendLine($"            Query.Serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                }
+                else 
+                {
+                    sb.AppendLine($"            Query.Serializer.Write(value.{accessPath} != null, stream, \"IsInnerPropertyNull\");");
+                    sb.AppendLine($"            if (value.{accessPath} != null)");
+                    sb.AppendLine($"            {{");
+                    if (member.IsArray)
+                    {
+                        if (member.IsPrimitive)
+                            sb.AppendLine($"                Query.Serializer.WriteArray(value.{accessPath}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                        else
+                            sb.AppendLine($"                Query.Serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
+                    }
+                    else
+                        sb.AppendLine($"                Query.Serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine($"            }}");
+                }
+                sb.AppendLine($"        }}");
             }
             else
             {
-                if (member.IsArray)
+                if (member.IsNullable && !member.IsValueType)
                 {
-                    if (member.IsPrimitive)
-                        sb.AppendLine(
-                            $"        Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write);");
+                    sb.AppendLine($"        Query.Serializer.Write(value.{member.Name} != null, stream, \"{member.Name}\");");
+                    sb.AppendLine($"        if (value.{member.Name} != null)");
+                    sb.AppendLine($"        {{");
+                    if (member.IsArray)
+                    {
+                        if (member.IsPrimitive)
+                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                        else
+                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
+                    }
                     else
-                        sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream);");
+                        sb.AppendLine($"            Query.Serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
+                    sb.AppendLine($"        }}");
                 }
                 else
                 {
-                    sb.AppendLine($"        Query.Serializer.Write(value.{member.Name}, stream);");
+                    if (member.IsArray)
+                    {
+                        if (member.IsPrimitive)
+                            sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                        else
+                            sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
+                    }
+                    else
+                        sb.AppendLine($"        Query.Serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
                 }
             }
-
-        sb.AppendLine("        Query.Serializer.EndObject(stream);");
+        }
+        sb.AppendLine($"        Query.Serializer.EndObject(stream);");
         sb.AppendLine("    }");
         sb.AppendLine();
-
+        
         sb.AppendLine($"    public {type.FullName} Read(FileStream stream)");
         sb.AppendLine("    {");
         if (type.IsStruct)
+        {
             sb.AppendLine($"        {type.FullName} result = default;");
+        }
         else
+        {
             sb.AppendLine($"        {type.FullName} result = new {type.FullName}();");
+        }
+        
         foreach (var member in members)
-            if (member.IsNullable)
+        {
+            if (member.IsReferenceLink) continue;
+            
+            var isDataProperty = member.TypeFullName.StartsWith("Solas.ComponentUtils.DataProperty<");
+            var accessPath = isDataProperty ? $"{member.Name}.Value" : member.Name;
+
+            if (isDataProperty)
             {
-                sb.AppendLine("        if (Query.Serializer.ReadBool(stream))");
-                sb.AppendLine("        {");
-                sb.AppendLine($"            result.{member.Name} = {GenerateReadCall(member)};");
-                sb.AppendLine("        }");
+                var unwrappedType = GetUnwrappedTypeName(member);
+                
+                sb.AppendLine($"        if (Query.Serializer.ReadBool(stream))");
+                sb.AppendLine($"        {{");
+                sb.AppendLine($"            result.{member.Name} ??= new Solas.ComponentUtils.DataProperty<{unwrappedType}>();");
+                
+                if (member.IsValueType)
+                {
+                    sb.AppendLine($"            result.{accessPath} = {GenerateReadCall(member, unwrappedType)};");
+                }
+                else
+                {
+                    sb.AppendLine($"            if (Query.Serializer.ReadBool(stream))");
+                    sb.AppendLine($"            {{");
+                    sb.AppendLine($"                result.{accessPath} = {GenerateReadCall(member, unwrappedType)};");
+                    sb.AppendLine($"            }}");
+                }
+                sb.AppendLine($"        }}");
             }
             else
             {
-                sb.AppendLine($"        result.{member.Name} = {GenerateReadCall(member)};");
+                if (member.IsNullable && !member.IsValueType)
+                {
+                    sb.AppendLine("        if (Query.Serializer.ReadBool(stream))");
+                    sb.AppendLine("        {");
+                    sb.AppendLine($"            result.{member.Name} = {GenerateReadCall(member, member.TypeFullName)};");
+                    sb.AppendLine("        }");
+                }
+                else
+                {
+                    sb.AppendLine($"        result.{member.Name} = {GenerateReadCall(member, member.TypeFullName)};");
+                }
             }
-
+        }
+        
         sb.AppendLine("        return result;");
         sb.AppendLine("    }");
         sb.AppendLine("}");
 
         return sb.ToString();
     }
-
-    private static string GenerateReadCall(MemberMetadata member)
+    
+    private static string GenerateReadCall(MemberMetadata member, string targetTypeFullName)
     {
         if (member.IsArray)
+        {
             return member.IsPrimitive
                 ? $"Query.Serializer.ReadArray(stream, Query.Serializer.Read{GetPrimitiveMethodSuffix(member.ElementTypeFullName)})"
                 : $"Query.Serializer.ReadArray<{member.ElementTypeFullName}>(stream)";
+        }
 
         return member.IsPrimitive
-            ? $"Query.Serializer.Read{GetPrimitiveMethodSuffix(member.TypeFullName)}(stream)"
-            : $"Query.Serializer.Read<{member.TypeFullName}>(stream)";
+            ? $"Query.Serializer.Read{GetPrimitiveMethodSuffix(targetTypeFullName)}(stream)"
+            : $"Query.Serializer.Read<{targetTypeFullName}>(stream)";
+    }
+    
+    private static string GetUnwrappedTypeName(MemberMetadata member)
+    {
+        var typeStr = member.TypeFullName;
+        if (typeStr.StartsWith("Solas.ComponentUtils.DataProperty<") && typeStr.EndsWith(">"))
+        {
+            return typeStr.Substring(34, typeStr.Length - 35);
+        }
+        return typeStr;
     }
 
     private static string GetPrimitiveMethodSuffix(string fullName)
@@ -317,10 +428,11 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace Solas.Generated;");
         sb.AppendLine();
-        sb.AppendLine("public static class SerializationRegistration");
+        sb.AppendLine("public class SerializationRegistration : ISerializeRegistration");
         sb.AppendLine("{");
-        sb.AppendLine("    public static void Add(Serializer serializer)");
+        sb.AppendLine("    public void Add(Solas.Registries.Registry registry)");
         sb.AppendLine("    {");
+        sb.AppendLine("        var serializer = (Serializer) registry;");
         foreach (var s in serializers)
         {
             var key = $"{s.Type.FullName}, {s.Type.AssemblyName}";

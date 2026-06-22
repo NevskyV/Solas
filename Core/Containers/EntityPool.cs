@@ -42,6 +42,7 @@ internal class EntityPool
 
     internal void RegisterEntity(Entity entity)
     {
+        entity.CurrentSpace ??= _entitiesInSpaces.Keys.Last();
         _entitiesInSpaces[entity.CurrentSpace].Add(entity);
         foreach (var logic in entity.Logics) AddReferences(logic, entity);
         foreach (var data in entity.Data) AddReferences(data, entity);

@@ -36,18 +36,21 @@ public sealed class LogicAddingRegistrationGenerator : IIncrementalGenerator
                 if (symbol.InheritsFrom(logicBaseType) && !symbol.IsAbstract)
                     registeredLogics.Add(symbol.ToDisplayString());
             }
+            
+            if (registeredLogics.Count == 0) return;
 
             var sb = new StringBuilder();
-            sb.AppendLine("using Solas;");
+            sb.AppendLine("using Solas.Registries;");
             sb.AppendLine();
             sb.AppendLine("namespace Solas.Generated;");
             sb.AppendLine();
-            sb.AppendLine("public static class LogicAddingRegistration");
+            sb.AppendLine("public class LogicAddingRegistration : ILogicRegistration");
             sb.AppendLine("{");
-            sb.AppendLine("    public static void Add(Solas.Registries.LogicAddingRegistry registry)");
+            sb.AppendLine("    public void Add(Solas.Registries.Registry registry)");
             sb.AppendLine("    {");
+            sb.AppendLine("        var trueRegistry = (Solas.Registries.LogicAddingRegistry) registry;");
             foreach (var logic in registeredLogics)
-                sb.AppendLine($"        registry.Register<{logic}>(\"{logic}, {assemblyName}\");");
+                sb.AppendLine($"        trueRegistry.Register<{logic}>(\"{logic}, {assemblyName}\");");
             sb.AppendLine("    }");
             sb.AppendLine("}");
 

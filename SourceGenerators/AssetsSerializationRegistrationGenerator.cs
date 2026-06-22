@@ -35,6 +35,8 @@ public sealed class AssetsSerializationRegistrationGenerator : IIncrementalGener
 
                 if (symbol.InheritsFrom(assetType) && !symbol.IsAbstract) registeredTypes.Add(symbol.ToDisplayString());
             }
+            
+            if (registeredTypes.Count == 0) return;
 
             var sb = new StringBuilder();
             sb.AppendLine("using Solas;");

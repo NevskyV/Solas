@@ -1,16 +1,12 @@
 ﻿using Solas.Components;
-using Solas.Generated;
 
 namespace Solas.Registries;
 
-public sealed class LogicAddingRegistry
+public interface ILogicRegistration : IRegistration;
+
+public sealed class LogicAddingRegistry() : Registry(typeof(ILogicRegistration))
 {
     private readonly Dictionary<string, Func<Entity, Logic>> _readers = [];
-
-    public LogicAddingRegistry()
-    {
-        LogicAddingRegistration.Add(this);
-    }
 
     public void Register<T>(string typeName) where T : Logic, new()
     {
@@ -21,7 +17,7 @@ public sealed class LogicAddingRegistry
     {
         if (!_readers.TryGetValue(typeName, out var func))
             throw new InvalidOperationException(
-                $"Type '{typeName}' is not registered for binary deserialization.");
+                $"Type '{typeName}' is not registered for deserialization.");
 
         return func(entity);
     }

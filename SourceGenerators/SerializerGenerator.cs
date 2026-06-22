@@ -385,7 +385,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 : $"Query.Serializer.ReadArray<{member.ElementTypeFullName}>(stream)";
         }
 
-        return member.IsPrimitive
+        return member.IsPrimitive || GetPrimitiveMethodSuffix(targetTypeFullName) != "null"
             ? $"Query.Serializer.Read{GetPrimitiveMethodSuffix(targetTypeFullName)}(stream)"
             : $"Query.Serializer.Read<{targetTypeFullName}>(stream)";
     }
@@ -417,7 +417,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "float" => "Float",
             "double" => "Double",
             "System.Guid" => "Guid",
-            _ => "Int32"
+            _ => "null"
         };
     }
 

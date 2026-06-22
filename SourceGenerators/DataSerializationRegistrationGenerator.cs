@@ -36,6 +36,8 @@ public sealed class DataSerializationRegistrationGenerator : IIncrementalGenerat
                 if (symbol.ImplementsInterface(dataInterface) && !symbol.IsAbstract &&
                     symbol.TypeKind is TypeKind.Class or TypeKind.Struct) registeredTypes.Add(symbol.ToDisplayString());
             }
+            
+            if (registeredTypes.Count == 0) return;
 
             var sb = new StringBuilder();
             sb.AppendLine("using Solas;");

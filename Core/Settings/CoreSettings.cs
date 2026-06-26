@@ -6,10 +6,10 @@ namespace Solas.Settings;
 [SettingsSection]
 public class CoreSettings : IData
 {
-    public string AssetsPackPath = Directory.GetCurrentDirectory() + @"\Solas\Assets.pack";
-    public string AssetsSpacePath = Directory.GetCurrentDirectory() + @"\Solas\Assets.space";
-    public string GlobalSpacePath = Directory.GetCurrentDirectory() + @"\Solas\Global.space";
-    public string LocalSpacesDirectory = Directory.GetCurrentDirectory() + @"\Assets\";
+    public string AssetsPackPath = "assets://Assets.pack";
+    public string AssetsSpacePath = "assets://Assets.space";
+    public string GlobalSpacePath = "assets://Global.space";
+    public string LocalSpacesDirectory = "assets://";
     public float TargetFrameTime = 60.0f;
     public string[] UpdateSystems = [];
 }

@@ -9,7 +9,7 @@ internal class SpacePool
 {
     private readonly List<Space> _localSpaces = [];
     private readonly Dictionary<Space, List<SpaceFolder>> _spaceFolders = [];
-    private string[] _localSpacesPaths;
+    private string[] _localSpacesPaths = [];
     private WorldSettings WorldSettings => Query.GetSettings<WorldSettings>();
 
     #region Update

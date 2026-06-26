@@ -17,7 +17,7 @@ public sealed class LogicAddingRegistry() : Registry(typeof(ILogicRegistration))
     {
         if (!_readers.TryGetValue(typeName, out var func))
             throw new InvalidOperationException(
-                $"Type '{typeName}' is not registered for deserialization.");
+                $"Type '{typeName}' is not registered.");
 
         return func(entity);
     }

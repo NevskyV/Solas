@@ -19,8 +19,11 @@ internal record struct EngineContext
     internal static readonly AssetsPool AssetsPool = new();
 
     //Serialization
-    public static Serializer Serializer;
-    public static DataSerializationRegistry DataSerializationRegistry;
-    public static AssetsSerializationRegistry AssetsSerializationRegistry;
-    public static LogicAddingRegistry LogicAddingRegistry;
+    internal static Serializer Serializer;
+    internal static DataSerializationRegistry DataSerializationRegistry;
+    internal static AssetsSerializationRegistry AssetsSerializationRegistry;
+    internal static LogicAddingRegistry LogicAddingRegistry;
+    
+    //Vfs
+    internal static VirtualFileSystem Vfs;
 }

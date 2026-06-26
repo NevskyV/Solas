@@ -28,20 +28,20 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
             writer.WriteLine("using System.IO;");
             writer.WriteLine("using Solas.Attributes;");
             writer.WriteLine("using Solas.Components;");
-            writer.WriteLine("using Solas.Serialization.Json;");
+            writer.WriteLine("using Solas.Registries;");
             writer.WriteLine("using System.Runtime.CompilerServices;");
             writer.WriteLine();
             writer.WriteLine("namespace Solas.Generated");
             writer.WriteLine("{");
             writer.Indent();
-            writer.WriteLine("public partial class SettingsFileGenerator");
+            writer.WriteLine("public class SettingsFileGenerator : ISettingsFilesRegistration");
             writer.WriteLine("{");
             writer.Indent();
-            writer.WriteLine("private static void CreateFile<T>(string fileName, string fullName) where T : new()");
+            writer.WriteLine("private void CreateFile<T>(string fileName, string fullName) where T : new()");
             writer.WriteLine("{");
             writer.Indent();
-            writer.WriteLine(@"var dir = Directory.GetCurrentDirectory() + @""\Solas\Settings\"";");
-            writer.WriteLine(@"var path = dir + $""{fileName}.set"";");
+            writer.WriteLine("var dir = Solas.Query.GetPath(\"engine://Settings\");");
+            writer.WriteLine(@"var path = Path.Combine(dir, $""{fileName}.set"");");
             writer.WriteLine();
             writer.WriteLine("if (!File.Exists(path))");
             writer.WriteLine("{");
@@ -64,9 +64,10 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
             writer.WriteLine("}");
             writer.Unindent();
             writer.WriteLine("}");
-            writer.WriteLine("public static void CreateFiles()");
+            writer.WriteLine("public void Add(Registry registry)");
             writer.WriteLine("{");
             writer.Indent();
+            writer.WriteLine("var trueRegistry = (SettingsFilesRegistry) registry;");
 
             foreach (var sds in structs)
             {
@@ -81,7 +82,7 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
                 var fullName = symbol.ToDisplayString();
                 var className = symbol.Name;
 
-                writer.WriteLine($"CreateFile<{fullName}>(\"{className}\", \"{fullName + ", " + assemblyName}\");");
+                writer.WriteLine($"trueRegistry.Register(() => CreateFile<{fullName}>(\"{className}\", \"{fullName + ", " + assemblyName}\"));");
             }
 
             writer.Unindent();

@@ -97,7 +97,7 @@ public class EngineJsonSerializer : Serializer
     private object GetNextValue()
     {
         if (_readQueue == null || _readQueue.Count == 0)
-            throw new EndOfStreamException();
+            return null;
         return _readQueue.Dequeue();
     }
     

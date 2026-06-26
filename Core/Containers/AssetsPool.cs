@@ -18,11 +18,14 @@ internal class AssetsPool
 
     internal void ReadPointers()
     {
-        if (!File.Exists(CoreSettings.AssetsPackPath)) File.Create(CoreSettings.AssetsPackPath).Close();
-        if (!File.Exists(CoreSettings.AssetsSpacePath)) File.Create(CoreSettings.AssetsSpacePath).Close();
+        var assetsPackPath = EngineContext.Vfs.GetPath(CoreSettings.AssetsPackPath);
+        if (!File.Exists(assetsPackPath)) File.Create(assetsPackPath).Close();
+        
+        var assetsSpacePath = EngineContext.Vfs.GetPath(CoreSettings.AssetsSpacePath);
+        if (!File.Exists(assetsSpacePath)) File.Create(assetsSpacePath).Close();
 
-        _assetsPointers = IdLookupSerializer.ReadAll(CoreSettings.AssetsPackPath + ".lookup");
-        _entitiesPointers = IdLookupSerializer.ReadAll(CoreSettings.AssetsSpacePath + ".lookup");
+        _assetsPointers = IdLookupSerializer.ReadAll(assetsPackPath + ".lookup");
+        _entitiesPointers = IdLookupSerializer.ReadAll(assetsSpacePath + ".lookup");
     }
 
     internal void RegisterNewAsset(Asset asset)
@@ -45,6 +48,7 @@ internal class AssetsPool
     internal Asset GetUnknownAsset(FileStream stream)
     {
         var typeName = EngineContext.Serializer.ReadString(stream);
+        if(typeName == null) return null;
         return EngineContext.AssetsSerializationRegistry.Read(typeName, stream);
     }
 
@@ -56,10 +60,11 @@ internal class AssetsPool
 
     internal void SaveNewAssets()
     {
-        using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
+        var assetsPackPath = EngineContext.Vfs.GetPath(CoreSettings.AssetsPackPath);
+        using var stream = File.Open(assetsPackPath, FileMode.Append, FileAccess.Write);
         EngineContext.Serializer.Open(stream);
         var binaryWriter =
-            new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
+            new BinaryWriter(File.Open(assetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
 
         foreach (var asset in _createdAssets)
             WriteAsset(asset, stream, binaryWriter);
@@ -69,10 +74,11 @@ internal class AssetsPool
 
     internal void SaveAsset(Asset asset)
     {
-        using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Append, FileAccess.Write);
+        var assetsPackPath = EngineContext.Vfs.GetPath(CoreSettings.AssetsPackPath);
+        using var stream = File.Open(assetsPackPath, FileMode.Append, FileAccess.Write);
         EngineContext.Serializer.Open(stream);
         var binaryWriter =
-            new BinaryWriter(File.Open(CoreSettings.AssetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
+            new BinaryWriter(File.Open(assetsPackPath + ".lookup", FileMode.Append, FileAccess.Write));
 
         WriteAsset(asset, stream, binaryWriter);
         EngineContext.Serializer.Close(stream);
@@ -80,7 +86,8 @@ internal class AssetsPool
 
     internal T LoadAsset<T>(Guid id) where T : IReferenceable
     {
-        using var stream = File.Open(CoreSettings.AssetsPackPath, FileMode.Open, FileAccess.Read);
+        using var stream = File.Open(EngineContext.Vfs.GetPath(CoreSettings.AssetsPackPath), FileMode.Open, FileAccess.Read);
+        
         EngineContext.Serializer.Open(stream);
         stream.Position = _assetsPointers[id];
         var asset = EngineContext.Serializer.Read<T>(stream);
@@ -92,7 +99,7 @@ internal class AssetsPool
 
     internal Entity LoadEntity(Guid id)
     {
-        using var stream = File.Open(CoreSettings.AssetsSpacePath, FileMode.Open, FileAccess.Read);
+        using var stream = File.Open(EngineContext.Vfs.GetPath(CoreSettings.AssetsSpacePath), FileMode.Open, FileAccess.Read);
         EngineContext.Serializer.Open(stream);
         stream.Position = _entitiesPointers[id];
         var entity = EngineContext.Serializer.Read<Entity>(stream);

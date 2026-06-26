@@ -44,6 +44,11 @@ public static class Engine
         EngineContext.LogicAddingRegistry = new LogicAddingRegistry();
     }
 
+    public static void SetVfs(VirtualFileSystem vfs)
+    {
+        EngineContext.Vfs = vfs;
+    }
+
     public static void LoadEngineSettings(string pathToSettingsFolder)
     {
         EngineContext.SettingsSystem.ReadAllSettings(pathToSettingsFolder);
@@ -82,10 +87,12 @@ public static class Engine
     {
         EngineContext.AssetsPool.ReadPointers();
 
-        WorldContext.GlobalSpace = EngineContext.SpacePool.LoadSpace(WorldContext.CoreSettings.GlobalSpacePath, false);
+        WorldContext.GlobalSpace = EngineContext.SpacePool.LoadSpace(EngineContext.Vfs
+            .GetPath(WorldContext.CoreSettings.GlobalSpacePath), false);
         EngineContext.DISystem.BuildDependencies(WorldContext.GlobalSpace);
 
-        EngineContext.SpacePool.SetPaths(WorldContext.CoreSettings.LocalSpacesDirectory);
+        EngineContext.SpacePool.SetPaths(EngineContext.Vfs
+            .GetPath(WorldContext.CoreSettings.LocalSpacesDirectory));
         EngineContext.SpacePool.LoadSavedSpaces();
     }
 

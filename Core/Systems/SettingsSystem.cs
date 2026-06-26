@@ -1,5 +1,5 @@
 ﻿using Solas.Components;
-using Solas.Generated;
+using Solas.Registries;
 
 namespace Solas.Systems;
 
@@ -10,7 +10,8 @@ internal class SettingsSystem
 
     internal void ReadAllSettings(string pathToSettingsFolder)
     {
-        SettingsFileGenerator.CreateFiles();
+        new SettingsFilesRegistry().CreateALl();
+        
         var files = Directory.GetFiles(pathToSettingsFolder, "*.set");
         foreach (var path in files)
         {

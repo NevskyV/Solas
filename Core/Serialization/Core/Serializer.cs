@@ -58,7 +58,7 @@ public abstract class Serializer() : Registry(typeof(ISerializeRegistration))
         return GetSerializer<T>().Read(stream);
     }
 
-    public T[] ReadArray<T>(FileStream stream, Func<FileStream, T> func = null)
+    public virtual T[] ReadArray<T>(FileStream stream, Func<FileStream, T> func = null)
     {
         var length = ReadInt32(stream);
         var result = new T[length];

@@ -129,4 +129,10 @@ public static class Query
     }
 
     #endregion
+
+    #region Vfs
+
+    public static string GetPath(string path) => EngineContext.Vfs.GetPath(path);
+
+    #endregion
 }

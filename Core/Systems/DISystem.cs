@@ -7,11 +7,11 @@ namespace Solas.Systems;
 internal class DISystem
 {
     private readonly Dictionary<Space, List<Logic>> _cache = [];
-    private readonly Dictionary<IInjectable, (Guid, Guid)[]> _injectables = [];
+    private readonly List<(IInjectable, (Guid, Guid)[])> _injectables = [];
 
     internal void AddInjectable(IInjectable injectable, (Guid, Guid)[] guids)
     {
-        _injectables.Add(injectable, guids);
+        _injectables.Add((injectable, guids));
     }
 
     internal void BuildDependencies(Space space)

@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>disable</Nullable>
+        <RootNamespace>Solas.Build</RootNamespace>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <PackageId>Solas.Build</PackageId>
+        <Version>0.1.0</Version>
+        <Authors>NevskyV</Authors>
+        <Description>High performance open-source .net game engine created specifically for indie devs</Description>
+        <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
+        <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+
+        <GameProjectPath />
+        <SerializerName Condition="'$(SerializerName)' == ''">Solas.Serialization.Json.EngineJsonSerializer, Core</SerializerName>
+    </PropertyGroup>
+
+    <Target Name="GenerateSerializerConfig" BeforeTargets="BeforeCompile;CoreCompile">
+        <PropertyGroup>
+            <ConfigCode>
+<![CDATA[
+public record struct BuildConfig
+{
+    public static readonly string SerializerName = "$(SerializerName)"%3B
+    public static readonly string GameProjectPath = @"$(GameProjectPath)"%3B
+}
+]]>
+            </ConfigCode>
+        </PropertyGroup>
+
+        <WriteLinesToFile File="$(IntermediateOutputPath)BuildConfig.g.cs"
+                          Lines="$(ConfigCode)"
+                          Overwrite="true"
+                          WriteOnlyWhenDifferent="true" />
+
+        <ItemGroup>
+            <Compile Include="$(IntermediateOutputPath)BuildConfig.g.cs" />
+        </ItemGroup>
+    </Target>
+
+    <ItemGroup>
+        <ProjectReference Include="$(GameProjectPath)" />
+        <ProjectReference Include="D:\CS-Projects\Solas\SolasEngine\Core\Core.csproj" />
+    </ItemGroup>
+    
+</Project>

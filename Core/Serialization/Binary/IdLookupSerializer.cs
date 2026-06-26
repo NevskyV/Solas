@@ -1,14 +1,14 @@
 ﻿namespace Solas.Serialization.Binary;
 
-internal static class IdLookupSerializer
+public static class IdLookupSerializer
 {
-    internal static void Write(BinaryWriter writer, Guid objectId, uint offset)
+    public static void Write(BinaryWriter writer, Guid objectId, uint offset)
     {
         writer.Write(objectId.ToByteArray());
         writer.Write(offset);
     }
 
-    internal static Dictionary<Guid, uint> ReadAll(string lookupPath)
+    public static Dictionary<Guid, uint> ReadAll(string lookupPath)
     {
         using var stream = File.Open(lookupPath, FileMode.OpenOrCreate, FileAccess.Read);
         using var reader = new BinaryReader(stream);

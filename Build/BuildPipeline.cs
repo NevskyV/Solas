@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using Solas.Components;
+using Solas.Serialization.Binary;
 using Solas.Serialization.Core;
 using Solas.Settings;
 
@@ -38,16 +39,21 @@ internal class BuildPipeline
         //Assets
         await using var assetsStream = File.OpenRead(_editorVfs.GetPath(_coreSettings.AssetsPackPath));
         await using var outAssetsStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath));
+        var binaryWriter =
+            new BinaryWriter(File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath) + ".lookup"));
         while (assetsStream.Position < assetsStream.Length)
         {
             var asset = Query.GetUnknownAsset(assetsStream);
             if (asset == null) break;
             runtimeSerializer.Write(Query.GetUnknownAsset(assetsStream), outAssetsStream);
+            IdLookupSerializer.Write(binaryWriter, asset.Id, (uint)outAssetsStream.Position);
         }
         
         //Spaces
         await using var outGlobalSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.GlobalSpacePath));
-        SerializeSpace(_editorVfs.GetPath(_coreSettings.GlobalSpacePath), runtimeSerializer, outGlobalSpaceStream);
+        SerializeSpace(_editorVfs.GetPath(_coreSettings.GlobalSpacePath), 
+            _runtimeVfs.GetPath(_coreSettings.GlobalSpacePath),
+            runtimeSerializer, outGlobalSpaceStream);
         
         await using var outAssetSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath));
         await using var inAssetSpaceStream = File.OpenRead(_editorVfs.GetPath(_coreSettings.AssetsSpacePath));
@@ -63,15 +69,21 @@ internal class BuildPipeline
         var paths = Query.GetPaths();
         foreach (var spacePath in paths)
         {
-            await using var outSpaceStream = File.OpenWrite(spaceDir + spacePath);
-            SerializeSpace(spacePath, runtimeSerializer, outSpaceStream);
+            var path = Path.Combine(spaceDir + spacePath);
+            await using var outSpaceStream = File.OpenWrite(path);
+            SerializeSpace(spacePath, path, runtimeSerializer, outSpaceStream);
         }
+        
+        //TODO: gen settings
     }
 
-    private void SerializeSpace(string path, Serializer serializer, FileStream outStream)
+    private void SerializeSpace(string inPath, string outPath, Serializer serializer, FileStream outStream)
     {
-        var space = Command.LoadSpace(path, false);
+        var binaryWriter =
+            new BinaryWriter(File.OpenWrite( outPath + ".lookup"));
+        var space = Command.LoadSpace(inPath, false);
         serializer.Write(space, outStream);
+        IdLookupSerializer.Write(binaryWriter, space.Id, (uint)outStream.Position);
         Command.UnloadSpace(space);
     }
 

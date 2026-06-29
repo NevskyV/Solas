@@ -135,4 +135,10 @@ public static class Query
     public static string GetPath(string path) => EngineContext.Vfs.GetPath(path);
 
     #endregion
+
+    #region DISystem
+
+    public static ReadOnlySpan<(Guid, Guid)> LastInjectables => EngineContext.DISystem.LastInjectables;
+
+    #endregion
 }

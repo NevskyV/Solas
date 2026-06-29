@@ -1,9 +1,11 @@
 ﻿namespace Solas.SourceGenerators.Utils;
 
-public record TypeMetadata(
-    string Name,
-    string FullName,
-    string Namespace,
-    string AssemblyName,
-    bool IsStruct,
-    bool IsValueType);
+public struct TypeMetadata
+{
+    public string Name;
+    public string FullName;
+    public string Namespace;
+    public string AssemblyName;
+    public bool IsStruct;
+    public bool IsValueType;
+}

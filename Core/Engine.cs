@@ -44,6 +44,13 @@ public static class Engine
         EngineContext.LogicAddingRegistry = new LogicAddingRegistry();
     }
 
+    public static void UpdateSerializer(Serializer serializer)
+    {
+        EngineContext.Serializer = serializer;
+        EngineContext.DataSerializationRegistry = new DataSerializationRegistry();
+        EngineContext.AssetsSerializationRegistry = new AssetsSerializationRegistry();
+    }
+
     public static void SetVfs(VirtualFileSystem vfs)
     {
         EngineContext.Vfs = vfs;

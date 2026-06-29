@@ -9,10 +9,9 @@ public class SettingsFilesRegistry() : Registry(typeof(ISettingsFilesRegistratio
     public void Register(Action creator)
     {
         _creators.Add(creator);
-        Console.WriteLine($"Registering {creator.Method}");
     }
 
-    public void CreateALl()
+    public void CreateAll()
     {
         foreach (var creator in _creators)
             creator();

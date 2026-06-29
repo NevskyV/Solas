@@ -11,13 +11,28 @@ public class EngineJsonSerializer : Serializer
     private Queue<object> _readQueue;
     private Utf8JsonWriter _writer;
 
-    public override void Open(FileStream stream)
+    public override void Open(FileStream stream, bool writeStart = true)
     {
         if (stream.CanWrite)
         {
-            var options = new JsonWriterOptions { Indented = true };
-            _writer = new Utf8JsonWriter(stream, options);
-            _writer.WriteStartObject();
+            var options = new JsonWriterOptions
+            {
+                Indented = true,
+                SkipValidation = true,
+            };
+            if (!writeStart)
+            {
+                PrepareStreamForAppending(stream);
+                _writer = new Utf8JsonWriter(stream, options);
+                stream.WriteByte((byte)',');
+                stream.WriteByte((byte)'\n');
+            }
+            else
+            {
+                _writer = new Utf8JsonWriter(stream, options);
+                _writer.WriteStartObject();
+            }
+
             _autoNameCounter = 0;
         }
         else if (stream.CanRead)
@@ -29,17 +44,35 @@ public class EngineJsonSerializer : Serializer
         }
     }
 
-    public override void Close(FileStream stream)
+    public override void Close(FileStream stream, bool writeEnd = true)
     {
         if (_writer != null)
         {
-            _writer.WriteEndObject();
+            if(writeEnd) _writer.WriteEndObject();
             _writer.Flush();
             _writer.Dispose();
             _writer = null;
         }
 
         _readQueue = null;
+    }
+    
+    private void PrepareStreamForAppending(FileStream stream)
+    {
+        long position = stream.Length - 1;
+        while (position >= 0)
+        {
+            stream.Position = position;
+            int b = stream.ReadByte();
+            
+            if (b == '}')
+            {
+                stream.Position = position - 2;
+                return;
+            }
+            position--;
+        }
+        stream.Position = stream.Length;
     }
 
     private void FlattenJson(JsonElement element, Queue<object> queue)
@@ -70,11 +103,11 @@ public class EngineJsonSerializer : Serializer
         return element.ValueKind switch
         {
             JsonValueKind.String => element.GetString() ?? string.Empty,
-            JsonValueKind.Number => element.GetRawText(), // Сохраняем как текст, парсить будем при чтении
+            JsonValueKind.Number => element.GetRawText(),
             JsonValueKind.True => true,
             JsonValueKind.False => false,
             JsonValueKind.Null => null!,
-            _ => throw new InvalidOperationException("Неподдерживаемый тип токена")
+            _ => throw new InvalidOperationException("Incorrect token")
         };
     }
 
@@ -189,7 +222,7 @@ public class EngineJsonSerializer : Serializer
 
     public override string ReadString(FileStream stream)
     {
-        return (string)GetNextValue();
+        return (string)GetNextValue() ?? "";
     }
 
     public override bool ReadBool(FileStream stream)

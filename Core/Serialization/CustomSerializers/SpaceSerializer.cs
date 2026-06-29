@@ -8,26 +8,26 @@ namespace Solas.Serialization.CustomSerializers;
 
 public class SpaceSerializer : ICustomSerializer<Space>
 {
-    public void Write(Space value, FileStream stream, string name = null)
+    public void Write(Space value, FileStream stream, Serializer serializer, string name = null)
     {
-        EngineContext.Serializer.Open(stream);
-        EngineContext.Serializer.Write(value.Id, stream, "SpaceId");
-        EngineContext.Serializer.Write(value.RootId, stream,  "RootId");
+        serializer.Open(stream);
+        serializer.Write(value.Id, stream, "SpaceId");
+        serializer.Write(value.RootId, stream,  "RootId");
 
         // Initialization pool
         var pool = value.Initializer.Pool;
-        EngineContext.Serializer.BeginObject(stream, "InitializationPool");
-        EngineContext.Serializer.Write((ushort)pool.OrderType, stream, "OrderType");
-        EngineContext.Serializer.WriteArray(pool.OrderedEntitiesIds, stream, EngineContext.Serializer.Write, "OrderedEntitiesIds");
-        EngineContext.Serializer.EndObject(stream);
+        serializer.BeginObject(stream, "InitializationPool");
+        serializer.Write((ushort)pool.OrderType, stream, "OrderType");
+        serializer.WriteArray(pool.OrderedEntitiesIds, stream, EngineContext.Serializer.Write, "OrderedEntitiesIds");
+        serializer.EndObject(stream);
 
         // SpaceFolders
-        EngineContext.Serializer.WriteArray(Query.GetAllSpaceFoldersIn(value).ToArray(), stream, name: "SpaceFolders");
+        serializer.WriteArray(Query.GetAllSpaceFoldersIn(value).ToArray(), stream, name: "SpaceFolders");
 
         // Entities
-        EngineContext.Serializer.WriteArray(Query.GetEntitiesIn(value).ToArray(), stream, name: "Entities");
+        serializer.WriteArray(Query.GetEntitiesIn(value).ToArray(), stream, name: "Entities");
 
-        EngineContext.Serializer.Close(stream);
+        serializer.Close(stream);
     }
 
     public Space Read(FileStream stream)

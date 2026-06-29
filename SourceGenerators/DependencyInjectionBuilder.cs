@@ -17,11 +17,13 @@ public enum ReferenceKind
     Referenceable
 }
 
-public record InjectableMember(
-    string Name,
-    string TypeFullName,
-    InjectType InjectType,
-    ReferenceKind ReferenceKind);
+public struct InjectableMember
+{
+    public string Name;
+    public string TypeFullName;
+    public InjectType InjectType;
+    public ReferenceKind ReferenceKind;
+}
 
 public static class DependencyInjectionBuilder
 {
@@ -55,12 +57,15 @@ public static class DependencyInjectionBuilder
 
         sb.AppendLine($"    public {overrideAttribute}void WriteInject(FileStream stream, Entity entity = null)");
         sb.AppendLine("    {");
+        sb.AppendLine($"            var injectables = Query.LastInjectables;");
+        var membersCount = 0;
         foreach (var member in serializableMembers)
         {
             sb.AppendLine($"        if (this.{member.Name} == null)");
             sb.AppendLine("        {");
-            sb.AppendLine($"            Query.Serializer.Write(Guid.Empty, stream, \"{member.Name}_Id\");");
-            sb.AppendLine($"            Query.Serializer.Write(Guid.Empty, stream, \"{member.Name}_SpaceId\");");
+            
+            sb.AppendLine($"            Query.Serializer.Write(injectables[{membersCount}].Item1, stream, \"{member.Name}_Id\");");
+            sb.AppendLine($"            Query.Serializer.Write(injectables[{membersCount}].Item2, stream, \"{member.Name}_SpaceId\");");
             sb.AppendLine("        }");
             sb.AppendLine("        else");
             sb.AppendLine("        {");
@@ -85,6 +90,7 @@ public static class DependencyInjectionBuilder
             }
 
             sb.AppendLine("        }");
+            membersCount++;
         }
 
         sb.AppendLine("    }");
@@ -156,7 +162,13 @@ public static class DependencyInjectionBuilder
                 var injectType = hasAutoInject ? InjectType.AutoInject : InjectType.Inject;
                 var refKind = GetReferenceKind(type, dataInterface, logicBaseType, referenceableInterface);
 
-                members.Add(new InjectableMember(m.Name, type.ToDisplayString(), injectType, refKind));
+                members.Add(new InjectableMember
+                {
+                    Name = m.Name, 
+                    TypeFullName = type.ToDisplayString(), 
+                    InjectType = injectType, 
+                    ReferenceKind = refKind
+                });
             }
             else
             {
@@ -165,7 +177,13 @@ public static class DependencyInjectionBuilder
                     type.InheritsFrom(logicBaseType))
                 {
                     var refKind = GetReferenceKind(type, dataInterface, logicBaseType, referenceableInterface);
-                    members.Add(new InjectableMember(m.Name, type.ToDisplayString(), InjectType.Inject, refKind));
+                    members.Add(new InjectableMember
+                    {
+                        Name = m.Name, 
+                        TypeFullName = type.ToDisplayString(), 
+                        InjectType = InjectType.Inject, 
+                        ReferenceKind = refKind
+                    });
                 }
             }
         }

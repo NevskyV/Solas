@@ -55,14 +55,16 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                         {
                             var targetAssembly = targetType.ContainingAssembly?.Name ?? assemblyName;
 
-                            var customMeta = new TypeMetadata(
-                                targetType.Name,
-                                targetTypeFullName,
-                                targetType.ContainingNamespace.ToDisplayString(),
-                                targetAssembly,
-                                targetType.TypeKind == TypeKind.Struct,
-                                targetType.IsValueType
-                            );
+                            var customMeta = new TypeMetadata {
+                                Name = targetType.Name,
+                                FullName = targetTypeFullName,
+                                Namespace = targetType.ContainingNamespace.ToDisplayString(),
+                                AssemblyName = targetAssembly,
+                                IsStruct = targetType.TypeKind == TypeKind.Struct,
+                                IsValueType = targetType.IsValueType
+                            }
+
+                        ;
 
                             allSerializers.Add((customMeta, symbol.ToDisplayString()));
                         }
@@ -96,15 +98,15 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 if (!processedTypes.Add(fullTypeName)) continue;
                 var isFromCurrentAssembly = SymbolEqualityComparer.Default.Equals(symbol.ContainingAssembly, compilation.Assembly);
                 if (!isFromCurrentAssembly) continue;
-                
-                var metadata = new TypeMetadata(
-                    symbol.Name,
-                    fullTypeName,
-                    symbol.ContainingNamespace.ToDisplayString(),
-                    assemblyName,
-                    symbol.TypeKind == TypeKind.Struct,
-                    symbol.IsValueType
-                );
+                var metadata = new TypeMetadata
+                {
+                    Name = symbol.Name,
+                    FullName = fullTypeName,
+                    Namespace = symbol.ContainingNamespace.ToDisplayString(),
+                    AssemblyName = assemblyName,
+                    IsStruct = symbol.TypeKind == TypeKind.Struct,
+                    IsValueType = symbol.IsValueType
+                };
 
                 var members = GetSerializableMembers(symbol, compilation);
                 var generatedSource = GenerateSerializerCode(metadata, members);
@@ -204,17 +206,17 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         bool isReferenceLink = checkType.ImplementsInterface(dataInterface) ||
                                checkType.InheritsFrom(logicBaseType) ||
                                checkType.ImplementsInterface(referenceableInterface);
-
-        return new MemberMetadata(
-            name,
-            type.ToDisplayString(),
-            isArray,
-            elementType.ToDisplayString(),
-            elementType.IsPrimitive(),
-            type.NullableAnnotation == NullableAnnotation.Annotated,
-            isValueType,
-            isReferenceLink
-        );
+        
+        return new MemberMetadata{
+            Name = name,
+            TypeFullName = type.ToDisplayString(),
+            IsArray = isArray,
+            ElementTypeFullName = elementType.ToDisplayString(),
+            IsPrimitive = elementType.IsPrimitive(),
+            IsNullable = type.NullableAnnotation == NullableAnnotation.Annotated,
+            IsValueType = isValueType,
+            IsReferenceLink = isReferenceLink
+        };
     }
 
     private static string GenerateSerializerCode(TypeMetadata type, List<MemberMetadata> members)
@@ -231,9 +233,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine($"public sealed class {type.Name}Serializer : ICustomSerializer<{type.FullName}>");
         sb.AppendLine("{");
         
-        sb.AppendLine($"    public void Write({type.FullName} value, FileStream stream, string name = null)");
+        sb.AppendLine($"    public void Write({type.FullName} value, FileStream stream, Serializer serializer, string name = null)");
         sb.AppendLine("    {");
-        sb.AppendLine($"        Query.Serializer.BeginObject(stream);");
+        sb.AppendLine($"        serializer.BeginObject(stream);");
         
         foreach (var member in members)
         {
@@ -244,7 +246,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
             if (isDataProperty)
             {
-                sb.AppendLine($"        Query.Serializer.Write(value.{member.Name} != null, stream, \"IsDataPropertyNull\");");
+                sb.AppendLine($"        serializer.Write(value.{member.Name} != null, stream, \"IsDataPropertyNull\");");
                 sb.AppendLine($"        if (value.{member.Name} != null)");
                 sb.AppendLine($"        {{");
                 
@@ -253,27 +255,27 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                     if (member.IsArray)
                     {
                         if (member.IsPrimitive)
-                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{accessPath}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                            sb.AppendLine($"            serializer.WriteArray(value.{accessPath}, stream, serializer.Write, \"{member.Name}\");");
                         else
-                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
+                            sb.AppendLine($"            serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
                     }
                     else
-                        sb.AppendLine($"            Query.Serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                        sb.AppendLine($"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
                 }
                 else 
                 {
-                    sb.AppendLine($"            Query.Serializer.Write(value.{accessPath} != null, stream, \"IsInnerPropertyNull\");");
+                    sb.AppendLine($"            serializer.Write(value.{accessPath} != null, stream, \"IsInnerPropertyNull\");");
                     sb.AppendLine($"            if (value.{accessPath} != null)");
                     sb.AppendLine($"            {{");
                     if (member.IsArray)
                     {
                         if (member.IsPrimitive)
-                            sb.AppendLine($"                Query.Serializer.WriteArray(value.{accessPath}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                            sb.AppendLine($"                serializer.WriteArray(value.{accessPath}, stream, serializer.Write, \"{member.Name}\");");
                         else
-                            sb.AppendLine($"                Query.Serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
+                            sb.AppendLine($"                serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
                     }
                     else
-                        sb.AppendLine($"                Query.Serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                        sb.AppendLine($"                serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
                     sb.AppendLine($"            }}");
                 }
                 sb.AppendLine($"        }}");
@@ -282,18 +284,18 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             {
                 if (member.IsNullable && !member.IsValueType)
                 {
-                    sb.AppendLine($"        Query.Serializer.Write(value.{member.Name} != null, stream, \"{member.Name}\");");
+                    sb.AppendLine($"        serializer.Write(value.{member.Name} != null, stream, \"{member.Name}\");");
                     sb.AppendLine($"        if (value.{member.Name} != null)");
                     sb.AppendLine($"        {{");
                     if (member.IsArray)
                     {
                         if (member.IsPrimitive)
-                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                            sb.AppendLine($"            serializer.WriteArray(value.{member.Name}, stream, serializer.Write, \"{member.Name}\");");
                         else
-                            sb.AppendLine($"            Query.Serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
+                            sb.AppendLine($"            serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
                     }
                     else
-                        sb.AppendLine($"            Query.Serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
+                        sb.AppendLine($"            serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
                     sb.AppendLine($"        }}");
                 }
                 else
@@ -301,16 +303,16 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                     if (member.IsArray)
                     {
                         if (member.IsPrimitive)
-                            sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream, Query.Serializer.Write, \"{member.Name}\");");
+                            sb.AppendLine($"        serializer.WriteArray(value.{member.Name}, stream, serializer.Write, \"{member.Name}\");");
                         else
-                            sb.AppendLine($"        Query.Serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
+                            sb.AppendLine($"        serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
                     }
                     else
-                        sb.AppendLine($"        Query.Serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
+                        sb.AppendLine($"        serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
                 }
             }
         }
-        sb.AppendLine($"        Query.Serializer.EndObject(stream);");
+        sb.AppendLine($"        serializer.EndObject(stream);");
         sb.AppendLine("    }");
         sb.AppendLine();
         

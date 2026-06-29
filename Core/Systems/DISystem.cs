@@ -8,16 +8,23 @@ internal class DISystem
 {
     private readonly Dictionary<Space, List<Logic>> _cache = [];
     private readonly List<(IInjectable, (Guid, Guid)[])> _injectables = [];
+    private readonly Queue<(Guid, Guid)[]> _lastInjectables = [];
+    internal ReadOnlySpan<(Guid, Guid)> LastInjectables => _lastInjectables.TryDequeue(out var result) ? result : [];
 
     internal void AddInjectable(IInjectable injectable, (Guid, Guid)[] guids)
     {
+        if (guids is not { Length: > 0 }) return;
+        _lastInjectables.Enqueue(guids);
         _injectables.Add((injectable, guids));
     }
 
     internal void BuildDependencies(Space space)
     {
         foreach (var (obj, guids) in _injectables)
+        {
             obj.Inject(guids);
+        }
+
         _injectables.Clear();
     }
 

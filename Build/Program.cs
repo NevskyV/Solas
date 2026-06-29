@@ -4,11 +4,11 @@ namespace Solas.Build;
 
 public static class Program
 {
-    public static void Main(string[] args)
+    public static void Main(string[] _)
     {
         Engine.SetSerializer(BuildConfig.SerializerName);
     
-        var editorVfs = new VirtualFileSystem(Directory.GetParent(BuildConfig.GameProjectPath).FullName);
+        var editorVfs = new VirtualFileSystem(Directory.GetParent(BuildConfig.GameProjectPath)?.FullName);
         editorVfs.Mount("assets", "Assets");
         editorVfs.Mount("engine", "Solas");
 

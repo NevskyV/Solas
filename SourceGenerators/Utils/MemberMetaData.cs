@@ -1,11 +1,13 @@
 ﻿namespace Solas.SourceGenerators.Utils;
 
-public record MemberMetadata(
-    string Name, 
-    string TypeFullName, 
-    bool IsArray, 
-    string ElementTypeFullName,
-    bool IsPrimitive,
-    bool IsNullable,
-    bool IsValueType,
-    bool IsReferenceLink);
+public struct MemberMetadata
+{
+    public string Name;
+    public string TypeFullName;
+    public bool IsArray;
+    public string ElementTypeFullName;
+    public bool IsPrimitive;
+    public bool IsNullable;
+    public bool IsValueType;
+    public bool IsReferenceLink;
+}

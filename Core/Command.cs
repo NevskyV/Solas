@@ -42,6 +42,11 @@ public static class Command
     {
         EngineContext.AssetsPool.RegisterNewAsset(asset);
     }
+    
+    public static void WriteAsset(Asset asset, FileStream stream, BinaryWriter binaryWriter)
+    {
+        EngineContext.AssetsPool.WriteAsset(asset, stream, binaryWriter);
+    }
 
     public static void SaveAsset(Asset asset)
     {

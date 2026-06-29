@@ -19,14 +19,14 @@ public abstract class Serializer() : Registry(typeof(ISerializeRegistration))
     }
 
     //Decorators
-    public virtual void Open(FileStream stream) { }
-    public virtual void Close(FileStream stream){ }
+    public virtual void Open(FileStream stream, bool writeStart = true) { }
+    public virtual void Close(FileStream stream, bool writeEnd = true){ }
     public virtual void BeginObject(FileStream stream, string name = null) { }
     public virtual void EndObject(FileStream stream) { }
 
     public void Write<T>(T value, FileStream stream, string name = null)
     {
-        GetSerializer<T>().Write(value, stream, name);
+        GetSerializer<T>().Write(value, stream, this, name);
     }
 
     public virtual void WriteArray<T>(T[] value, FileStream stream, Action<T, FileStream, string> action = null,

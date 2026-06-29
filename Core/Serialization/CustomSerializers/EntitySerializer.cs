@@ -6,39 +6,39 @@ namespace Solas.Serialization.CustomSerializers;
 
 public class EntitySerializer : ICustomSerializer<Entity>
 {
-    public void Write(Entity value, FileStream stream, string name = null)
+    public void Write(Entity value, FileStream stream, Serializer serializer, string name = null)
     {
-        EngineContext.Serializer.Write(value.Id, stream, nameof(value.Id));
-        EngineContext.Serializer.Write(value.MetaData, stream, nameof(value.MetaData));
+        serializer.Write(value.Id, stream, nameof(value.Id));
+        serializer.Write(value.MetaData, stream, nameof(value.MetaData));
 
         // Data
-        EngineContext.Serializer.Write((uint)value.Data.Length, stream, "DataCount");
-        EngineContext.Serializer.BeginObject(stream, "Data");
+        serializer.Write((uint)value.Data.Length, stream, "DataCount");
+        serializer.BeginObject(stream, "Data");
         foreach (var data in value.Data)
         {
             var type = data.GetType();
-            EngineContext.Serializer.BeginObject(stream);
-            EngineContext.Serializer.Write($"{type.FullName}, {type.Assembly.GetName().Name}", stream, nameof(Type));
-            EngineContext.DataSerializationRegistry.Write(type, data, stream);
+            serializer.BeginObject(stream);
+            serializer.Write($"{type.FullName}, {type.Assembly.GetName().Name}", stream, nameof(Type));
+            EngineContext.DataSerializationRegistry.Write(type, data, stream, data.GetType().Name);
             data.WriteInject(stream, value);
-            EngineContext.Serializer.EndObject(stream);
+            serializer.EndObject(stream);
         }
 
-        EngineContext.Serializer.EndObject(stream);
+        serializer.EndObject(stream);
 
         // Logic
-        EngineContext.Serializer.Write((uint)value.Logics.Length, stream, "LogicsCount");
-        EngineContext.Serializer.BeginObject(stream, "Logic");
+        serializer.Write((uint)value.Logics.Length, stream, "LogicsCount");
+        serializer.BeginObject(stream, "Logic");
         foreach (var logic in value.Logics)
         {
             var type = logic.GetType();
-            EngineContext.Serializer.BeginObject(stream);
-            EngineContext.Serializer.Write($"{type.FullName}, {type.Assembly.GetName().Name}", stream, nameof(Type));
+            serializer.BeginObject(stream);
+            serializer.Write($"{type.FullName}, {type.Assembly.GetName().Name}", stream, nameof(Type));
             logic.WriteInject(stream, value);
-            EngineContext.Serializer.EndObject(stream);
+            serializer.EndObject(stream);
         }
 
-        EngineContext.Serializer.EndObject(stream);
+        serializer.EndObject(stream);
     }
 
     public Entity Read(FileStream stream)

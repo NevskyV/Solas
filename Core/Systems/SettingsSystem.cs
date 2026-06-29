@@ -10,7 +10,7 @@ internal class SettingsSystem
 
     internal void ReadAllSettings(string pathToSettingsFolder)
     {
-        new SettingsFilesRegistry().CreateALl();
+        new SettingsFilesRegistry().CreateAll();
         
         var files = Directory.GetFiles(pathToSettingsFolder, "*.set");
         foreach (var path in files)

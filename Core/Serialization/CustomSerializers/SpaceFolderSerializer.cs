@@ -5,15 +5,15 @@ namespace Solas.Serialization.CustomSerializers;
 
 public class SpaceFolderSerializer : ICustomSerializer<SpaceFolder>
 {
-    public void Write(SpaceFolder value, FileStream stream, string name = null)
+    public void Write(SpaceFolder value, FileStream stream, Serializer serializer, string name = null)
     {
-        EngineContext.Serializer.BeginObject(stream, name);
-        EngineContext.Serializer.Write(value.Id, stream, "Id");
-        EngineContext.Serializer.Write(value.RootId, stream, "RootId");
+        serializer.BeginObject(stream, name);
+        serializer.Write(value.Id, stream, "Id");
+        serializer.Write(value.RootId, stream, "RootId");
 
-        EngineContext.Serializer.WriteArray(value.BranchesIds.ToArray(), stream, EngineContext.Serializer.Write, "BranchesIds");
-        EngineContext.Serializer.WriteArray(value.EntityIds.ToArray(), stream, EngineContext.Serializer.Write, "EntityIds");
-        EngineContext.Serializer.EndObject(stream);
+        serializer.WriteArray(value.BranchesIds.ToArray(), stream, EngineContext.Serializer.Write, "BranchesIds");
+        serializer.WriteArray(value.EntityIds.ToArray(), stream, EngineContext.Serializer.Write, "EntityIds");
+        serializer.EndObject(stream);
     }
 
     public SpaceFolder Read(FileStream stream)

@@ -7,7 +7,7 @@
         <Nullable>disable</Nullable>
         <RootNamespace>Solas.Build</RootNamespace>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <PackageId>Solas.Build</PackageId>
-        <Version>0.1.0</Version>
+        <Version>0.0.0</Version>
         <Authors>NevskyV</Authors>
         <Description>High performance open-source .net game engine created specifically for indie devs</Description>
         <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
@@ -42,7 +42,7 @@ public record struct BuildConfig
 
     <ItemGroup>
         <ProjectReference Include="$(GameProjectPath)" />
-        <ProjectReference Include="D:\CS-Projects\Solas\SolasEngine\Core\Core.csproj" />
+        <PackageReference Include="Solas.Core" Version="*" />
     </ItemGroup>
     
 </Project>

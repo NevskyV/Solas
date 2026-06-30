@@ -4,9 +4,8 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>disable</Nullable>
-        <RootNamespace>Solas</RootNamespace>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageId>Solas.Core</PackageId>
+        <PackageId>Solas</PackageId>
         <Version>0.0.0</Version>
         <Authors>NevskyV</Authors>
         <Description>High performance open-source .net game engine created specifically for indie devs</Description>
@@ -15,9 +14,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Solas.Core" Version="*"/>
         <PackageReference Include="Solas.SourceGenerators" Version="*"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="10.0.9" />
     </ItemGroup>
 </Project>

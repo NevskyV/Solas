@@ -6,6 +6,7 @@
   <Project Path="Input/Input.csproj" />
   <Project Path="Physics/Physics.csproj" />
   <Project Path="Render/Render.csproj" />
+  <Project Path="Solas/Solas.csproj" />
   <Project Path="SourceGenerators/SourceGenerators.csproj" />
   <Project Path="Transform/Transform.csproj" />
 </Solution>

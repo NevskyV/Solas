@@ -18,36 +18,10 @@
 
         <IsRoslynComponentAnalyzer>false</IsRoslynComponentAnalyzer>
 
-        <GameProjectPath />
-        <SerializerName Condition="'$(SerializerName)' == ''">Solas.Serialization.Json.EngineJsonSerializer, Core</SerializerName>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
-    <Target Name="GenerateSerializerConfig" BeforeTargets="BeforeCompile;CoreCompile">
-        <PropertyGroup>
-            <ConfigCode>
-<![CDATA[
-public record struct BuildConfig
-{
-    public static readonly string SerializerName = "$(SerializerName)"%3B
-    public static readonly string GameProjectPath = @"$(GameProjectPath)"%3B
-}
-]]>
-            </ConfigCode>
-        </PropertyGroup>
-
-        <WriteLinesToFile File="$(IntermediateOutputPath)BuildConfig.g.cs"
-                          Lines="$(ConfigCode)"
-                          Overwrite="true"
-                          WriteOnlyWhenDifferent="true" />
-
-        <ItemGroup>
-            <Compile Include="$(IntermediateOutputPath)BuildConfig.g.cs" />
-        </ItemGroup>
-    </Target>
-
     <ItemGroup>
-        <ProjectReference Include="$(GameProjectPath)" />
         <PackageReference Include="Solas.Core" Version="0.1.*" />
 
         <None Include="..\README.md" Pack="true" PackagePath="\"/>

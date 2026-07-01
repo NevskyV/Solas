@@ -15,13 +15,17 @@ internal class BuildPipeline
     private readonly VirtualFileSystem _editorVfs;
     private readonly VirtualFileSystem _runtimeVfs;
 
-    internal BuildPipeline(VirtualFileSystem editorVfs, VirtualFileSystem runtimeVfs)
+    private readonly string _projectPath;
+
+    internal BuildPipeline(VirtualFileSystem editorVfs, VirtualFileSystem runtimeVfs, string projectPath)
     {
         _coreSettings = WorldContext.CoreSettings;
         _buildSettings = Query.GetSettings<BuildSettings>();
 
         _editorVfs = editorVfs;
         _runtimeVfs = runtimeVfs;
+
+        _projectPath = projectPath;
     }
 
     internal async Task BuildAsync()
@@ -122,7 +126,7 @@ internal class BuildPipeline
         {
             FileName = "dotnet",
             Arguments = "publish " +
-                        $"\"{BuildConfig.GameProjectPath}\" " +
+                        $"\"{_projectPath}\" " +
                         "-c Release " +
                         $"-o \"{_buildSettings.OutputDirectory}\" " +
                         //$"-p:TargetName=\"{_buildSettings.GameName}\" " +

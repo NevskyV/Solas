@@ -6,9 +6,13 @@ namespace Solas.Build;
 
 public static class Program
 {
-    public static void Main(string[] _)
+    public static void Main(string[] args)
     {
-        var editorVfs = new VirtualFileSystem(Directory.GetParent(BuildConfig.GameProjectPath)?.FullName);
+        var projectPath = args[0];
+        var serializerName = args.Length < 2 || String.IsNullOrEmpty(args[1])
+            ? "Solas.Serialization.Json.EngineJsonSerializer, Core"
+            : args[1];
+        var editorVfs = new VirtualFileSystem(Directory.GetParent(projectPath)?.FullName);
         editorVfs.Mount("assets", "Assets");
         editorVfs.Mount("engine", "Solas");
         editorVfs.Mount("build", "Build");
@@ -22,7 +26,7 @@ public static class Program
         {
             FileName = "dotnet",
             Arguments =
-                $"build \"{BuildConfig.GameProjectPath}\" -o {editorVfs.GetMountPath("build")} --configuration Release",
+                $"build \"{projectPath}\" -o {editorVfs.GetMountPath("build")} --configuration Release",
             UseShellExecute = false,
             CreateNoWindow = true
         };
@@ -37,10 +41,10 @@ public static class Program
         }
 
         var gameDll = Path.Combine(editorVfs.GetMountPath("build"),
-            Path.GetFileNameWithoutExtension(BuildConfig.GameProjectPath) ?? "Game.dll");
+            Path.GetFileNameWithoutExtension(projectPath) ?? "Game.dll");
         Assembly.LoadFrom(gameDll);
 
-        Engine.SetSerializer(BuildConfig.SerializerName);
+        Engine.SetSerializer(serializerName);
 
         Engine.SetVfs(editorVfs);
 
@@ -55,7 +59,7 @@ public static class Program
             runtimeVfs.GetMountPath("engine"),
             runtimeVfs.GetPath("engine://Settings"));
 
-        new BuildPipeline(editorVfs, runtimeVfs).BuildAsync().GetAwaiter().GetResult();
+        new BuildPipeline(editorVfs, runtimeVfs, projectPath).BuildAsync().GetAwaiter().GetResult();
 
         Directory.Delete(editorVfs.GetMountPath("build"), true);
     }

@@ -19,15 +19,15 @@ internal class BuildPipeline
     {
         _coreSettings = WorldContext.CoreSettings;
         _buildSettings = Query.GetSettings<BuildSettings>();
-        
+
         _editorVfs = editorVfs;
         _runtimeVfs = runtimeVfs;
     }
-    
+
     internal async Task BuildAsync()
     {
         await ProcessAssets();
-        
+
         await PublishProject();
     }
 
@@ -35,46 +35,57 @@ internal class BuildPipeline
     {
         var editorSerializer = Query.Serializer;
         var runtimeSerializer = (Serializer)Activator.CreateInstance(Type.GetType(_buildSettings.Serializer)!);
-        
-        if (editorSerializer ==null ||runtimeSerializer == null) return;
-        
+
+        if (editorSerializer == null || runtimeSerializer == null) return;
+
         //Assets
         await using var assetsStream = File.OpenRead(_editorVfs.GetPath(_coreSettings.AssetsPackPath));
         await using var outAssetsStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath));
         await using var binaryWriter =
-            new BinaryWriter(File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath) + ".lookup", FileMode.Append, FileAccess.Write));
-        
+            new BinaryWriter(File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath) + ".lookup", FileMode.Append,
+                FileAccess.Write));
+
         editorSerializer.Open(assetsStream);
         runtimeSerializer.Open(outAssetsStream);
         while (true)
         {
             var asset = Query.GetUnknownAsset(assetsStream);
-            
+
             if (asset == null) break;
             Engine.UpdateSerializer(runtimeSerializer);
             Command.WriteAsset(asset, outAssetsStream, binaryWriter);
             Engine.UpdateSerializer(editorSerializer);
         }
-        
+
         editorSerializer.Close(assetsStream);
         runtimeSerializer.Close(outAssetsStream);
-        
+
         //Spaces
         await using var outGlobalSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.GlobalSpacePath));
         SerializeSpace(_editorVfs.GetPath(_coreSettings.GlobalSpacePath),
             editorSerializer, runtimeSerializer, outGlobalSpaceStream);
-        
+
         await using var outAssetSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath));
         await using var inAssetSpaceStream = File.OpenRead(_editorVfs.GetPath(_coreSettings.AssetsSpacePath));
         await using var assetSpaceBinaryWriter = new BinaryWriter(
-            File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath) + ".lookup", FileMode.Append, FileAccess.Write));
-        
-        while (inAssetSpaceStream.Position < inAssetSpaceStream.Length)
+            File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath) + ".lookup", FileMode.Append,
+                FileAccess.Write));
+
+        while (true)
         {
-            var entity = Query.Serializer.Read<Entity>(inAssetSpaceStream);
-            runtimeSerializer.Write(entity, outAssetSpaceStream);
-            IdLookupSerializer.Write(assetSpaceBinaryWriter, entity.Id, (uint)assetSpaceBinaryWriter.BaseStream.Position);
-            entity.Dispose();
+            try
+            {
+                var entity = Query.Serializer.Read<Entity>(inAssetSpaceStream);
+                runtimeSerializer.Write(entity, outAssetSpaceStream);
+                IdLookupSerializer.Write(assetSpaceBinaryWriter, entity.Id,
+                    (uint)assetSpaceBinaryWriter.BaseStream.Position);
+                entity.Dispose();
+            }
+            catch (Exception)
+            {
+                //stop iterating
+                break;
+            }
         }
 
         var spaceDir = _runtimeVfs.GetPath(_coreSettings.LocalSpacesDirectory);
@@ -86,22 +97,22 @@ internal class BuildPipeline
             await using var outSpaceStream = File.OpenWrite(path);
             SerializeSpace(spacePath, editorSerializer, runtimeSerializer, outSpaceStream);
         }
-        
+
         Engine.UpdateSerializer(runtimeSerializer);
         Engine.SetVfs(_runtimeVfs);
         new SettingsFilesRegistry().CreateAll();
     }
 
-    private void SerializeSpace(string inPath, Serializer editorSerializer, Serializer runtimeSerializer, FileStream outStream)
+    private void SerializeSpace(string inPath, Serializer editorSerializer, Serializer runtimeSerializer,
+        FileStream outStream)
     {
-
         var space = Command.LoadSpace(inPath, false);
         Engine.UpdateSerializer(runtimeSerializer);
-        
+
         runtimeSerializer.Write(space, outStream);
 
         Command.UnloadSpace(space);
-        
+
         Engine.UpdateSerializer(editorSerializer);
     }
 

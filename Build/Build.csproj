@@ -15,7 +15,8 @@
 
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>slsbuild</ToolCommandName>
-        <PublishAot>true</PublishAot>
+
+        <IsRoslynComponentAnalyzer>false</IsRoslynComponentAnalyzer>
 
         <GameProjectPath />
         <SerializerName Condition="'$(SerializerName)' == ''">Solas.Serialization.Json.EngineJsonSerializer, Core</SerializerName>
@@ -48,10 +49,7 @@ public record struct BuildConfig
     <ItemGroup>
         <ProjectReference Include="$(GameProjectPath)" />
         <PackageReference Include="Solas.Core" Version="0.1.*" />
-    </ItemGroup>
 
-    <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
-    
 </Project>

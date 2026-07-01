@@ -7,7 +7,7 @@
         <RootNamespace>Solas</RootNamespace>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>Solas.Core</PackageId>
-        <Version>0.1.0</Version>
+        <Version>0.1.1</Version>
         <Authors>NevskyV</Authors>
         <Description>High performance open-source .net game engine created specifically for indie devs</Description>
         <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>

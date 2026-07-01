@@ -51,6 +51,9 @@ internal class EntityPool
     internal void UnregisterEntity(Entity entity)
     {
         _entitiesInSpaces[entity.CurrentSpace].Remove(entity);
+        var folder = Query.GetAllSpaceFoldersIn(entity.CurrentSpace).FirstOrDefault(f => f.EntityIds.Contains(entity.Id));
+        folder?.EntityIds.Remove(entity.Id);
+        
         foreach (var logic in entity.Logics) RemoveReferences(logic, entity);
         foreach (var data in entity.Data) RemoveReferences(data, entity);
     }
@@ -96,6 +99,11 @@ internal class EntityPool
     internal IEnumerable<Entity> GetEntitiesIn(Space space)
     {
         return _entitiesInSpaces[space];
+    }
+    
+    internal IEnumerable<Entity> GetEntitiesIn(SpaceFolder spaceFolder)
+    {
+        return _entitiesInSpaces[spaceFolder.Space].Where(e => spaceFolder.EntityIds.Contains(e.Id));
     }
 
     internal IEnumerable<Entity> GetEntitiesInAvailable(Space space)
@@ -181,12 +189,12 @@ internal class EntityPool
 
     internal T GetComponentByType<T>(Space space)
     {
-        return GetComponentsByType<T>(space).First();
+        return GetComponentsByType<T>(space).FirstOrDefault();
     }
 
     internal T GetComponentByTypeInAvailable<T>(Space space)
     {
-        return GetComponentsByTypeInAvailable<T>(space).First();
+        return GetComponentsByTypeInAvailable<T>(space).FirstOrDefault();
     }
 
     internal Entity TryGetEntityFor(object component, Space hintSpace = null)

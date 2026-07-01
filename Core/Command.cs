@@ -47,6 +47,11 @@ public static class Command
     {
         EngineContext.AssetsPool.WriteAsset(asset, stream, binaryWriter);
     }
+    
+    public static void WritePrefab(Entity entity, FileStream stream, BinaryWriter binaryWriter)
+    {
+        EngineContext.AssetsPool.WritePrefab(entity, stream, binaryWriter);
+    }
 
     public static void SaveAsset(Asset asset)
     {
@@ -56,6 +61,11 @@ public static class Command
     public static void SaveNewAssets()
     {
         EngineContext.AssetsPool.SaveNewAssets();
+    }
+
+    public static void SaveAsPrefab(Entity entity)
+    {
+        EngineContext.AssetsPool.SaveAsPrefab(entity);
     }
 
     #endregion

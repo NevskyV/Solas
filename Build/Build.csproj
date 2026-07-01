@@ -7,14 +7,19 @@
         <Nullable>disable</Nullable>
         <RootNamespace>Solas.Build</RootNamespace>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <PackageId>Solas.Build</PackageId>
-        <Version>0.0.0</Version>
+        <Version>0.1.0</Version>
         <Authors>NevskyV</Authors>
         <Description>High performance open-source .net game engine created specifically for indie devs</Description>
         <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
         <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
 
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>slsbuild</ToolCommandName>
+        <PublishAot>true</PublishAot>
+
         <GameProjectPath />
         <SerializerName Condition="'$(SerializerName)' == ''">Solas.Serialization.Json.EngineJsonSerializer, Core</SerializerName>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <Target Name="GenerateSerializerConfig" BeforeTargets="BeforeCompile;CoreCompile">
@@ -42,7 +47,11 @@ public record struct BuildConfig
 
     <ItemGroup>
         <ProjectReference Include="$(GameProjectPath)" />
-        <PackageReference Include="Solas.Core" Version="*" />
+        <PackageReference Include="Solas.Core" Version="0.1.*" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
     
 </Project>

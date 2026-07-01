@@ -77,6 +77,11 @@ public static class Query
     {
         return EngineContext.EntityPool.GetEntitiesIn(space);
     }
+    
+    public static IEnumerable<Entity> GetEntitiesIn(SpaceFolder spaceFolder)
+    {
+        return EngineContext.EntityPool.GetEntitiesIn(spaceFolder);
+    }
 
     public static IEnumerable<Entity> GetEntitiesInAvailable(Space space)
     {

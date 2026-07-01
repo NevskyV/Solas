@@ -51,8 +51,12 @@ public class SpaceSerializer : ICustomSerializer<Space>
         space.Initializer.Pool = pool;
 
         // SpaceFolders
-        EngineContext.Serializer.ReadArray<SpaceFolder>(stream);
-
+        var folders = EngineContext.Serializer.ReadArray<SpaceFolder>(stream);
+        foreach (var folder in folders)
+        {
+            folder.Space = space;
+        }
+        
         // Entities
         var entities = EngineContext.Serializer.ReadArray<Entity>(stream);
         foreach (var entity in entities)

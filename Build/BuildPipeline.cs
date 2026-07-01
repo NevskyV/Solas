@@ -56,7 +56,6 @@ internal class BuildPipeline
             Engine.UpdateSerializer(editorSerializer);
         }
         
-        //TODO: do normal saves in asset.space 
         editorSerializer.Close(assetsStream);
         runtimeSerializer.Close(outAssetsStream);
         

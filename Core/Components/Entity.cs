@@ -55,7 +55,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         var space = EngineContext.SpacePool.GetSpace(spaceId);
         if (space != null)
             return EngineContext.EntityPool.GetEntitiesIn(space).First(x => x.Id == id);
-        return EngineContext.AssetsPool.LoadEntity(id);
+        return EngineContext.AssetsPool.LoadPrefab(id);
     }
 
     public ReactiveProperty<bool> IsEnabled { get; set; } = new();

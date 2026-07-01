@@ -2,28 +2,38 @@
 
 namespace Solas.World;
 
-public class SpaceFolder(Guid id) : IBranchable
+public class SpaceFolder : IBranchable, IDisposable
 {
     public List<Guid> EntityIds { get; init; } = [];
 
+    public SpaceFolder(Guid id = default, Space space = null)
+    {
+        Id = id == Guid.Empty ? Guid.NewGuid() : id;
+        Space = space ?? WorldContext.GlobalSpace;
+    }
+    
     public Space Space
     {
         get;
         set
         {
-            EngineContext.SpacePool.UnregisterSpaceFolder(this, field);
+            if (field == value)
+                return;
+            if(field != null)
+                EngineContext.SpacePool.UnregisterSpaceFolder(this, field);
             field = value;
-            EngineContext.SpacePool.RegisterSpaceFolder(this, field);
+            if(field != null)
+                EngineContext.SpacePool.RegisterSpaceFolder(this, field);
         }
     }
 
-    public Guid Id { get; init; } = id;
+    public Guid Id { get; init; }
     public Guid RootId { get; set; }
-    public List<Guid> BranchesIds { get; set; }
+    public List<Guid> BranchesIds { get; set; } = [];
 
     public IBranchable GetRoot()
     {
-        return Query.GetSpaceFolderWith(RootId, Space);
+        return RootId == Guid.Empty ? null : Query.GetSpaceFolderWith(RootId, Space);
     }
 
     public IEnumerable<IBranchable> GetBranches()
@@ -39,5 +49,12 @@ public class SpaceFolder(Guid id) : IBranchable
     public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
     {
         return EngineContext.SpacePool.GetSpaceFolderWith(id, spaceId);
+    }
+
+    public void Dispose()
+    {
+        Space = null;
+        EntityIds.Clear();
+        RootId = Guid.Empty;
     }
 }

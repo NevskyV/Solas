@@ -14,8 +14,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Solas.Core" Version="*"/>
-        <PackageReference Include="Solas.SourceGenerators" Version="*"
+        <PackageReference Include="Solas.Core" Version="0.1.*"/>
+        <PackageReference Include="Solas.SourceGenerators" Version="0.1.*"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
     </ItemGroup>

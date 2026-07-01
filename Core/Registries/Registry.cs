@@ -1,78 +1,86 @@
 ﻿using System.Reflection;
-using Microsoft.Extensions.DependencyModel;
 
 namespace Solas.Registries;
 
 public abstract class Registry
 {
-        protected Registry(Type registrationType)
+    protected Registry(Type registrationType)
     {
         var loadedDict = new Dictionary<string, Assembly>(StringComparer.OrdinalIgnoreCase);
-
-#pragma warning disable IL3002
-        var runtimeLibraries = DependencyContext.Default?.RuntimeLibraries;
-#pragma warning restore IL3002
         
-        if (runtimeLibraries != null)
-        {
-            foreach (var lib in runtimeLibraries)
-            {
-                try
-                {
-                    var asm = Assembly.Load(new AssemblyName(lib.Name));
-                    loadedDict[lib.Name] = asm;
-                }
-                catch
-                {
-                    // ignored
-                }
-            }
-        }
-        else
-        {
-            var bootstrapAssemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var queue = new Queue<Assembly>(bootstrapAssemblies);
-            
-            foreach (var asm in bootstrapAssemblies)
-            {
-                var name = asm.GetName().Name;
-                if (name != null) loadedDict[name] = asm;
-            }
+        var entryAssembly = Assembly.GetEntryAssembly() ?? AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location));
 
-            while (queue.Count > 0)
+        if (entryAssembly != null)
+        {
+            LoadReferencedAssemblies(entryAssembly, loadedDict);
+        }
+        
+        foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+        {
+            if (!asm.IsDynamic && asm.GetName().Name != null)
             {
-                var currentAsm = queue.Dequeue();
-                foreach (var refName in currentAsm.GetReferencedAssemblies())
-                {
-                    if (refName.Name != null && !loadedDict.ContainsKey(refName.Name))
-                    {
-                        try
-                        {
-                            var loadedAsm = Assembly.Load(refName);
-                            loadedDict[refName.Name] = loadedAsm;
-                            queue.Enqueue(loadedAsm);
-                        }
-                        catch
-                        {
-                            // ignored
-                        }
-                    }
-                }
+                loadedDict.TryAdd(asm.GetName().Name, asm);
             }
         }
         
-        foreach (var (_,asm) in loadedDict)
+        foreach (var (_, asm) in loadedDict)
         {
             if (asm.FullName != null && (asm.FullName.StartsWith("System") || asm.FullName.StartsWith("Microsoft")))
                 continue;
-            var types = asm.GetTypes();
 
-            var serializerModules = types.Where(t =>
-                registrationType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
-            foreach (var moduleType in serializerModules)
+            try
             {
-                var module = (IRegistration)Activator.CreateInstance(moduleType);
-                AddMethodsFromRegistration(module);
+                var types = asm.GetTypes();
+                var serializerModules = types.Where(t =>
+                    registrationType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+
+                foreach (var moduleType in serializerModules)
+                {
+                    var module = (IRegistration)Activator.CreateInstance(moduleType);
+                    AddMethodsFromRegistration(module);
+                }
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                var serializerModules = ex.Types.Where(t =>
+                    t != null && registrationType.IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract);
+
+                foreach (var moduleType in serializerModules)
+                {
+                    var module = (IRegistration)Activator.CreateInstance(moduleType);
+                    AddMethodsFromRegistration(module);
+                }
+            }
+            catch
+            {
+                // Fully ignored assembly
+            }
+        }
+    }
+    
+    private static void LoadReferencedAssemblies(Assembly assembly, Dictionary<string, Assembly> loadedDict)
+    {
+        var name = assembly.GetName().Name;
+        if (name == null || loadedDict.ContainsKey(name)) return;
+        
+        if (name.StartsWith("System") || name.StartsWith("Microsoft") || name.StartsWith("netstandard"))
+            return;
+
+        loadedDict[name] = assembly;
+
+        foreach (var refName in assembly.GetReferencedAssemblies())
+        {
+            if (refName.Name != null && !loadedDict.ContainsKey(refName.Name))
+            {
+                try
+                {
+                    var loadedAsm = Assembly.Load(refName);
+                    LoadReferencedAssemblies(loadedAsm, loadedDict);
+                }
+                catch
+                {
+                    // Ignored
+                }
             }
         }
     }

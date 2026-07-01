@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Solas.Interfaces;
 using Solas.Settings;
 using Solas.World;
@@ -43,7 +44,7 @@ internal class SpacePool
 
     internal SpaceFolder GetSpaceFolderWith(Guid guid, Space space)
     {
-        return _spaceFolders[space].Find(x => x.Id == guid);
+        return _spaceFolders[space].FirstOrDefault(x => x.Id == guid);
     }
 
     internal SpaceFolder GetSpaceFolderWith(Guid guid, Guid spaceId)
@@ -119,9 +120,8 @@ internal class SpacePool
             space.Name = Path.GetFileNameWithoutExtension(path);
             space.Path = path;
         }
-
-        Console.WriteLine(space.Id);
-        Console.WriteLine($"Loading space: {space.Name}");
+        
+        Debug.WriteLine($"Loading space: {space.Name} with id {space.Id}");
         if (immediateBuild)
             EngineContext.DISystem.BuildDependencies(space);
         return space;

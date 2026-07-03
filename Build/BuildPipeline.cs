@@ -30,9 +30,12 @@ internal class BuildPipeline
 
     internal async Task BuildAsync()
     {
+        Console.WriteLine("Starting packaging...");
         await ProcessAssets();
-
+        Console.WriteLine("Done packaging.");
+        Console.WriteLine($"Starting publishing to {_buildSettings.OutputDirectory}...");
         await PublishProject();
+        Console.WriteLine($"Done publishing.");
     }
 
     private async Task ProcessAssets()
@@ -43,52 +46,59 @@ internal class BuildPipeline
         if (editorSerializer == null || runtimeSerializer == null) return;
 
         //Assets
-        await using var assetsStream = File.OpenRead(_editorVfs.GetPath(_coreSettings.AssetsPackPath));
-        await using var outAssetsStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath));
-        await using var binaryWriter =
-            new BinaryWriter(File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath) + ".lookup", FileMode.Append,
-                FileAccess.Write));
-
-        editorSerializer.Open(assetsStream);
-        runtimeSerializer.Open(outAssetsStream);
-        while (true)
+        await using var assetsStream = File.Open(_editorVfs.GetPath(_coreSettings.AssetsPackPath), FileMode.OpenOrCreate);
+        if (assetsStream.Length > 0)
         {
-            var asset = Query.GetUnknownAsset(assetsStream);
+            await using var outAssetsStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath));
+            await using var binaryWriter =
+                new BinaryWriter(File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath) + ".lookup",
+                    FileMode.Append,
+                    FileAccess.Write));
 
-            if (asset == null) break;
-            Engine.UpdateSerializer(runtimeSerializer);
-            Command.WriteAsset(asset, outAssetsStream, binaryWriter);
-            Engine.UpdateSerializer(editorSerializer);
+            editorSerializer.Open(assetsStream);
+            runtimeSerializer.Open(outAssetsStream);
+            while (true)
+            {
+                var asset = Query.GetUnknownAsset(assetsStream);
+
+                if (asset == null) break;
+                Engine.UpdateSerializer(runtimeSerializer);
+                Command.WriteAsset(asset, outAssetsStream, binaryWriter);
+                Engine.UpdateSerializer(editorSerializer);
+            }
+
+            editorSerializer.Close(assetsStream);
+            runtimeSerializer.Close(outAssetsStream);
         }
-
-        editorSerializer.Close(assetsStream);
-        runtimeSerializer.Close(outAssetsStream);
 
         //Spaces
         await using var outGlobalSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.GlobalSpacePath));
         SerializeSpace(_editorVfs.GetPath(_coreSettings.GlobalSpacePath),
             editorSerializer, runtimeSerializer, outGlobalSpaceStream);
 
+        await using var inAssetSpaceStream = File.Open(_editorVfs.GetPath(_coreSettings.AssetsSpacePath),  FileMode.OpenOrCreate);
         await using var outAssetSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath));
-        await using var inAssetSpaceStream = File.OpenRead(_editorVfs.GetPath(_coreSettings.AssetsSpacePath));
-        await using var assetSpaceBinaryWriter = new BinaryWriter(
-            File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath) + ".lookup", FileMode.Append,
-                FileAccess.Write));
-
-        while (true)
+        if (inAssetSpaceStream.Length > 0)
         {
-            try
+            await using var assetSpaceBinaryWriter = new BinaryWriter(
+                File.Open(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath) + ".lookup", FileMode.Append,
+                    FileAccess.Write));
+
+            while (true)
             {
-                var entity = Query.Serializer.Read<Entity>(inAssetSpaceStream);
-                runtimeSerializer.Write(entity, outAssetSpaceStream);
-                IdLookupSerializer.Write(assetSpaceBinaryWriter, entity.Id,
-                    (uint)assetSpaceBinaryWriter.BaseStream.Position);
-                entity.Dispose();
-            }
-            catch (Exception)
-            {
-                //stop iterating
-                break;
+                try
+                {
+                    var entity = Query.Serializer.Read<Entity>(inAssetSpaceStream);
+                    runtimeSerializer.Write(entity, outAssetSpaceStream);
+                    IdLookupSerializer.Write(assetSpaceBinaryWriter, entity.Id,
+                        (uint)assetSpaceBinaryWriter.BaseStream.Position);
+                    entity.Dispose();
+                }
+                catch (Exception)
+                {
+                    //stop iterating
+                    break;
+                }
             }
         }
 
@@ -128,8 +138,10 @@ internal class BuildPipeline
             Arguments = "publish " +
                         $"\"{_projectPath}\" " +
                         "-c Release " +
+                        "-p:NodeReuse=false " +
+                        "-p:UseSharedCompilation=false -p:CreateIntermediateMainConfigFile=false " +
                         $"-o \"{_buildSettings.OutputDirectory}\" " +
-                        //$"-p:TargetName=\"{_buildSettings.GameName}\" " +
+                        $"-p:TargetName=\"{_buildSettings.GameName}\" " +
                         $"-p:ApplicationIcon=\"{_buildSettings.IconPath}\" " +
                         $"-p:Authors=\"{_buildSettings.Company}\" " +
                         $"-p:Version={_buildSettings.Version} " +
@@ -142,8 +154,9 @@ internal class BuildPipeline
                         $"-p:SerializerName=\"{_buildSettings.Serializer.Replace(",", "%2C")}\""
         };
         Console.WriteLine(processStartInfo.Arguments);
-        using var process = new Process();
-        process.StartInfo = processStartInfo;
-        await Task.Run(process.Start);
+
+        using var process = Process.Start(processStartInfo);
+        if (process != null) 
+            await process.WaitForExitAsync();
     }
 }

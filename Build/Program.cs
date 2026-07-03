@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reflection;
+using System.Security.AccessControl;
 using Solas.Settings;
 
 namespace Solas.Build;
@@ -9,7 +10,7 @@ public static class Program
     public static void Main(string[] args)
     {
         var projectPath = args[0];
-        var serializerName = args.Length < 2 || String.IsNullOrEmpty(args[1])
+        var serializerName = args.Length < 2 || string.IsNullOrEmpty(args[1])
             ? "Solas.Serialization.Json.EngineJsonSerializer, Core"
             : args[1];
         var editorVfs = new VirtualFileSystem(Directory.GetParent(projectPath)?.FullName);
@@ -26,7 +27,7 @@ public static class Program
         {
             FileName = "dotnet",
             Arguments =
-                $"build \"{projectPath}\" -o {editorVfs.GetMountPath("build")} --configuration Release",
+                $"build \"{projectPath}\" -o {editorVfs.GetMountPath("build")} -c Release",
             UseShellExecute = false,
             CreateNoWindow = true
         };
@@ -34,16 +35,16 @@ public static class Program
         using (var process = new Process())
         {
             process.StartInfo = startInfo;
-            Console.WriteLine("Building project...");
+            Console.WriteLine("Building project assembly...");
             process.Start();
 
             process.WaitForExit();
         }
 
-        var gameDll = Path.Combine(editorVfs.GetMountPath("build"),
-            Path.GetFileNameWithoutExtension(projectPath) ?? "Game.dll");
+        var gameDll = Directory.GetFiles(Path.Combine(editorVfs.GetMountPath("build"))).First(x=>x.EndsWith(".exe")).Replace("exe", "dll");
         Assembly.LoadFrom(gameDll);
-
+        Console.WriteLine("Assembly loaded.");
+        
         Engine.SetSerializer(serializerName);
 
         Engine.SetVfs(editorVfs);
@@ -59,8 +60,20 @@ public static class Program
             runtimeVfs.GetMountPath("engine"),
             runtimeVfs.GetPath("engine://Settings"));
 
+        Console.WriteLine("Directories OK.");
+        
         new BuildPipeline(editorVfs, runtimeVfs, projectPath).BuildAsync().GetAwaiter().GetResult();
 
-        Directory.Delete(editorVfs.GetMountPath("build"), true);
+        Console.WriteLine("Cleanup...");
+        try
+        {
+            Directory.Delete(editorVfs.GetMountPath("build"), true);
+            Console.WriteLine("Cleanup OK.");
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine($"❗Caught exception on cleanup: {e}");
+        }
+        Console.WriteLine("✅ Your project build successfully");
     }
 }

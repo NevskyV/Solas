@@ -1,29 +1,29 @@
-﻿using System.Numerics;
+﻿using Solas.World;
 
 namespace Solas.Transform;
 
 public static class TransformEventHandler
 {
-    public static Action<TransformData> CreateDataEvent  = delegate {};
-    public static Action<TransformData> DisposeDataEvent = delegate {};
-    
-    public static Action<TransformData, Vector3> PositionUpdate = delegate {};
-    public static Action<TransformData, Vector3> RotationUpdate = delegate {};
-    public static Action<TransformData, Vector3> ScaleUpdate    = delegate {};
+    private static readonly Dictionary<Space, TransformEventData> _handlers = [];
 
     public static void RegisterData(TransformData data)
     {
-        data.Position.OnChange += value => PositionUpdate(data, value);
-        data.Rotation.OnChange += value => RotationUpdate(data, value);
-        data.Scale.OnChange    += value => ScaleUpdate(data, value);
-        CreateDataEvent.Invoke(data);
+        if(!_handlers.TryGetValue(data.Entity.CurrentSpace, out var handler))
+            _handlers.Add(data.Entity.CurrentSpace, handler = new TransformEventData());
+        data.Position.OnChange += value => handler.PositionUpdateEvent(data, value);
+        data.Rotation.OnChange += value => handler.RotationUpdateEvent(data, value);
+        data.Scale.OnChange    += value => handler.ScaleUpdateEvent(data, value);
+        handler.CreateDataEvent.Invoke(data);
     }
     
     public static void UnregisterData(TransformData data)
     {
-        data.Position.OnChange -= value => PositionUpdate(data, value);
-        data.Rotation.OnChange -= value => RotationUpdate(data, value);
-        data.Scale.OnChange    -= value => ScaleUpdate(data, value);
-        DisposeDataEvent.Invoke(data);
+        var handler = _handlers[data.Entity.CurrentSpace];
+        data.Position.OnChange -= value => handler.PositionUpdateEvent(data, value);
+        data.Rotation.OnChange -= value => handler.RotationUpdateEvent(data, value);
+        data.Scale.OnChange    -= value => handler.ScaleUpdateEvent(data, value);
+        handler.DisposeDataEvent.Invoke(data);
     }
+    
+    public static TransformEventData GetHandler(Space space) => _handlers[space];
 }

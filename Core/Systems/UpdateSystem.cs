@@ -79,7 +79,8 @@ internal class UpdateSystem
         var steps = 0;
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
-            for (var i = 0; i < FixedUpdateSystems.Count; i++) FixedUpdateSystems[i].Update();
+            for (var i = 0; i < FixedUpdateSystems.Count; i++) 
+                EngineContext.SpacePool.RunUpdateSystemInAllSpaces(FixedUpdateSystems[i]);
             var fixedUpdatables = EntityPool.FixedUpdateRunners;
             for (var i = 0; i < fixedUpdatables.Count; i++) fixedUpdatables[i].Run();
 
@@ -92,11 +93,13 @@ internal class UpdateSystem
         var invFixedDelta = 1.0 / Time.FixedDeltaTime;
         Time.Alpha = _accumulator * invFixedDelta;
 
-        for (var i = 0; i < UpdateSystems.Count; i++) UpdateSystems[i].Update();
+        for (var i = 0; i < UpdateSystems.Count; i++) 
+            EngineContext.SpacePool.RunUpdateSystemInAllSpaces(UpdateSystems[i]);
         var updatables = EntityPool.UpdateRunners;
         for (var i = 0; i < updatables.Count; i++) updatables[i].Run();
 
-        for (var i = 0; i < LateUpdateSystems.Count; i++) LateUpdateSystems[i].Update();
+        for (var i = 0; i < LateUpdateSystems.Count; i++) 
+            EngineContext.SpacePool.RunUpdateSystemInAllSpaces(LateUpdateSystems[i]);
         var lateUpdatables = EntityPool.LateUpdateRunners;
         for (var i = 0; i < lateUpdatables.Count; i++) lateUpdatables[i].Run();
     }

@@ -85,7 +85,8 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
 
     public T AddData<T>(T data) where T : IData
     {
-        if (_data.Contains(data)) return default;
+        if (data.Entity == this || _data.Contains(data)) return default;
+        data.Entity = this;
         _data.Add(data);
         EngineContext.EntityPool.AddReferences(data, this);
         UpdateMask<T>();
@@ -97,6 +98,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         _data.Remove(data);
         EngineContext.EntityPool.RemoveReferences(data, this);
         UpdateMask<T>();
+        data.Dispose();
     }
 
     public T GetData<T>() where T : IData
@@ -125,6 +127,7 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         _logics.Remove(logic);
         EngineContext.EntityPool.RemoveReferences(logic, this);
         UpdateMask<T>();
+        logic.Dispose();
     }
 
     public T GetLogic<T>() where T : Logic

@@ -1,4 +1,5 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics;
+using System.Reflection;
 
 namespace Solas.Registries;
 
@@ -20,6 +21,7 @@ public abstract class Registry
             if (!asm.IsDynamic && asm.GetName().Name != null)
             {
                 loadedDict.TryAdd(asm.GetName().Name, asm);
+                Debug.WriteLine($"Loaded assembly '{asm.GetName().Name}'.");
             }
         }
         

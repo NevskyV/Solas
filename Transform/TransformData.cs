@@ -1,12 +1,37 @@
 ﻿using System.Numerics;
 using Solas.ComponentUtils;
 using Solas.Components;
+using Solas.Interfaces;
 
 namespace Solas.Transform;
 
-public sealed partial class TransformData : IData
+public class TransformData : IData, IBranchable
 {
-    public DataProperty<Vector3> Position;
-    public DataProperty<Vector3> Rotation;
-    public DataProperty<Vector3> Scale;
+    public Entity Entity { get; set; }
+    
+    public DataProperty<Vector3> Position = new ();
+    public DataProperty<Vector3> Rotation = new ();
+    public DataProperty<Vector3> Scale = new () {Value = new Vector3(1, 1, 1)};
+
+    public Guid RootId { get; set; }
+    public List<Guid> BranchesIds { get; set; } = [];
+    
+    public TransformData() => TransformEventHandler.RegisterData(this);
+    void IDisposable.Dispose() => TransformEventHandler.UnregisterData(this);
+    
+    public IBranchable GetRoot()
+    {
+        return Query.GetEntitiesInAvailable(Entity.CurrentSpace).FirstOrDefault(x => x.Id == RootId)?.GetData<TransformData>();
+    }
+
+    public IEnumerable<IBranchable> GetBranches()
+    {
+        var result = new List<IBranchable>();
+        var space = Entity.CurrentSpace;
+        foreach (var branchId in BranchesIds)
+        {
+            result.Add(Query.GetEntitiesInAvailable(space).FirstOrDefault(x => x.Id == branchId)?.GetData<TransformData>());
+        }
+        return result;
+    }
 }

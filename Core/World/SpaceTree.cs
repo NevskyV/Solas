@@ -1,4 +1,6 @@
-﻿namespace Solas.World;
+﻿using Solas.Interfaces;
+
+namespace Solas.World;
 
 internal static class SpaceTree
 {
@@ -12,7 +14,7 @@ internal static class SpaceTree
     {
         if (space.Id == spaceToAttach.Id) return;
 
-        Query.GetSpace(space.RootId).BranchesIds.Remove(spaceToAttach.Id);
+        EngineContext.SpacePool.GetSpace(space.RootId).BranchesIds.Remove(spaceToAttach.Id);
         space.RootId = spaceToAttach.Id;
         spaceToAttach.BranchesIds.Add(space.Id);
     }
@@ -22,7 +24,7 @@ internal static class SpaceTree
         var root = space.GetRoot();
         if (root != WorldContext.GlobalSpace)
             foreach (var branch in space.GetBranches())
-                branch.RootId = root.Id;
+                branch.RootId = ((IReferenceable)root).Id;
     }
 
     internal static List<Space> GetAllAvailableSpacesFor(Space space)
@@ -36,7 +38,7 @@ internal static class SpaceTree
             var nextRootId = lookupSpace.RootId;
             if (!visited.Add(nextRootId)) break;
 
-            lookupSpace = Query.GetSpace(nextRootId);
+            lookupSpace = EngineContext.SpacePool.GetSpace(nextRootId);
             result.Add(lookupSpace);
         }
 
@@ -52,7 +54,7 @@ internal static class SpaceTree
     {
         foreach (var id in branchIds)
         {
-            var space = Query.GetSpace(id);
+            var space = EngineContext.SpacePool.GetSpace(id);
             accumulator.Add(space);
             if (space.BranchesIds.Count > 0) FillBranchables(space.BranchesIds, accumulator);
         }

@@ -59,11 +59,6 @@ public static class Query
         return EngineContext.SpacePool.GetAllSpaceFoldersIn(space);
     }
 
-    public static Space GetSpace(Guid guid)
-    {
-        return EngineContext.SpacePool.GetSpace(guid);
-    }
-
     public static string[] GetPaths()
     {
         return EngineContext.SpacePool.GetPaths();
@@ -126,11 +121,6 @@ public static class Query
     public static T GetComponentByTypeInAvailable<T>(Space space)
     {
         return EngineContext.EntityPool.GetComponentByTypeInAvailable<T>(space);
-    }
-
-    public static Entity TryGetEntityFor(object component, Space hintSpace = null)
-    {
-        return EngineContext.EntityPool.TryGetEntityFor(component, hintSpace);
     }
 
     #endregion

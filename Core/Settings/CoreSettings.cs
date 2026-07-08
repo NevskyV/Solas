@@ -6,6 +6,8 @@ namespace Solas.Settings;
 [SettingsSection]
 public class CoreSettings : IData
 {
+    public Entity Entity { get; set; }
+    
     public string AssetsPackPath = "assets://Assets.pack";
     public string AssetsSpacePath = "assets://Assets.space";
     public string GlobalSpacePath = "assets://Global.space";

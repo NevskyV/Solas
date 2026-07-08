@@ -6,6 +6,8 @@ namespace Solas.Settings;
 [SettingsSection]
 public class BuildSettings : IData
 {
+    public Entity Entity { get; set; }
+    
     public string Serializer = "Solas.Serialization.Binary.BinarySerializer, Core";
     
     public string GameName = "My Game";

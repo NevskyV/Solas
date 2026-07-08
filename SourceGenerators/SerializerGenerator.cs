@@ -2,6 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using Solas.SourceGenerators.GenericSerializers;
 using Solas.SourceGenerators.Utils;
 
 namespace Solas.SourceGenerators;
@@ -9,6 +10,11 @@ namespace Solas.SourceGenerators;
 [Generator]
 public sealed class SerializationGenerator : IIncrementalGenerator
 {
+    private static readonly Dictionary<string, IGenericSerializer> _genericSerializers = new ()
+    {
+        {"Array", new ArraySerializer()},
+        {"List", new ListSerializer()},
+    };
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var types = context.SyntaxProvider.CreateSyntaxProvider(
@@ -183,8 +189,23 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
     private static MemberMetadata CreateMemberMetadata(string name, ITypeSymbol type, Compilation compilation)
     {
-        bool isArray = type is IArrayTypeSymbol;
-        var elementType = isArray ? ((IArrayTypeSymbol)type).ElementType : type;
+        string genericType = "";
+        ITypeSymbol elementType = type;
+        if (type is IArrayTypeSymbol)
+        {
+            genericType = "Array";
+            elementType =((IArrayTypeSymbol)type).ElementType;
+        }
+        else if (type is INamedTypeSymbol { IsGenericType: true } namedType)
+        {
+            var originalDef = namedType.OriginalDefinition.ToDisplayString();
+
+            if (originalDef == "System.Collections.Generic.List<T>")
+            {
+                genericType = "List";
+                elementType = namedType.TypeArguments[0]; 
+            }
+        }
 
         bool isValueType = elementType.IsValueType; 
         
@@ -206,11 +227,11 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         bool isReferenceLink = checkType.ImplementsInterface(dataInterface) ||
                                checkType.InheritsFrom(logicBaseType) ||
                                checkType.ImplementsInterface(referenceableInterface);
-        
+        _genericSerializers.TryGetValue(genericType, out var genericSerializer);
         return new MemberMetadata{
             Name = name,
             TypeFullName = type.ToDisplayString(),
-            IsArray = isArray,
+            GenericSerializer = genericSerializer,
             ElementTypeFullName = elementType.ToDisplayString(),
             IsPrimitive = elementType.IsPrimitive(),
             IsNullable = type.NullableAnnotation == NullableAnnotation.Annotated,
@@ -222,20 +243,21 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     private static string GenerateSerializerCode(TypeMetadata type, List<MemberMetadata> members)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("using System;");
-        sb.AppendLine("using System.IO;");
-        sb.AppendLine("using Solas;");
-        sb.AppendLine("using Solas.Serialization.Core;");
+        sb.AppendLine("""
+                      using System;
+                      using System.IO;
+                      using Solas;
+                      using Solas.Serialization.Core;
+                      """);
         sb.AppendLine($"using {type.Namespace};");
         sb.AppendLine();
         sb.AppendLine("namespace Solas.Generated;");
         sb.AppendLine();
         sb.AppendLine($"public sealed class {type.Name}Serializer : ICustomSerializer<{type.FullName}>");
         sb.AppendLine("{");
-        
         sb.AppendLine($"    public void Write({type.FullName} value, FileStream stream, Serializer serializer, string name = null)");
         sb.AppendLine("    {");
-        sb.AppendLine($"        serializer.BeginObject(stream);");
+        sb.AppendLine("        serializer.BeginObject(stream);");
         
         foreach (var member in members)
         {
@@ -248,71 +270,47 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             {
                 sb.AppendLine($"        serializer.Write(value.{member.Name} != null, stream, \"IsDataPropertyNull\");");
                 sb.AppendLine($"        if (value.{member.Name} != null)");
-                sb.AppendLine($"        {{");
+                sb.AppendLine("        {");
                 
-                if (member.IsValueType) 
+                if (member.IsValueType)
                 {
-                    if (member.IsArray)
-                    {
-                        if (member.IsPrimitive)
-                            sb.AppendLine($"            serializer.WriteArray(value.{accessPath}, stream, serializer.Write, \"{member.Name}\");");
-                        else
-                            sb.AppendLine($"            serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
-                    }
-                    else
-                        sb.AppendLine($"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine(member.GenericSerializer != null
+                        ? $"            {member.GenericSerializer.Write(member, accessPath)}"
+                        : $"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
                 }
                 else 
                 {
                     sb.AppendLine($"            serializer.Write(value.{accessPath} != null, stream, \"IsInnerPropertyNull\");");
                     sb.AppendLine($"            if (value.{accessPath} != null)");
-                    sb.AppendLine($"            {{");
-                    if (member.IsArray)
-                    {
-                        if (member.IsPrimitive)
-                            sb.AppendLine($"                serializer.WriteArray(value.{accessPath}, stream, serializer.Write, \"{member.Name}\");");
-                        else
-                            sb.AppendLine($"                serializer.WriteArray(value.{accessPath}, stream, name: \"{member.Name}\");");
-                    }
-                    else
-                        sb.AppendLine($"                serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
-                    sb.AppendLine($"            }}");
+                    sb.AppendLine("            {");
+                    sb.AppendLine(member.GenericSerializer != null
+                        ? $"            {member.GenericSerializer.Write(member, accessPath)}"
+                        : $"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine("            }");
                 }
-                sb.AppendLine($"        }}");
+                sb.AppendLine("        }");
             }
             else
             {
-                if (member.IsNullable && !member.IsValueType)
+                if (member is { IsNullable: true, IsValueType: false })
                 {
                     sb.AppendLine($"        serializer.Write(value.{member.Name} != null, stream, \"{member.Name}\");");
                     sb.AppendLine($"        if (value.{member.Name} != null)");
-                    sb.AppendLine($"        {{");
-                    if (member.IsArray)
-                    {
-                        if (member.IsPrimitive)
-                            sb.AppendLine($"            serializer.WriteArray(value.{member.Name}, stream, serializer.Write, \"{member.Name}\");");
-                        else
-                            sb.AppendLine($"            serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
-                    }
-                    else
-                        sb.AppendLine($"            serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
-                    sb.AppendLine($"        }}");
+                    sb.AppendLine("        {");
+                    sb.AppendLine(member.GenericSerializer != null
+                        ? $"            {member.GenericSerializer.Write(member, accessPath)}"
+                        : $"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine("        }");
                 }
                 else
                 {
-                    if (member.IsArray)
-                    {
-                        if (member.IsPrimitive)
-                            sb.AppendLine($"        serializer.WriteArray(value.{member.Name}, stream, serializer.Write, \"{member.Name}\");");
-                        else
-                            sb.AppendLine($"        serializer.WriteArray(value.{member.Name}, stream, name: \"{member.Name}\");");
-                    }
-                    else
-                        sb.AppendLine($"        serializer.Write(value.{member.Name}, stream, \"{member.Name}\");");
+                    sb.AppendLine(member.GenericSerializer != null
+                        ? $"        {member.GenericSerializer.Write(member, accessPath)}"
+                        : $"        serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
                 }
             }
         }
-        sb.AppendLine($"        serializer.EndObject(stream);");
+        sb.AppendLine("        serializer.EndObject(stream);");
         sb.AppendLine("    }");
         sb.AppendLine();
         
@@ -338,8 +336,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             {
                 var unwrappedType = GetUnwrappedTypeName(member);
                 
-                sb.AppendLine($"        if (Query.Serializer.ReadBool(stream))");
-                sb.AppendLine($"        {{");
+                sb.AppendLine("        if (Query.Serializer.ReadBool(stream))");
+                sb.AppendLine("        {");
                 sb.AppendLine($"            result.{member.Name} ??= new Solas.ComponentUtils.DataProperty<{unwrappedType}>();");
                 
                 if (member.IsValueType)
@@ -348,12 +346,12 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    sb.AppendLine($"            if (Query.Serializer.ReadBool(stream))");
-                    sb.AppendLine($"            {{");
+                    sb.AppendLine("            if (Query.Serializer.ReadBool(stream))");
+                    sb.AppendLine("            {");
                     sb.AppendLine($"                result.{accessPath} = {GenerateReadCall(member, unwrappedType)};");
-                    sb.AppendLine($"            }}");
+                    sb.AppendLine("            }");
                 }
-                sb.AppendLine($"        }}");
+                sb.AppendLine("        }");
             }
             else
             {
@@ -380,11 +378,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     
     private static string GenerateReadCall(MemberMetadata member, string targetTypeFullName)
     {
-        if (member.IsArray)
+        if (member.GenericSerializer != null)
         {
-            return member.IsPrimitive
-                ? $"Query.Serializer.ReadArray(stream, Query.Serializer.Read{GetPrimitiveMethodSuffix(member.ElementTypeFullName)})"
-                : $"Query.Serializer.ReadArray<{member.ElementTypeFullName}>(stream)";
+            return member.GenericSerializer.Read(member);
         }
 
         return member.IsPrimitive || GetPrimitiveMethodSuffix(targetTypeFullName) != "null"
@@ -402,7 +398,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         return typeStr;
     }
 
-    private static string GetPrimitiveMethodSuffix(string fullName)
+    internal static string GetPrimitiveMethodSuffix(string fullName)
     {
         return fullName switch
         {

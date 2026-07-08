@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using System.Text;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Solas.SourceGenerators.Utils;
 
@@ -22,52 +23,43 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
         {
             var (compilation, structs) = source;
             var assemblyName = compilation.AssemblyName ?? "UnknownAssembly";
-
-            var writer = new CodeWriter();
-            writer.WriteLine("using System;");
-            writer.WriteLine("using System.IO;");
-            writer.WriteLine("using Solas.Attributes;");
-            writer.WriteLine("using Solas.Components;");
-            writer.WriteLine("using Solas.Registries;");
-            writer.WriteLine("using System.Runtime.CompilerServices;");
-            writer.WriteLine();
-            writer.WriteLine("namespace Solas.Generated");
-            writer.WriteLine("{");
-            writer.Indent();
-            writer.WriteLine("public class SettingsFileGenerator : ISettingsFilesRegistration");
-            writer.WriteLine("{");
-            writer.Indent();
-            writer.WriteLine("private void CreateFile<T>(string fileName, string fullName) where T : new()");
-            writer.WriteLine("{");
-            writer.Indent();
-            writer.WriteLine("var dir = Solas.Query.GetPath(\"engine://Settings\");");
-            writer.WriteLine(@"var path = Path.Combine(dir, $""{fileName}.set"");");
-            writer.WriteLine();
-            writer.WriteLine("if (!File.Exists(path))");
-            writer.WriteLine("{");
-            writer.Indent();
-            writer.WriteLine("using var stream = File.Open(path, FileMode.Create, FileAccess.Write);");
-            writer.WriteLine("Query.Serializer.Open(stream);");
-            writer.WriteLine("Query.Serializer.Write(fullName, stream);");
-            writer.WriteLine("try {");
-            writer.Indent();
-            writer.WriteLine("Query.Serializer.Write(new T(), stream);");
-            writer.Unindent();
-            writer.WriteLine("}");
-            writer.WriteLine("catch (Exception ex) {");
-            writer.Indent();
-            writer.WriteLine("throw new Exception(ex.ToString());");
-            writer.Unindent();
-            writer.WriteLine("}");
-            writer.WriteLine("Query.Serializer.Close(stream);");
-            writer.Unindent();
-            writer.WriteLine("}");
-            writer.Unindent();
-            writer.WriteLine("}");
-            writer.WriteLine("public void Add(Registry registry)");
-            writer.WriteLine("{");
-            writer.Indent();
-            writer.WriteLine("var trueRegistry = (SettingsFilesRegistry) registry;");
+            
+            var sb = new StringBuilder();
+            sb.AppendLine("""
+                          using System;
+                          using System.IO;
+                          using Solas.Attributes;
+                          using Solas.Components;
+                          using Solas.Registries;
+                          using System.Runtime.CompilerServices;
+                          
+                          namespace Solas.Generated
+                          {
+                              public class SettingsFileGenerator : ISettingsFilesRegistration
+                              {
+                                  private void CreateFile<T>(string fileName, string fullName) where T : new()
+                                  {
+                                      var dir = Solas.Query.GetPath("engine://Settings");
+                                      var path = Path.Combine(dir, $"{fileName}.set");
+                          
+                                      if (!File.Exists(path))
+                                      {
+                                          using var stream = File.Open(path, FileMode.Create, FileAccess.Write);
+                                          Query.Serializer.Open(stream);
+                                          Query.Serializer.Write(fullName, stream);
+                                          try {
+                                              Query.Serializer.Write(new T(), stream);
+                                          }
+                                          catch (Exception ex) {
+                                              throw new Exception(ex.ToString());
+                                          }
+                                          Query.Serializer.Close(stream);
+                                      }
+                                  }
+                                  public void Add(Registry registry)
+                                  {
+                                      var trueRegistry = (SettingsFilesRegistry) registry;
+                          """);
 
             foreach (var sds in structs)
             {
@@ -82,17 +74,16 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
                 var fullName = symbol.ToDisplayString();
                 var className = symbol.Name;
 
-                writer.WriteLine($"trueRegistry.Register(() => CreateFile<{fullName}>(\"{className}\", \"{fullName + ", " + assemblyName}\"));");
+                sb.AppendLine($"            trueRegistry.Register(() => CreateFile<{fullName}>(\"{className}\", \"{fullName + ", " + assemblyName}\"));");
             }
 
-            writer.Unindent();
-            writer.WriteLine("}");
-            writer.Unindent();
-            writer.WriteLine("}");
-            writer.Unindent();
-            writer.WriteLine("}");
+            sb.AppendLine("""
+                                  }
+                              }
+                          }
+                          """);
 
-            spc.AddSource("SettingsFileGenerator.g.cs", writer.ToString());
+            spc.AddSource("SettingsFileGenerator.g.cs", sb.ToString());
         });
     }
 }

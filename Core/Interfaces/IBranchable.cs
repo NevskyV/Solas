@@ -1,6 +1,6 @@
 ﻿namespace Solas.Interfaces;
 
-public interface IBranchable : IReferenceable
+public interface IBranchable
 {
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; }

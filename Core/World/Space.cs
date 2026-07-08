@@ -3,7 +3,7 @@ using Solas.Systems;
 
 namespace Solas.World;
 
-public class Space : IBranchable
+public class Space : IBranchable, IReferenceable
 {
     internal readonly InitializeSystem Initializer;
 
@@ -23,12 +23,12 @@ public class Space : IBranchable
 
     public IBranchable GetRoot()
     {
-        return RootId == Guid.Empty ? WorldContext.GlobalSpace : Query.GetSpace(RootId);
+        return RootId == Guid.Empty ? WorldContext.GlobalSpace : EngineContext.SpacePool.GetSpace(RootId);
     }
 
     public IEnumerable<IBranchable> GetBranches()
     {
-        return BranchesIds.Select(Query.GetSpace);
+        return BranchesIds.Select(EngineContext.SpacePool.GetSpace);
     }
 
     public Guid GetSpaceId()

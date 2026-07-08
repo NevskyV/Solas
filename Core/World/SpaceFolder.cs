@@ -2,7 +2,7 @@
 
 namespace Solas.World;
 
-public class SpaceFolder : IBranchable, IDisposable
+public class SpaceFolder : IReferenceable, IBranchable, IDisposable
 {
     public List<Guid> EntityIds { get; init; } = [];
 

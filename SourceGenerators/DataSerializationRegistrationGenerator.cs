@@ -7,7 +7,7 @@ using Solas.SourceGenerators.Utils;
 namespace Solas.SourceGenerators;
 
 [Generator]
-public sealed class DataSerializationRegistrationGenerator : IIncrementalGenerator
+internal sealed class DataSerializationRegistrationGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {

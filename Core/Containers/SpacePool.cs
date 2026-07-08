@@ -26,6 +26,11 @@ internal class SpacePool
         }
     }
 
+    internal void RunUpdateSystemInAllSpaces(IUpdateSystem system)
+    {
+        Parallel.ForEach(_localSpaces.Concat([WorldContext.GlobalSpace]), system.Update);
+    }
+
     #endregion
 
     #region SpaceFolders

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Solas.SourceGenerators.Utils;
@@ -21,27 +22,29 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(compilationAndClasses, (spc, source) =>
         {
             var (compilation, classes) = source;
+            
+            var runnersSb = new StringBuilder();
+            var registerSb = new StringBuilder();
 
-            var runnersWriter = new CodeWriter();
-            var registerWriter = new CodeWriter();
+            runnersSb.AppendLine("""
+                                 using System;
+                                 using System.Collections.Generic;
+                                 using Solas.Containers;
+                                 using Solas.Interfaces;
 
-            runnersWriter.WriteLine("using System;");
-            runnersWriter.WriteLine("using System.Collections.Generic;");
-            runnersWriter.WriteLine("using Solas.Containers;");
-            runnersWriter.WriteLine("using Solas.Interfaces;");
-            runnersWriter.WriteLine();
+                                 """);
 
-            registerWriter.WriteLine("using System;");
-            registerWriter.WriteLine();
-            registerWriter.WriteLine("namespace Solas.Generated");
-            registerWriter.WriteLine("{");
-            registerWriter.Indent();
-            registerWriter.WriteLine("internal static class GeneratedUpdateRegistration");
-            registerWriter.WriteLine("{");
-            registerWriter.Indent();
-            registerWriter.WriteLine("internal static void RegisterAll()");
-            registerWriter.WriteLine("{");
-            registerWriter.Indent();
+
+            registerSb.AppendLine("""
+                                  using System;
+
+                                  namespace Solas.Generated
+                                  {
+                                      internal static class GeneratedUpdateRegistration
+                                      {
+                                          internal static void RegisterAll()
+                                          {
+                                  """);
 
             foreach (var cls in classes)
             {
@@ -50,22 +53,21 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
 
                 var attrs = symbol.GetAttributes();
 
-                Process(symbol, attrs, "UpdateAttribute", "Update", "RegisterRunner", runnersWriter, registerWriter);
-                Process(symbol, attrs, "FixedUpdateAttribute", "FixedUpdate", "RegisterFixedRunner", runnersWriter,
-                    registerWriter);
-                Process(symbol, attrs, "LateUpdateAttribute", "LateUpdate", "RegisterLateRunner", runnersWriter,
-                    registerWriter);
+                Process(symbol, attrs, "UpdateAttribute", "Update", "RegisterRunner", runnersSb, registerSb);
+                Process(symbol, attrs, "FixedUpdateAttribute", "FixedUpdate", "RegisterFixedRunner", runnersSb,
+                    registerSb);
+                Process(symbol, attrs, "LateUpdateAttribute", "LateUpdate", "RegisterLateRunner", runnersSb,
+                    registerSb);
             }
 
-            registerWriter.Unindent();
-            registerWriter.WriteLine("}");
-            registerWriter.Unindent();
-            registerWriter.WriteLine("}");
-            registerWriter.Unindent();
-            registerWriter.WriteLine("}");
+            registerSb.AppendLine("""
+                                          }
+                                      }
+                                  }
+                                  """);
 
-            spc.AddSource("GeneratedUpdateRunners.g.cs", runnersWriter.ToString());
-            spc.AddSource("GeneratedUpdateRegistration.g.cs", registerWriter.ToString());
+            spc.AddSource("GeneratedUpdateRunners.g.cs", runnersSb.ToString());
+            spc.AddSource("GeneratedUpdateRegistration.g.cs", registerSb.ToString());
         });
     }
 
@@ -75,8 +77,8 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
         string attrName,
         string methodName,
         string registerMethod,
-        CodeWriter runners,
-        CodeWriter register)
+        StringBuilder runners,
+        StringBuilder register)
     {
         var attr = attrs.FirstOrDefault(a => a.AttributeClass?.Name == attrName);
         if (attr == null) return;
@@ -95,64 +97,50 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
 
         if (!hasMethod) return;
 
-        runners.WriteLine("namespace Solas.Generated");
-        runners.WriteLine("{");
-        runners.Indent();
-        runners.WriteLine($"internal class {runnerName} : Solas.Interfaces.IUpdateRunner");
-        runners.WriteLine("{");
-        runners.Indent();
-        runners.WriteLine($"private readonly List<{fullName}> _updatables = new();");
-        runners.WriteLine();
-        runners.WriteLine("public void InjectPools(ReadOnlySpan<IComponentPool> pools)");
-        runners.WriteLine("{");
-        runners.Indent();
-        runners.WriteLine("_updatables.Clear();");
-        runners.WriteLine("foreach (var pool in pools)");
-        runners.WriteLine("{");
-        runners.Indent();
-        runners.WriteLine($"if (pool is ComponentPool<{fullName}> castedPool)");
-        runners.WriteLine("{");
-        runners.Indent();
-        runners.WriteLine("_updatables.AddRange(castedPool.Components);");
-        runners.Unindent();
-        runners.WriteLine("}");
-        runners.Unindent();
-        runners.WriteLine("}");
-        runners.Unindent();
-        runners.WriteLine("}");
-        runners.WriteLine();
-        runners.WriteLine("public void Run()");
-        runners.WriteLine("{");
-        runners.Indent();
+        runners.AppendLine($$"""
+                             namespace Solas.Generated;
+                             
+                             internal class {{runnerName}} : Solas.Interfaces.IUpdateRunner
+                             {
+                                 private readonly List<{{fullName}}> _updatables = new();
+
+                                 public void InjectPools(ReadOnlySpan<IComponentPool> pools)
+                                 {
+                                     _updatables.Clear();
+                                     foreach (var pool in pools)
+                                     {
+                                         if (pool is ComponentPool<{{fullName}}> castedPool)
+                                         {
+                                             _updatables.AddRange(castedPool.Components);
+                                         }
+                                     }
+                                 }
+
+                                 public void Run()
+                                 {
+                             """);
 
         if (parallel)
         {
-            runners.WriteLine("System.Threading.Tasks.Parallel.ForEach(");
-            runners.Indent();
-            runners.WriteLine("System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 64),");
-            runners.WriteLine("range =>");
-            runners.WriteLine("{");
-            runners.Indent();
-            runners.WriteLine("for (int i = range.Item1; i < range.Item2; i++)");
-            runners.WriteLine($"    _updatables[i].{methodName}();");
-            runners.Unindent();
-            runners.WriteLine("});");
-            runners.Unindent();
+            runners.AppendLine("        System.Threading.Tasks.Parallel.ForEach(");
+            runners.AppendLine("        System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 64),");
+            runners.AppendLine("        range =>");
+            runners.AppendLine("        {");
+            runners.AppendLine("            for (int i = range.Item1; i < range.Item2; i++)");
+            runners.AppendLine($"               _updatables[i].{methodName}();");
+            runners.AppendLine("        });");
         }
         else
         {
-            runners.WriteLine("for (int i = 0; i < _updatables.Count; i++)");
-            runners.WriteLine($"    _updatables[i].{methodName}();");
+            runners.AppendLine("        for (int i = 0; i < _updatables.Count; i++)");
+            runners.AppendLine($"           _updatables[i].{methodName}();");
         }
 
-        runners.Unindent();
-        runners.WriteLine("}");
-        runners.Unindent();
-        runners.WriteLine("}");
-        runners.Unindent();
-        runners.WriteLine("}");
-        runners.WriteLine();
+        runners.AppendLine("""
+                               }
+                           }
+                           """);
 
-        register.WriteLine($"Solas.Command.{registerMethod}(new {runnerName}());");
+        register.AppendLine($"          Solas.Command.{registerMethod}(new {runnerName}());");
     }
 }

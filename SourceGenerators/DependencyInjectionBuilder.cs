@@ -4,20 +4,20 @@ using Solas.SourceGenerators.Utils;
 
 namespace Solas.SourceGenerators;
 
-public enum InjectType
+internal enum InjectType
 {
     Inject,
     AutoInject
 }
 
-public enum ReferenceKind
+internal enum ReferenceKind
 {
     IData,
     Logic,
     Referenceable
 }
 
-public struct InjectableMember
+internal struct InjectableMember
 {
     public string Name;
     public string TypeFullName;
@@ -25,9 +25,9 @@ public struct InjectableMember
     public ReferenceKind ReferenceKind;
 }
 
-public static class DependencyInjectionBuilder
+internal static class DependencyInjectionBuilder
 {
-    public static string? Generate(
+    internal static string? Generate(
         INamedTypeSymbol symbol,
         INamedTypeSymbol? dataInterface,
         INamedTypeSymbol? logicBaseType,
@@ -57,7 +57,7 @@ public static class DependencyInjectionBuilder
 
         sb.AppendLine($"    public {overrideAttribute}void WriteInject(FileStream stream, Entity entity = null)");
         sb.AppendLine("    {");
-        sb.AppendLine($"            var injectables = Query.LastInjectables;");
+        sb.AppendLine("        var injectables = Query.LastInjectables;");
         var membersCount = 0;
         foreach (var member in serializableMembers)
         {
@@ -70,18 +70,10 @@ public static class DependencyInjectionBuilder
             sb.AppendLine("        else");
             sb.AppendLine("        {");
 
-            if (member.ReferenceKind == ReferenceKind.Logic)
+            if (member.ReferenceKind == ReferenceKind.Logic || member.ReferenceKind == ReferenceKind.IData)
             {
                 sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.Id, stream, \"{member.Name}_Id\");");
                 sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
-            }
-            else if (member.ReferenceKind == ReferenceKind.IData)
-            {
-                sb.AppendLine(
-                    $"            var owner = Solas.Query.TryGetEntityFor(this.{member.Name}, entity?.CurrentSpace);");
-                sb.AppendLine($"            Query.Serializer.Write(owner != null ? owner.Id : Guid.Empty, stream, \"{member.Name}_Id\");");
-                sb.AppendLine(
-                    $"            Query.Serializer.Write(owner != null ? owner.GetSpaceId() : Guid.Empty, stream, \"{member.Name}_SpaceId\");");
             }
             else
             {
@@ -145,7 +137,7 @@ public static class DependencyInjectionBuilder
         var members = new List<InjectableMember>();
         var isLogic = symbol.InheritsFrom(logicBaseType);
 
-        var allDeclared = symbol.GetMembers().Where(m => m is IFieldSymbol or IPropertySymbol);
+        var allDeclared = symbol.GetMembers().Where(m => (m is IFieldSymbol or IPropertySymbol) && !m.IsImplicitlyDeclared);
 
         foreach (var m in allDeclared)
         {
@@ -160,7 +152,7 @@ public static class DependencyInjectionBuilder
                 if (!hasInject && !hasAutoInject) continue;
 
                 var injectType = hasAutoInject ? InjectType.AutoInject : InjectType.Inject;
-                var refKind = GetReferenceKind(type, dataInterface, logicBaseType, referenceableInterface);
+                var refKind = GetReferenceKind(type, dataInterface, logicBaseType);
 
                 members.Add(new InjectableMember
                 {
@@ -173,10 +165,14 @@ public static class DependencyInjectionBuilder
             else
             {
                 if (type.ImplementsInterface(referenceableInterface) ||
-                    type.ImplementsInterface(dataInterface) ||
-                    type.InheritsFrom(logicBaseType))
+                    type.ImplementsInterface(dataInterface))
                 {
-                    var refKind = GetReferenceKind(type, dataInterface, logicBaseType, referenceableInterface);
+                    if (m.Name == "Entity")
+                    {
+                        continue;
+                    }
+
+                    var refKind = GetReferenceKind(type, dataInterface, logicBaseType);
                     members.Add(new InjectableMember
                     {
                         Name = m.Name, 
@@ -194,8 +190,7 @@ public static class DependencyInjectionBuilder
     private static ReferenceKind GetReferenceKind(
         ITypeSymbol type,
         INamedTypeSymbol? dataInterface,
-        INamedTypeSymbol? logicBaseType,
-        INamedTypeSymbol? referenceableInterface)
+        INamedTypeSymbol? logicBaseType)
     {
         if (type.InheritsFrom(logicBaseType)) return ReferenceKind.Logic;
         if (type.ImplementsInterface(dataInterface)) return ReferenceKind.IData;

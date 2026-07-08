@@ -4,7 +4,7 @@ namespace Solas.Components;
 
 public abstract class Logic : IInjectable, IDisposable
 {
-    public Entity Entity { get; init; }
+    public Entity Entity { get; internal init; }
 
     public virtual void Dispose()
     {

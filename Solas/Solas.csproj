@@ -6,13 +6,13 @@
         <Nullable>disable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>Solas</PackageId>
-        <Version>0.2.0</Version>
+        <Version>0.2.1</Version>
         <Authors>NevskyV</Authors>
         <Description>High performance open-source .net game engine created specifically for indie devs</Description>
         <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
         <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageIconUrl>SolasIcon.svg</PackageIconUrl>
+        <PackageIcon>SolasIcon.png</PackageIcon>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,6 +25,6 @@
 
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\"/>
-        <None Include="..\SolasIcon.svg" Pack="true" PackagePath="\"/>
+        <None Include="..\SolasIcon.png" Pack="true" PackagePath="\"/>
     </ItemGroup>
 </Project>

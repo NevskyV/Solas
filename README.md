@@ -1,19 +1,21 @@
-<h1 align="center">
-    <a href="#"><img align="center" src="SolasPoster.png"></a>
-    <br />
-</h1>
+<h3 align="center">
+    <a href="#"><img style="height:300px;" align="center" src="SolasPoster.png"></a>
+</h3>
 <div align="center">
+    
 [![Site](https://img.shields.io/badge/Engine%20site-orange)](https://nevskyv.github.io/SolasSite/)
 [![NuGet Version](https://img.shields.io/nuget/v/Solas)](https://nuget.org/packages/Solas)
 [![Join our Telegram](https://img.shields.io/badge/Join_our-Telegram-blue?logo=telegram)](https://t.me/SolasEngine)
 [![Sponsor us](https://img.shields.io/badge/Sponsor%20us-pink)](https://pay.cloudtips.ru/p/65fe2c6c)
+    
 </div>
-<h1 align="center">
-⭐ Solas Game Engine ⭐
-</h1>
-<h3  strong align="center">
-“Developers should build games, not fight the engine.”
-</h3>
+
+<div>
+
+<h1 align="center"><strong>⭐ Solas Game Engine ⭐</strong></h1>
+
+<h3 align="center"><em>“Developers should build games, not fight the engine.”</em></h3>
+
 The ultimate goal of this engine is to eliminate architectural friction. We believe that when an engine prioritizes the developer, the developer can truly focus on the player.
 
 > 💡 **The Core Philosophy:**
@@ -24,11 +26,14 @@ The ultimate goal of this engine is to eliminate architectural friction. We beli
 
 ---
 
-<h2 strong align="center"> Overview 🚀</h2>
-Designed for rapid development across projects of any scale—with a special soft spot for **indie developers**—this engine redefines modern game workflows. 
+<h2 strong align="center"><strong>Overview 🚀</strong></h2>
+
+Designed for rapid development across projects of any scale—with a special soft spot for **indie developers** — this engine redefines modern game workflows. 
 
 By prioritizing exceptional **DX**, it solves the most painful bottlenecks of traditional engines. Built from the ground up with **teamwork, Git-friendliness, and CI/CD automation** in mind, its architecture naturally separates concerns, virtually eliminating merge conflicts and version control nightmares.
-<h3 strong align="center"> Powered by .NET 10 ⚡</h3>
+
+<h3 strong align="center"><strong>Powered by .NET 10 ⚡</strong></h3>
+
 The engine leverages the cutting-edge capabilities of .NET 10, delivering out-of-the-box support for:
 - **True Multithreading & Parallel Computing** – Max out modern hardware without the boilerplate.
 - **Data-Oriented Design (DOD)** – Cache-friendly, high-performance architecture.
@@ -39,7 +44,9 @@ The engine leverages the cutting-edge capabilities of .NET 10, delivering out-of
 - *...and much more.*
 
 ---
-<h2 strong align="center">🏗️ Architecture: The EDL Pattern</h2>
+
+<h2 strong align="center"><strong>🏗️ Architecture: The EDL Pattern</strong></h2>
+
 The engine introduces **EDL**, a breakthrough architectural pattern that fuses the best aspects of traditional OOP (Object-Oriented Programming), COP (Component-Oriented Programming), and ECS (Entity Component System).
 ### The Three Pillars of EDL:
 * **`Entity`** – A lightweight, empty container holding unique metadata.
@@ -47,3 +54,5 @@ The engine introduces **EDL**, a breakthrough architectural pattern that fuses t
 * **`Logic`** – Ultra-lightweight logic classes that hold only a reference to an `Entity` and operate on its `Data`.
 
 This separation guarantees that your codebase remains modular, highly performant, and incredibly easy to scale as your project grows.
+
+</div>

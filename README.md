@@ -45,7 +45,7 @@ The engine leverages the cutting-edge capabilities of .NET 10, delivering out-of
 
 ---
 
-<h2 strong align="center"><strong>🏗️ Architecture: The EDL Pattern</strong></h2>
+<h2 strong align="center"><strong>Architecture: The EDL Pattern 🏗️</strong></h2>
 
 The engine introduces **EDL**, a breakthrough architectural pattern that fuses the best aspects of traditional OOP (Object-Oriented Programming), COP (Component-Oriented Programming), and ECS (Entity Component System).
 ### The Three Pillars of EDL:

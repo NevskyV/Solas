@@ -7,17 +7,17 @@
         <RootNamespace>Solas</RootNamespace>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageId>Solas.Core</PackageId>
-        <Version>0.2.2</Version>
+        <Version>0.2.3</Version>
         <Authors>NevskyV</Authors>
         <Description>High performance open-source .net game engine created specifically for indie devs</Description>
         <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
         <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageReadmeFile>README_SIMPLE.md</PackageReadmeFile>
         <PackageIcon>SolasCoreIcon.png</PackageIcon>
     </PropertyGroup>
 
     <ItemGroup>
-        <None Include="..\README.md" Pack="true" PackagePath="\"/>
+        <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
         <None Include="SolasCoreIcon.png" Pack="true" PackagePath="\"/>
         <PackageReference Include="Solas.SourceGenerators" Version="0.2.*"
                           OutputItemType="Analyzer"

@@ -7,23 +7,23 @@
         <Nullable>disable</Nullable>
         <RootNamespace>Solas.Build</RootNamespace>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <PackageId>Solas.Build</PackageId>
-        <Version>0.1.1</Version>
+        <Version>0.2.0</Version>
         <Authors>NevskyV</Authors>
-        <Description>High performance open-source .net game engine created specifically for indie devs</Description>
+        <Description>Lightweight build tool for Solas projects</Description>
         <RepositoryUrl>https://github.com/NevskyV/Solas</RepositoryUrl>
         <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+        <PackageIcon>SolasBuildIcon.png</PackageIcon>
+        <PackageReadmeFile>README_SIMPLE.md</PackageReadmeFile>
 
         <PackAsTool>true</PackAsTool>
         <ToolCommandName>slsbuild</ToolCommandName>
-
         <IsRoslynComponentAnalyzer>false</IsRoslynComponentAnalyzer>
-
-        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Solas.Core" Version="0.1.*" />
+        <PackageReference Include="Solas.Core" Version="*" />
 
-        <None Include="..\README.md" Pack="true" PackagePath="\"/>
+        <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
+        <None Include="SolasBuildIcon.png" Pack="true" PackagePath="\"/>
     </ItemGroup>
 </Project>

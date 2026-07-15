@@ -42,7 +42,7 @@ public sealed class LogicAddingRegistrationGenerator : IIncrementalGenerator
             var sb = new StringBuilder();
             sb.AppendLine("using Solas.Registries;");
             sb.AppendLine();
-            sb.AppendLine("namespace Solas.Generated;");
+            sb.AppendLine("namespace SolasGenerated;");
             sb.AppendLine();
             sb.AppendLine("public class LogicAddingRegistration : ILogicRegistration");
             sb.AppendLine("{");

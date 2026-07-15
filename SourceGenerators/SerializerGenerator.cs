@@ -121,7 +121,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 var serializerName = $"{sanitizedName}Serializer";
 
                 ctx.AddSource($"{serializerName}.g.cs", SourceText.From(generatedSource, Encoding.UTF8));
-                allSerializers.Add((metadata, $"Solas.Generated.{serializerName}"));
+                allSerializers.Add((metadata, $"SolasGenerated.{serializerName}"));
 
                 foreach (var member in symbol.GetMembers().OfType<IFieldSymbol>())
                     EnqueueMemberType(member.Type, queue);
@@ -251,7 +251,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                       """);
         sb.AppendLine($"using {type.Namespace};");
         sb.AppendLine();
-        sb.AppendLine("namespace Solas.Generated;");
+        sb.AppendLine("namespace SolasGenerated;");
         sb.AppendLine();
         sb.AppendLine($"public sealed class {type.Name}Serializer : ICustomSerializer<{type.FullName}>");
         sb.AppendLine("{");
@@ -424,7 +424,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         var sb = new StringBuilder();
         sb.AppendLine("using Solas.Serialization.Core;");
         sb.AppendLine();
-        sb.AppendLine("namespace Solas.Generated;");
+        sb.AppendLine("namespace SolasGenerated;");
         sb.AppendLine();
         sb.AppendLine("public class SerializationRegistration : ISerializeRegistration");
         sb.AppendLine("{");

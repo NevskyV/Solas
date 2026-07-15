@@ -32,17 +32,22 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
                                  using Solas.Containers;
                                  using Solas.Interfaces;
 
+                                 namespace SolasGenerated;
+                                 
                                  """);
 
 
             registerSb.AppendLine("""
                                   using System;
+                                  using Solas.Registries;
 
-                                  namespace Solas.Generated
+                                  namespace SolasGenerated
                                   {
-                                      internal static class GeneratedUpdateRegistration
+                                      public class GeneratedUpdateRegistration : IUpdateRunnersRegistration
                                       {
-                                          internal static void RegisterAll()
+                                          public void Add(Solas.Registries.Registry registry) => ((Solas.Registries.UpdateRunnersRegistry)registry).AddRegistration(this);
+                                      
+                                          public void RegisterAssembly()
                                           {
                                   """);
 
@@ -98,8 +103,6 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
         if (!hasMethod) return;
 
         runners.AppendLine($$"""
-                             namespace Solas.Generated;
-                             
                              internal class {{runnerName}} : Solas.Interfaces.IUpdateRunner
                              {
                                  private readonly List<{{fullName}}> _updatables = new();

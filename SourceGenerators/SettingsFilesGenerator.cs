@@ -28,12 +28,13 @@ public sealed class SettingsFileGenerator : IIncrementalGenerator
             sb.AppendLine("""
                           using System;
                           using System.IO;
+                          using Solas;
                           using Solas.Attributes;
                           using Solas.Components;
                           using Solas.Registries;
                           using System.Runtime.CompilerServices;
                           
-                          namespace Solas.Generated
+                          namespace SolasGenerated
                           {
                               public class SettingsFileGenerator : ISettingsFilesRegistration
                               {

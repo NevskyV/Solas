@@ -67,6 +67,9 @@ internal class InitializeSystem(Space space)
 
     private async Task InitializeLogic(Logic logic)
     {
-        await Task.Run((logic as IInitializable).Initialize);
+        if(logic is IInitializable init)
+        {
+            await Task.Run(init.Initialize);
+        }
     }
 }

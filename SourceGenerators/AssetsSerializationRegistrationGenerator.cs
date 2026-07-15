@@ -41,7 +41,7 @@ internal sealed class AssetsSerializationRegistrationGenerator : IIncrementalGen
             var sb = new StringBuilder();
             sb.AppendLine("using Solas;");
             sb.AppendLine();
-            sb.AppendLine("namespace Solas.Generated;");
+            sb.AppendLine("namespace SolasGenerated;");
             sb.AppendLine();
             sb.AppendLine("public class AssetsSerializationRegistration : Solas.Registries.IAssetsRegistration");
             sb.AppendLine("{");

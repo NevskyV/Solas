@@ -42,7 +42,7 @@ internal sealed class DataSerializationRegistrationGenerator : IIncrementalGener
             var sb = new StringBuilder();
             sb.AppendLine("using Solas;");
             sb.AppendLine();
-            sb.AppendLine("namespace Solas.Generated;");
+            sb.AppendLine("namespace SolasGenerated;");
             sb.AppendLine();
             sb.AppendLine("public class DataSerializationRegistration : Solas.Registries.IDataRegistration");
             sb.AppendLine("{");

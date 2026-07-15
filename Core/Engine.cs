@@ -42,6 +42,7 @@ public static class Engine
         EngineContext.DataSerializationRegistry = new DataSerializationRegistry();
         EngineContext.AssetsSerializationRegistry = new AssetsSerializationRegistry();
         EngineContext.LogicAddingRegistry = new LogicAddingRegistry();
+        new UpdateRunnersRegistry().RegisterAll();
     }
 
     public static void UpdateSerializer(Serializer serializer)
@@ -107,7 +108,7 @@ public static class Engine
     {
         var initializationTasks = WorldContext.GlobalSpace.Initializer.InitializeDependencies().ToList();
         initializationTasks.AddRange(EngineContext.SpacePool.InitializeLocalSpaces());
-        Task.WhenAll(initializationTasks.ToArray());
+        Task.WhenAll(initializationTasks).Wait();
         State = GameState.Update;
     }
 

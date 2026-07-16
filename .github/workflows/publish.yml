@@ -129,7 +129,7 @@ jobs:
             [ -z "$pkg" ] && continue
           
             # Fetch latest version from NuGet API
-            LATEST=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$pkg" | grep -oP '"version":"\K[^"']+' | head -n 1 || echo "0.2.0")
+            LATEST=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$pkg" | grep -oP '"version":"\K[^"]+' | head -n 1 || echo "0.2.0")
           
             # Increment patch if scheduled to build
             if should_build "$pkg"; then
@@ -156,7 +156,7 @@ jobs:
           if $IS_TAG; then
             MAIN_VERSION="$TAG_VERSION"
           else
-            CURRENT_MAIN=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$MAIN_PACKAGE" | grep -oP '"version":"\K[^"']+' | head -n 1 || echo "0.2.0")
+            CURRENT_MAIN=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$MAIN_PACKAGE" | grep -oP '"version":"\K[^"]+' | head -n 1 || echo "0.2.0")
             BASE_VERSION=$(echo "$CURRENT_MAIN" | cut -d. -f1,2)
             PATCH_VERSION=$(echo "$CURRENT_MAIN" | cut -d. -f3)
             NEW_PATCH=$((PATCH_VERSION + 1))

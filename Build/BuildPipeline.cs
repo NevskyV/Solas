@@ -46,7 +46,8 @@ internal class BuildPipeline
         if (editorSerializer == null || runtimeSerializer == null) return;
 
         //Assets
-        await using var assetsStream = File.Open(_editorVfs.GetPath(_coreSettings.AssetsPackPath), FileMode.OpenOrCreate);
+        await using var assetsStream =
+            File.Open(_editorVfs.GetPath(_coreSettings.AssetsPackPath), FileMode.OpenOrCreate);
         if (assetsStream.Length > 0)
         {
             await using var outAssetsStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsPackPath));
@@ -76,7 +77,8 @@ internal class BuildPipeline
         SerializeSpace(_editorVfs.GetPath(_coreSettings.GlobalSpacePath),
             editorSerializer, runtimeSerializer, outGlobalSpaceStream);
 
-        await using var inAssetSpaceStream = File.Open(_editorVfs.GetPath(_coreSettings.AssetsSpacePath),  FileMode.OpenOrCreate);
+        await using var inAssetSpaceStream =
+            File.Open(_editorVfs.GetPath(_coreSettings.AssetsSpacePath), FileMode.OpenOrCreate);
         await using var outAssetSpaceStream = File.OpenWrite(_runtimeVfs.GetPath(_coreSettings.AssetsSpacePath));
         if (inAssetSpaceStream.Length > 0)
         {
@@ -104,7 +106,7 @@ internal class BuildPipeline
 
         var spaceDir = _runtimeVfs.GetPath(_coreSettings.LocalSpacesDirectory);
         Directory.CreateDirectory(spaceDir);
-        var paths = Query.GetPaths();
+        var paths = Query.GetLocalSpacesPaths();
         foreach (var spacePath in paths)
         {
             var path = Path.Combine(spaceDir + spacePath);
@@ -156,7 +158,7 @@ internal class BuildPipeline
         Console.WriteLine(processStartInfo.Arguments);
 
         using var process = Process.Start(processStartInfo);
-        if (process != null) 
+        if (process != null)
             await process.WaitForExitAsync();
     }
 }

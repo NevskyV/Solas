@@ -19,13 +19,13 @@
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\"/>
 
-        <PackageReference Include="Solas.Core" Version="0.2.4"/>
-        <PackageReference Include="Silk.NET.Core" Version="2.23.0" />
-        <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
-        <PackageReference Include="Silk.NET.Vulkan" Version="2.23.0" />
-        <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
-        <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
-        <PackageReference Include="Silk.NET.Windowing" Version="2.23.0" />
+        <PackageReference Include="Solas.Core"/>
+        <PackageReference Include="Silk.NET.Core"/>
+        <PackageReference Include="Silk.NET.Input"/>
+        <PackageReference Include="Silk.NET.Vulkan"/>
+        <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT"/>
+        <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR"/>
+        <PackageReference Include="Silk.NET.Windowing"/>
     </ItemGroup>
 
 </Project>

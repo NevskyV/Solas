@@ -2,7 +2,7 @@
     <PropertyGroup>
         <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
         <CoreVer Condition="'$(CoreVer)' == ''">0.2.4</CoreVer>
-        <TransformVer Condition="'$(TransformVer)' == ''">0.2.2</TransformVer>
+        <TransformVer Condition="'$(TransformVer)' == ''">0.2.3</TransformVer>
         <SourceGeneratorsVer Condition="'$(SourceGeneratorsVer)' == ''">0.2.3</SourceGeneratorsVer>
         <BuildVer Condition="'$(BuildVer)' == ''">0.2.0</BuildVer>
     </PropertyGroup>
@@ -11,5 +11,13 @@
         <PackageVersion Include="Solas.Core" Version="$(CoreVer)" />
         <PackageVersion Include="Solas.Transform" Version="$(TransformVer)" />
         <PackageVersion Include="Solas.SourceGenerators" Version="$(SourceGeneratorsVer)" />
+        
+        <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0"/>
+        <PackageVersion Include="Silk.NET.Core" Version="2.23.0" />
+        <PackageVersion Include="Silk.NET.Input" Version="2.23.0" />
+        <PackageVersion Include="Silk.NET.Vulkan" Version="2.23.0" />
+        <PackageVersion Include="Silk.NET.Vulkan.Extensions.EXT" Version="2.23.0" />
+        <PackageVersion Include="Silk.NET.Vulkan.Extensions.KHR" Version="2.23.0" />
+        <PackageVersion Include="Silk.NET.Windowing" Version="2.23.0" />
     </ItemGroup>
 </Project>

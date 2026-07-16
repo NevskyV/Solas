@@ -100,15 +100,17 @@ jobs:
             dir="${DIR_ARRAY[$i]}"
             pkg="${PKG_ARRAY[$i]}"
           
-            if [ -z "$pkg" ]; then continue; fi
-          
             if $IS_MAJOR_OR_MINOR; then
-              PACKAGES_TO_BUILD+=("$pkg")
+              if [ -n "$pkg" ]; then
+                PACKAGES_TO_BUILD+=("$pkg")
+              fi
               ANY_SUBPACKAGE_CHANGED=true
             elif is_changed "$dir"; then
-              PACKAGES_TO_BUILD+=("$pkg")
-              ANY_SUBPACKAGE_CHANGED=true
-              echo "Changes detected in directory: $dir (Package: $pkg)"
+              echo "Changes detected in directory: $dir${pkg:+ (Package: $pkg)}"
+              if [ -n "$pkg" ]; then
+                PACKAGES_TO_BUILD+=("$pkg")
+                ANY_SUBPACKAGE_CHANGED=true
+              fi
             fi
           done
           

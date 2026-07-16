@@ -21,9 +21,7 @@
                           ReferenceOutputAssembly="false"/>
         <PackageReference Include="Solas.Core"/>
         <PackageReference Include="Solas.Transform"/>
-    </ItemGroup>
 
-    <ItemGroup>
         <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
         <None Include="..\SolasIcon.png" Pack="true" PackagePath="\"/>
     </ItemGroup>

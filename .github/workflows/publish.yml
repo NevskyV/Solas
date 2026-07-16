@@ -128,6 +128,9 @@ jobs:
           
           echo "Packages scheduled for build: ${PACKAGES_TO_BUILD[*]}"
           
+          mkdir -p ./artifacts
+          dotnet nuget add source "$(pwd)/artifacts" --name local-artifacts
+          
           # --- 4. DYNAMIC DEPENDENCY RESOLUTION & PACKING ---
           VERSION_PARAMS=""
           
@@ -220,15 +223,15 @@ jobs:
             echo "Packing $pkg with version $TARGET_VERSION..."
           
             # Build first, so pack can find the compiled DLL
-            dotnet build "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS
+            dotnet build "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS --no-cache
           
             # Pack
-            dotnet pack "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS -o ./artifacts
+            dotnet pack "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS -o ./artifacts --no-cache
           
             NUPKG_FILE=$(find ./artifacts -name "$pkg.$TARGET_VERSION.nupkg")
             if [ -f "$NUPKG_FILE" ]; then
               echo "Pushing $pkg to NuGet.org..."
-              dotnet nuget push "$NUPKG_FILE" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+              dotnet nuget push "$NUPKG_FILE" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate 
           
               echo "Pushing $pkg to GitHub Packages..."
               dotnet nuget push "$NUPKG_FILE" --api-key "$GITHUB_API_KEY" --source "$GITHUB_SOURCE" --skip-duplicate

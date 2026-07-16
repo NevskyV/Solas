@@ -181,7 +181,21 @@ jobs:
             echo "----------------------------------------"
             echo "Processing package: $pkg"
           
-            PROJ_FILE=$(find . -name "$pkg.csproj" | head -n 1)
+            PROJ_DIR=""
+            for i in "${!PKG_ARRAY[@]}"; do
+              if [ "${PKG_ARRAY[$i]}" = "$pkg" ]; then
+                PROJ_DIR="${DIR_ARRAY[$i]}"
+              break
+            fi
+            done
+            
+            if [ -z "$PROJ_DIR" ]; then
+              # Main package: assume csproj name matches package id, or set explicitly via env
+              PROJ_FILE=$(find . -name "$pkg.csproj" | head -n 1)
+            else
+              PROJ_FILE=$(find . -path "*/$PROJ_DIR/*.csproj" -o -name "$PROJ_DIR.csproj" | head -n 1)
+            fi
+            
             if [ -z "$PROJ_FILE" ]; then
               echo "Error: Project file for $pkg not found!"
               continue

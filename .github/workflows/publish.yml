@@ -126,7 +126,9 @@ jobs:
           for i in "${!DIR_ARRAY[@]}"; do
             dir="${DIR_ARRAY[$i]}"
             pkg="${PKG_ARRAY[$i]}"
-            if [ -z "$pkg" ]; then continue; fi
+            if [ -z "$pkg" ]; then 
+              continue
+            fi
           
             # Fetch latest version from NuGet API
             LATEST=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$pkg" | grep -oP '"version":"\K[^"']+' | head -n 1 || echo "0.2.0")

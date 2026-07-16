@@ -35,6 +35,11 @@ public static class Query
         return EngineContext.AssetsPool.GetUnknownAsset(stream);
     }
 
+    public static Entity LoadPrefab(Guid guid)
+    {
+        return EngineContext.AssetsPool.LoadPrefab(guid);
+    }
+
     #endregion
 
     #region Space Pool
@@ -59,7 +64,7 @@ public static class Query
         return EngineContext.SpacePool.GetAllSpaceFoldersIn(space);
     }
 
-    public static string[] GetPaths()
+    public static string[] GetLocalSpacesPaths()
     {
         return EngineContext.SpacePool.GetPaths();
     }

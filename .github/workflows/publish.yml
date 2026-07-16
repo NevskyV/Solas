@@ -59,6 +59,15 @@ jobs:
             return 1
           }
           
+          get_latest_version() {
+            local pkg_lower=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+            curl -s "https://api.nuget.org/v3-flatcontainer/$pkg_lower/index.json" \
+            | grep -oP '"[0-9]+\.[0-9]+\.[0-9]+"' \
+            | tr -d '"' \
+            | sort -V \
+            | tail -n 1
+          }
+          
           # --- 2. EVALUATE TAGS AND VERSIONS ---
           IS_TAG=false
           TAG_VERSION=""
@@ -129,7 +138,8 @@ jobs:
             [ -z "$pkg" ] && continue
           
             # Fetch latest version from NuGet API
-            LATEST=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$pkg" | grep -oP '"version":"\K[^"]+' | head -n 1 || echo "0.2.0")
+            LATEST=$(get_latest_version "$pkg")
+            [ -z "$LATEST" ] && LATEST="0.2.0"
           
             # Increment patch if scheduled to build
             if should_build "$pkg"; then
@@ -156,7 +166,8 @@ jobs:
           if $IS_TAG; then
             MAIN_VERSION="$TAG_VERSION"
           else
-            CURRENT_MAIN=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$MAIN_PACKAGE" | grep -oP '"version":"\K[^"]+' | head -n 1 || echo "0.2.0")
+            CURRENT_MAIN=$(get_latest_version "$MAIN_PACKAGE")
+            [ -z "$CURRENT_MAIN" ] && CURRENT_MAIN="0.2.0"
             BASE_VERSION=$(echo "$CURRENT_MAIN" | cut -d. -f1,2)
             PATCH_VERSION=$(echo "$CURRENT_MAIN" | cut -d. -f3)
             NEW_PATCH=$((PATCH_VERSION + 1))

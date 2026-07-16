@@ -16,7 +16,7 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="Solas.Core" Version="0.2.*"/>
+        <PackageReference Include="Solas.Core"/>
         
         <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
         <None Include="SolasTransformIcon.png" Pack="true" PackagePath="\"/>

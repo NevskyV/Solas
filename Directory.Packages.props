@@ -1,0 +1,15 @@
+﻿<Project>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+        <CoreVer Condition="'$(CoreVer)' == ''">0.2.4</CoreVer>
+        <TransformVer Condition="'$(TransformVer)' == ''">0.2.2</TransformVer>
+        <SourceGeneratorsVer Condition="'$(SourceGeneratorsVer)' == ''">0.2.3</SourceGeneratorsVer>
+        <BuildVer Condition="'$(BuildVer)' == ''">0.2.0</BuildVer>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageVersion Include="Solas.Core" Version="$(CoreVer)" />
+        <PackageVersion Include="Solas.Transform" Version="$(TransformVer)" />
+        <PackageVersion Include="Solas.SourceGenerators" Version="$(SourceGeneratorsVer)" />
+    </ItemGroup>
+</Project>

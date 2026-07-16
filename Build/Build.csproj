@@ -21,7 +21,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Solas.Core" Version="*" />
+        <PackageReference Include="Solas.Core" />
 
         <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
         <None Include="SolasBuildIcon.png" Pack="true" PackagePath="\"/>

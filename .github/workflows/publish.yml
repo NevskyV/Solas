@@ -1,0 +1,187 @@
+﻿name: Smart Monorepo Publish
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+
+env:
+  ALLOWED_DIR: ${{ vars.ALLOWED_DIR }}
+  MAIN_REPO_PACKAGES: ${{ vars.MAIN_REPO_PACKAGES }}
+  MAIN_PACKAGE: ${{ vars.MAIN_PACKAGE }}
+  
+  NUGET_SOURCE: "https://api.nuget.org/v3/index.json"
+  GITHUB_SOURCE: "https://nuget.pkg.github.com/NevskyV/index.json"
+  NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+  GITHUB_API_KEY: ${{ secrets.GH_TOKEN }}
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run Build & Publish
+        shell: bash
+        run: |
+          # --- 1. DETECT CHANGES ---
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          else
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          is_changed() {
+            local dir=$1
+            echo "$CHANGED_FILES" | grep -q "^$dir/" && return 0 || return 1
+          }
+
+          # --- 2. EVALUATE TAGS AND VERSIONS ---
+          IS_TAG=false
+          TAG_VERSION=""
+          IS_MAJOR_OR_MINOR=false
+
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            IS_TAG=true
+            TAG_VERSION=$(echo "${{ github.ref_name }}" | sed 's/^v//')
+            echo "Triggered by tag: $TAG_VERSION"
+
+            if [[ "$TAG_VERSION" =~ ^[0-9]+\.[0-9]+\.0$ ]]; then
+              IS_MAJOR_OR_MINOR=true
+              echo "Major/Minor release. Force building all packages."
+            fi
+          fi
+
+          # --- 3. ANALYZE PACKAGES TO BUILD ---
+          PACKAGES_TO_BUILD=()
+          MAIN_CHANGED=false
+          ANY_SUBPACKAGE_CHANGED=false
+
+          if is_changed "$MAIN_PACKAGE"; then
+            MAIN_CHANGED=true
+          fi
+
+          DIR_ARRAY=($ALLOWED_DIR)
+          PKG_ARRAY=($MAIN_REPO_PACKAGES)
+
+          for i in "${!DIR_ARRAY[@]}"; do
+            dir="${DIR_ARRAY[$i]}"
+            pkg="${PKG_ARRAY[$i]}"
+          
+            if [ -z "$pkg" ]; then continue; fi
+
+            if $IS_MAJOR_OR_MINOR; then
+              PACKAGES_TO_BUILD+=("$pkg")
+              ANY_SUBPACKAGE_CHANGED=true
+            elif is_changed "$dir"; then
+              PACKAGES_TO_BUILD+=("$pkg")
+              ANY_SUBPACKAGE_CHANGED=true
+              echo "Changes detected in directory: $dir (Package: $pkg)"
+            fi
+          done
+
+          if $ANY_SUBPACKAGE_CHANGED && ! $MAIN_CHANGED; then
+            echo "Sub-packages changed. Adding main package: $MAIN_PACKAGE"
+            MAIN_CHANGED=true
+          fi
+
+          if $MAIN_CHANGED || $IS_MAJOR_OR_MINOR; then
+            PACKAGES_TO_BUILD+=("$MAIN_PACKAGE")
+          fi
+
+          if [ ${#PACKAGES_TO_BUILD[@]} -eq 0 ]; then
+            echo "No relevant directories changed. Skipping build."
+            exit 0
+          fi
+
+          echo "Packages scheduled for build: ${PACKAGES_TO_BUILD[*]}"
+
+          # --- 4. DYNAMIC DEPENDENCY RESOLUTION & PACKING ---
+          declare -A CALCULATED_VERSIONS
+          VERSION_PARAMS=""
+
+          # Dynamically fetch current NuGet versions and calculate new ones
+          for i in "${!DIR_ARRAY[@]}"; do
+            dir="${DIR_ARRAY[$i]}"
+            pkg="${PKG_ARRAY[$i]}"
+            if [ -z "$pkg" ]; then continue; fi
+
+            # Fetch latest version from NuGet API
+            LATEST=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$pkg" | grep -oP '"version":"\K[^"']+' | head -n 1 || echo "0.2.0")
+          
+            # If the package is scheduled to build, increment its version
+            if [[ " ${PACKAGES_TO_BUILD[*]} " =~ " ${pkg} " ]]; then
+              if $IS_TAG; then
+                NEW_VAL="$TAG_VERSION"
+              else
+                BASE_VERSION=$(echo "$LATEST" | cut -d. -f1,2)
+                PATCH_VERSION=$(echo "$LATEST" | cut -d. -f3)
+                NEW_PATCH=$((PATCH_VERSION + 1))
+                NEW_VAL="$BASE_VERSION.$NEW_PATCH"
+              fi
+            else
+              # Otherwise, keep the current NuGet version
+              NEW_VAL="$LATEST"
+            fi
+
+            CALCULATED_VERSIONS["$pkg"]="$NEW_VAL"
+          
+            # Append dynamic MSBuild parameter (e.g., /p:CoreVer=0.2.6)
+            VERSION_PARAMS="$VERSION_PARAMS /p:${dir}Ver=$NEW_VAL"
+          done
+
+          # Calculate main package version
+          if $IS_TAG; then
+            MAIN_VERSION="$TAG_VERSION"
+          else
+            CURRENT_MAIN=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$MAIN_PACKAGE" | grep -oP '"version":"\K[^"']+' | head -n 1 || echo "0.2.0")
+            BASE_VERSION=$(echo "$CURRENT_MAIN" | cut -d. -f1,2)
+            PATCH_VERSION=$(echo "$CURRENT_MAIN" | cut -d. -f3)
+            NEW_PATCH=$((PATCH_VERSION + 1))
+            MAIN_VERSION="$BASE_VERSION.$NEW_PATCH"
+          fi
+
+          echo "Generated MSBuild parameters: $VERSION_PARAMS"
+
+          # Pack and Publish
+          for pkg in "${PACKAGES_TO_BUILD[@]}"; do
+            echo "----------------------------------------"
+            echo "Processing package: $pkg"
+          
+            PROJ_FILE=$(find . -name "$pkg.csproj" | head -n 1)
+            if [ -z "$PROJ_FILE" ]; then
+              echo "Error: Project file for $pkg not found!"
+              continue
+            fi
+
+            if [ "$pkg" = "$MAIN_PACKAGE" ]; then
+              TARGET_VERSION="$MAIN_VERSION"
+            else
+              TARGET_VERSION="${CALCULATED_VERSIONS[$pkg]}"
+            fi
+
+            # Pack with own version and all dynamically generated sibling versions
+            dotnet pack "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS -o ./artifacts
+
+            NUPKG_FILE=$(find ./artifacts -name "$pkg.$TARGET_VERSION.nupkg")
+            if [ -f "$NUPKG_FILE" ]; then
+              echo "Pushing $pkg to NuGet.org..."
+              dotnet nuget push "$NUPKG_FILE" --api-key "$NUGET_API_KEY" --source "$NUGET_SOURCE" --skip-duplicate
+          
+              echo "Pushing $pkg to GitHub Packages..."
+              dotnet nuget push "$NUPKG_FILE" --api-key "$GITHUB_API_KEY" --source "$GITHUB_SOURCE" --skip-duplicate
+            fi
+          done

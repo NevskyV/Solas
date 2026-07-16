@@ -16,11 +16,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Solas.SourceGenerators" Version="0.2.*"
+        <PackageReference Include="Solas.SourceGenerators"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
-        <PackageReference Include="Solas.Core" Version="0.2.*"/>
-        <PackageReference Include="Solas.Transform" Version="0.2.*" />
+        <PackageReference Include="Solas.Core"/>
+        <PackageReference Include="Solas.Transform"/>
     </ItemGroup>
 
     <ItemGroup>

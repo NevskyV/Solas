@@ -49,11 +49,12 @@ jobs:
             echo "$CHANGED_FILES" | grep -q "^$dir/" && return 0 || return 1
           }
           
-          # Helper function to check if package is scheduled to build
           should_build() {
             local item=$1
             for p in "${PACKAGES_TO_BUILD[@]}"; do
-              [[ "$p" == "$item" ]] && return 0
+              if [ "$p" = "$item" ]; then
+                return 0
+              fi
             done
             return 1
           }
@@ -119,9 +120,9 @@ jobs:
           echo "Packages scheduled for build: ${PACKAGES_TO_BUILD[*]}"
           
           # --- 4. DYNAMIC DEPENDENCY RESOLUTION & PACKING ---
-          declare -A CALCULATED_VERSIONS
           VERSION_PARAMS=""
           
+          # Generate dynamic variables for each package version
           for i in "${!DIR_ARRAY[@]}"; do
             dir="${DIR_ARRAY[$i]}"
             pkg="${PKG_ARRAY[$i]}"
@@ -130,7 +131,7 @@ jobs:
             # Fetch latest version from NuGet API
             LATEST=$(curl -s "https://api-v2v3search-0.nuget.org/query?q=packageId:$pkg" | grep -oP '"version":"\K[^"']+' | head -n 1 || echo "0.2.0")
           
-            # If the package is scheduled to build, increment its version
+            # Increment patch if scheduled to build
             if should_build "$pkg"; then
               if $IS_TAG; then
                 NEW_VAL="$TAG_VERSION"
@@ -141,13 +142,13 @@ jobs:
                 NEW_VAL="$BASE_VERSION.$NEW_PATCH"
               fi
             else
-              # Otherwise, keep the current NuGet version
               NEW_VAL="$LATEST"
             fi
           
-            CALCULATED_VERSIONS["$pkg"]="$NEW_VAL"
+            # Set dynamic bash variable (e.g., VER_Core=0.2.6)
+            eval "VER_$dir=\$NEW_VAL"
           
-            # Append dynamic MSBuild parameter (e.g., /p:CoreVer=0.2.6)
+            # Append to MSBuild parameters (e.g., /p:CoreVer=0.2.6)
             VERSION_PARAMS="$VERSION_PARAMS /p:${dir}Ver=$NEW_VAL"
           done
           
@@ -175,13 +176,25 @@ jobs:
               continue
             fi
           
+            # Resolve target version dynamically
             if [ "$pkg" = "$MAIN_PACKAGE" ]; then
               TARGET_VERSION="$MAIN_VERSION"
             else
-              TARGET_VERSION="${CALCULATED_VERSIONS[$pkg]}"
+              # Find corresponding directory to get its version variable name
+              TARGET_VERSION=""
+              for i in "${!PKG_ARRAY[@]}"; do
+                if [ "${PKG_ARRAY[$i]}" = "$pkg" ]; then
+                  dir="${DIR_ARRAY[$i]}"
+                  # Read dynamic variable (e.g., reads $VER_Core)
+                  eval "TARGET_VERSION=\$VER_$dir"
+                  break
+                fi
+              done
             fi
           
-            # Pack with own version and all dynamically generated sibling versions
+            echo "Packing $pkg with version $TARGET_VERSION..."
+          
+            # Pack
             dotnet pack "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS -o ./artifacts
           
             NUPKG_FILE=$(find ./artifacts -name "$pkg.$TARGET_VERSION.nupkg")

@@ -219,6 +219,9 @@ jobs:
           
             echo "Packing $pkg with version $TARGET_VERSION..."
           
+            # Build first, so pack can find the compiled DLL
+            dotnet build "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS
+          
             # Pack
             dotnet pack "$PROJ_FILE" -c Release /p:Version="$TARGET_VERSION" $VERSION_PARAMS -o ./artifacts
           

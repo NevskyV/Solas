@@ -21,7 +21,6 @@
                           ReferenceOutputAssembly="false"/>
         <PackageReference Include="Solas.Core"/>
         <PackageReference Include="Solas.Transform"/>
-        
     </ItemGroup>
 
     <ItemGroup>

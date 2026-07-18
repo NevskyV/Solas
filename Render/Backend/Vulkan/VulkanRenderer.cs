@@ -22,6 +22,8 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanSynchronisation _synchronisation = new();
     private readonly VulkanVertexBuffer _vertexBuffer = new();
     private readonly VulkanIndexBuffer _indexBuffer = new();
+    private readonly VulkanDescriptorSetLayout _descriptorSetLayout = new();
+    private readonly VulkanUniformBuffers _uniformBuffers = new();
 
     void IRenderer.Start(IWindow window)
     {
@@ -38,7 +40,9 @@ internal class VulkanRenderer : IRenderer
             _commands,
             _synchronisation,
             _vertexBuffer,
-            _indexBuffer
+            _indexBuffer,
+            _uniformBuffers,
+            _descriptorSetLayout
         ];
 
         foreach (var injectable in injectables)
@@ -53,10 +57,12 @@ internal class VulkanRenderer : IRenderer
         _device.CreateLogicalDevice();
         _swapChain.Create();
         _swapChain.CreateImageViews();
+        _descriptorSetLayout.Create();
         _pipeline.Create();
         _commands.CreateCommandPool();
         _vertexBuffer.Create();
         _indexBuffer.Create();
+        _uniformBuffers.Create();
         _commands.CreateCommandBuffers();
         _synchronisation.CreateSyncObjects();
     }
@@ -144,6 +150,8 @@ internal class VulkanRenderer : IRenderer
         _context.Vk!.ResetCommandBuffer(_context.CommandBuffers![_context.FrameIndex],
             CommandBufferResetFlags.ReleaseResourcesBit);
         _commands.RecordCommandBuffer(imageIndex);
+
+        _uniformBuffers.Update(_context.FrameIndex);
 
         PipelineStageFlags waitDestinationStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
         fixed (Semaphore* pPresentCompleteSemaphore = &_context.PresentCompleteSemaphores![_context.FrameIndex])

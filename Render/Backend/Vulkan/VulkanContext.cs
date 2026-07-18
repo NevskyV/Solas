@@ -9,7 +9,7 @@ using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Solas.Render.Backend.Vulkan;
 
-internal sealed class VulkanContext(IWindow window) : IDisposable
+internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
     internal readonly uint MaxFramesInFlight = 2;
     internal uint FrameIndex;
@@ -50,6 +50,7 @@ internal sealed class VulkanContext(IWindow window) : IDisposable
     internal SurfaceFormatKHR SwapChainSurfaceFormat;
     internal ImageView[]? SwapChainImageViews;
 
+    internal DescriptorSetLayout DescriptorSetLayout;
     internal PipelineLayout PipelineLayout;
     internal Pipeline GraphicsPipeline;
 
@@ -75,6 +76,9 @@ internal sealed class VulkanContext(IWindow window) : IDisposable
 
     internal Buffer IndexBuffer;
     internal DeviceMemory IndexBufferMemory;
+
+    internal Buffer[]? UniformBuffers;
+    internal DeviceMemory[]? UniformBuffersMemory;
 
     public unsafe void Dispose()
     {

@@ -36,6 +36,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
         fixed (DynamicState* pDynamicStates = dynamicStates)
         fixed (PipelineShaderStageCreateInfo* pStages = shaderStages)
         fixed (VertexInputAttributeDescription* attributeDescriptionsPtr = attributeDescriptions)
+        fixed (DescriptorSetLayout* pDescriptorSetLayout = &Ctx.DescriptorSetLayout)
         {
             PipelineVertexInputStateCreateInfo vertexInputInfo = new()
             {
@@ -111,7 +112,8 @@ internal unsafe class VulkanPipeline : VulkanInjectable
             PipelineLayoutCreateInfo pipelineLayoutInfo = new()
             {
                 SType = StructureType.PipelineLayoutCreateInfo,
-                SetLayoutCount = 0,
+                SetLayoutCount = 1,
+                PSetLayouts = pDescriptorSetLayout,
                 PushConstantRangeCount = 0,
             };
 

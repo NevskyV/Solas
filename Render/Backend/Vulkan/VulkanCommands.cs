@@ -1,4 +1,5 @@
 ﻿using Silk.NET.Vulkan;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Backend.Vulkan;
 
@@ -13,7 +14,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             SType = StructureType.CommandPoolCreateInfo,
             Flags = CommandPoolCreateFlags.ResetCommandBufferBit
         };
-        
+
         if (Ctx.Vk!.CreateCommandPool(Ctx.Device, &poolInfo, null, out Ctx.CommandPool) !=
             Result.Success)
         {
@@ -52,7 +53,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             SType = StructureType.CommandBufferBeginInfo,
             Flags = CommandBufferUsageFlags.None
         };
-        
+
         if (Ctx.Vk!.BeginCommandBuffer(Ctx.CommandBuffers![Ctx.FrameIndex], &beginInfo) != Result.Success)
         {
             throw new Exception("Failed to begin command buffer");
@@ -99,6 +100,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk.CmdBindPipeline(Ctx.CommandBuffers![Ctx.FrameIndex], PipelineBindPoint.Graphics, Ctx.GraphicsPipeline);
 
+        fixed (Buffer* pBuffer = &Ctx.VertexBuffer)
+        {
+            Ctx.Vk.CmdBindVertexBuffers(Ctx.CommandBuffers![Ctx.FrameIndex], 0, pBuffer, new Span<ulong>([0]));
+        }
+
+
+        Ctx.Vk.CmdBindIndexBuffer(Ctx.CommandBuffers![Ctx.FrameIndex], Ctx.IndexBuffer, 0, IndexType.Uint32);
+
         // Viewport setup
         var viewport = new Viewport(0.0f, 0.0f, Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height, 0.0f, 1.0f);
         Ctx.Vk.CmdSetViewport(Ctx.CommandBuffers![Ctx.FrameIndex], 0, 1, &viewport);
@@ -107,7 +116,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var scissor = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent);
         Ctx.Vk.CmdSetScissor(Ctx.CommandBuffers![Ctx.FrameIndex], 0, 1, &scissor);
 
-        Ctx.Vk.CmdDraw(Ctx.CommandBuffers![Ctx.FrameIndex], 3, 1, 0, 0);
+        Ctx.Vk.CmdDrawIndexed(Ctx.CommandBuffers![Ctx.FrameIndex], (uint)Ctx.Indices.Length, 1, 0, 0, 0);
 
         Ctx.Vk.CmdEndRendering(Ctx.CommandBuffers![Ctx.FrameIndex]);
 
@@ -128,7 +137,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             throw new Exception("Failed to end command buffer");
         }
     }
-    
+
     private void TransitionImageLayout(
         uint imageIndex,
         ImageLayout oldLayout,

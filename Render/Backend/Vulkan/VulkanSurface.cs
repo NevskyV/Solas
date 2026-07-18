@@ -5,7 +5,7 @@ namespace Solas.Render.Backend.Vulkan;
 
 internal unsafe class VulkanSurface : VulkanInjectable
 {
-    internal void CreateSurface()
+    internal void Create()
     {
         if (!Ctx.Vk!.TryGetInstanceExtension<KhrSurface>(Ctx.Instance, out Ctx.KhrSurface))
         {

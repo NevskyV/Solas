@@ -11,7 +11,7 @@ namespace Solas.Render.Backend.Vulkan;
 internal class VulkanRenderer : IRenderer
 {
     private VulkanContext _context;
-    
+
     private readonly VulkanDebug _debug = new();
     private readonly VulkanSurface _surface = new();
     private readonly VulkanPhysicalDevice _physicalDevice = new();
@@ -20,11 +20,13 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanPipeline _pipeline = new();
     private readonly VulkanCommands _commands = new();
     private readonly VulkanSynchronisation _synchronisation = new();
-    
+    private readonly VulkanVertexBuffer _vertexBuffer = new();
+    private readonly VulkanIndexBuffer _indexBuffer = new();
+
     void IRenderer.Start(IWindow window)
     {
         _context = new VulkanContext(window);
-        
+
         VulkanInjectable[] injectables =
         [
             _debug,
@@ -34,23 +36,27 @@ internal class VulkanRenderer : IRenderer
             _swapChain,
             _pipeline,
             _commands,
-            _synchronisation
+            _synchronisation,
+            _vertexBuffer,
+            _indexBuffer
         ];
-        
+
         foreach (var injectable in injectables)
         {
             injectable.Ctx = _context;
         }
-        
+
         CreateInstance();
         _debug.SetupDebugMessenger();
-        _surface.CreateSurface();
+        _surface.Create();
         _physicalDevice.PickPhysicalDevice();
         _device.CreateLogicalDevice();
-        _swapChain.CreateSwapChain();
+        _swapChain.Create();
         _swapChain.CreateImageViews();
-        _pipeline.CreateGraphicsPipeline();
+        _pipeline.Create();
         _commands.CreateCommandPool();
+        _vertexBuffer.Create();
+        _indexBuffer.Create();
         _commands.CreateCommandBuffers();
         _synchronisation.CreateSyncObjects();
     }
@@ -96,6 +102,7 @@ internal class VulkanRenderer : IRenderer
             createInfo.EnabledLayerCount = 0;
             createInfo.PNext = null;
         }
+
         if (_context.Vk!.CreateInstance(in createInfo, null, out _context.Instance) != Result.Success)
         {
             throw new Exception("failed to create instance!");
@@ -113,13 +120,15 @@ internal class VulkanRenderer : IRenderer
 
     unsafe void IRenderer.DrawFrame()
     {
-        if (_context.Vk!.WaitForFences(_context.Device, [_context.InFlightFences![_context.FrameIndex]], true, ulong.MaxValue) != Result.Success)
+        if (_context.Vk!.WaitForFences(_context.Device, [_context.InFlightFences![_context.FrameIndex]], true,
+                ulong.MaxValue) != Result.Success)
         {
             throw new Exception("failed to wait for fence!");
         }
-        
+
         var imageIndex = 0u;
-        var result = _context.KhrSwapChain!.AcquireNextImage(_context.Device, _context.SwapChain, ulong.MaxValue, _context.PresentCompleteSemaphores![_context.FrameIndex], default, ref imageIndex);
+        var result = _context.KhrSwapChain!.AcquireNextImage(_context.Device, _context.SwapChain, ulong.MaxValue,
+            _context.PresentCompleteSemaphores![_context.FrameIndex], default, ref imageIndex);
         if (result == Result.ErrorOutOfDateKhr)
         {
             _swapChain.RecreateSwapChain();
@@ -129,12 +138,13 @@ internal class VulkanRenderer : IRenderer
         {
             throw new Exception("failed to acquire swap chain image!");
         }
-        
+
         _context.Vk!.ResetFences(_context.Device, [_context.InFlightFences![_context.FrameIndex]]);
-        
-        _context.Vk!.ResetCommandBuffer(_context.CommandBuffers![_context.FrameIndex], CommandBufferResetFlags.ReleaseResourcesBit);
+
+        _context.Vk!.ResetCommandBuffer(_context.CommandBuffers![_context.FrameIndex],
+            CommandBufferResetFlags.ReleaseResourcesBit);
         _commands.RecordCommandBuffer(imageIndex);
-        
+
         PipelineStageFlags waitDestinationStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
         fixed (Semaphore* pPresentCompleteSemaphore = &_context.PresentCompleteSemaphores![_context.FrameIndex])
         fixed (Semaphore* pRenderFinishedSemaphore = &_context.RenderFinishedSemaphores![imageIndex])
@@ -152,30 +162,32 @@ internal class VulkanRenderer : IRenderer
                 SignalSemaphoreCount = 1,
                 PSignalSemaphores = pRenderFinishedSemaphore
             };
-            
-            _context.Vk!.QueueSubmit(_context.GraphicsQueue,[submitInfo], _context.InFlightFences![_context.FrameIndex]);
-            
+
+            _context.Vk!.QueueSubmit(_context.GraphicsQueue, [submitInfo],
+                _context.InFlightFences![_context.FrameIndex]);
+
             PresentInfoKHR presentInfoKhr = new()
             {
                 SType = StructureType.PresentInfoKhr,
                 WaitSemaphoreCount = 1,
-                PWaitSemaphores    = pRenderFinishedSemaphore,
-                SwapchainCount     = 1,
-                PSwapchains        = pSwapChain,
-                PImageIndices      = &imageIndex
+                PWaitSemaphores = pRenderFinishedSemaphore,
+                SwapchainCount = 1,
+                PSwapchains = pSwapChain,
+                PImageIndices = &imageIndex
             };
-            
+
             result = _context.KhrSwapChain.QueuePresent(_context.GraphicsQueue, &presentInfoKhr);
             if (result == Result.ErrorOutOfDateKhr || result == Result.SuboptimalKhr || _context.FrameBufferResized)
             {
                 _context.FrameBufferResized = false;
                 _swapChain.RecreateSwapChain();
             }
-            else if(result != Result.Success)
+            else if (result != Result.Success)
             {
                 throw new Exception("failed to acquire swap chain image!");
             }
         }
+
         _context.FrameIndex = (_context.FrameIndex + 1) % _context.MaxFramesInFlight;
     }
 

@@ -1,11 +1,12 @@
 ﻿using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
+using Solas.Render.Components;
 
 namespace Solas.Render.Backend.Vulkan;
 
 internal unsafe class VulkanPipeline : VulkanInjectable
 {
-    internal void CreateGraphicsPipeline()
+    internal void Create()
     {
         var vertShaderCode = File.ReadAllBytes(@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders\slang.spv");
 
@@ -28,32 +29,36 @@ internal unsafe class VulkanPipeline : VulkanInjectable
         };
 
         PipelineShaderStageCreateInfo[] shaderStages = [vertShaderStageInfo, fragShaderStageInfo];
-        
-        PipelineVertexInputStateCreateInfo vertexInputInfo = new()
-        {
-            SType = StructureType.PipelineVertexInputStateCreateInfo,
-            VertexBindingDescriptionCount = 0,
-            VertexAttributeDescriptionCount = 0,
-        };
-        
-        PipelineInputAssemblyStateCreateInfo inputAssembly = new()
-        {
-            SType = StructureType.PipelineInputAssemblyStateCreateInfo,
-            Topology = PrimitiveTopology.TriangleList,
-            PrimitiveRestartEnable = false,
-        };
-        
+
+        var bindingDescription = Vertex.GetBindingDescription();
+        var attributeDescriptions = Vertex.GetAttributeDescriptions();
         DynamicState[] dynamicStates = [DynamicState.Viewport, DynamicState.Scissor];
         fixed (DynamicState* pDynamicStates = dynamicStates)
         fixed (PipelineShaderStageCreateInfo* pStages = shaderStages)
+        fixed (VertexInputAttributeDescription* attributeDescriptionsPtr = attributeDescriptions)
         {
+            PipelineVertexInputStateCreateInfo vertexInputInfo = new()
+            {
+                SType = StructureType.PipelineVertexInputStateCreateInfo,
+                VertexBindingDescriptionCount = 1,
+                PVertexBindingDescriptions = &bindingDescription,
+                VertexAttributeDescriptionCount = (uint)attributeDescriptions.Length,
+                PVertexAttributeDescriptions = attributeDescriptionsPtr
+            };
+
+            PipelineInputAssemblyStateCreateInfo inputAssembly = new()
+            {
+                SType = StructureType.PipelineInputAssemblyStateCreateInfo,
+                Topology = PrimitiveTopology.TriangleList,
+                PrimitiveRestartEnable = false,
+            };
+
             var dynamicState = new PipelineDynamicStateCreateInfo
             {
                 SType = StructureType.PipelineDynamicStateCreateInfo,
                 DynamicStateCount = (uint)dynamicStates.Length,
                 PDynamicStates = pDynamicStates
             };
-
 
             var viewportState = new PipelineViewportStateCreateInfo
             {
@@ -110,7 +115,8 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 PushConstantRangeCount = 0,
             };
 
-            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out Ctx.PipelineLayout) != Result.Success)
+            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out Ctx.PipelineLayout) !=
+                Result.Success)
             {
                 throw new Exception("failed to create pipeline layout!");
             }
@@ -122,7 +128,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 ColorAttachmentCount = 1,
                 PColorAttachmentFormats = &colorFormat,
                 PNext = null
-            }; 
+            };
             GraphicsPipelineCreateInfo pipelineInfo = new()
             {
                 SType = StructureType.GraphicsPipelineCreateInfo,
@@ -140,19 +146,19 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 RenderPass = default
             };
 
-            if (Ctx.Vk!.CreateGraphicsPipelines(Ctx.Device, default, 1, in pipelineInfo, null, out Ctx.GraphicsPipeline) !=
-                Result.Success)
+            if (Ctx.Vk!.CreateGraphicsPipelines(Ctx.Device, default, 1, in pipelineInfo,
+                    null, out Ctx.GraphicsPipeline) != Result.Success)
             {
                 throw new Exception("failed to create graphics pipeline!");
             }
         }
-        
+
         Ctx.Vk!.DestroyShaderModule(Ctx.Device, shaderModule, null);
 
         SilkMarshal.Free((nint)vertShaderStageInfo.PName);
         SilkMarshal.Free((nint)fragShaderStageInfo.PName);
     }
-    
+
     private ShaderModule CreateShaderModule(byte[] code)
     {
         ShaderModuleCreateInfo createInfo = new()
@@ -174,6 +180,5 @@ internal unsafe class VulkanPipeline : VulkanInjectable
         }
 
         return shaderModule;
-
     }
 }

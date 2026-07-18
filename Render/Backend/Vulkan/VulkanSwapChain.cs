@@ -5,11 +5,11 @@ namespace Solas.Render.Backend.Vulkan;
 
 internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 {
-    internal void CreateSwapChain()
+    internal void Create()
     {
         SurfaceCapabilitiesKHR surfaceCapabilities;
         Ctx.KhrSurface!.GetPhysicalDeviceSurfaceCapabilities(Ctx.PhysicalDevice, Ctx.Surface, &surfaceCapabilities);
-        
+
         Ctx.SwapChainExtent = ChooseSwapExtent(surfaceCapabilities);
         uint minImageCount = ChooseSwapMinImageCount(surfaceCapabilities);
 
@@ -21,6 +21,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         {
             Ctx.KhrSurface.GetPhysicalDeviceSurfaceFormats(Ctx.PhysicalDevice, Ctx.Surface, &formatCount, pFormats);
         }
+
         Ctx.SwapChainSurfaceFormat = ChooseSwapSurfaceFormat(availableFormats);
 
         // Retrieve available presentation modes
@@ -29,8 +30,10 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         var availablePresentModes = new PresentModeKHR[presentModeCount];
         fixed (PresentModeKHR* pPresentModes = availablePresentModes)
         {
-            Ctx.KhrSurface.GetPhysicalDeviceSurfacePresentModes(Ctx.PhysicalDevice, Ctx.Surface, &presentModeCount, pPresentModes);
+            Ctx.KhrSurface.GetPhysicalDeviceSurfacePresentModes(Ctx.PhysicalDevice, Ctx.Surface, &presentModeCount,
+                pPresentModes);
         }
+
         PresentModeKHR presentMode = ChooseSwapPresentMode(availablePresentModes);
 
         var swapChainCreateInfo = new SwapchainCreateInfoKHR
@@ -49,13 +52,14 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
             PresentMode = presentMode,
             Clipped = true
         };
-        
+
         if (!Ctx.Vk!.TryGetDeviceExtension(Ctx.Instance, Ctx.Device, out Ctx.KhrSwapChain))
         {
             throw new NotSupportedException("VKContext._KHRContext._swapchain extension not found.");
         }
 
-        if (Ctx.KhrSwapChain!.CreateSwapchain(Ctx.Device, in swapChainCreateInfo, null, out Ctx.SwapChain) != Result.Success)
+        if (Ctx.KhrSwapChain!.CreateSwapchain(Ctx.Device, in swapChainCreateInfo, null, out Ctx.SwapChain) !=
+            Result.Success)
         {
             throw new Exception("failed to create swap chain!");
         }
@@ -69,7 +73,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
             Ctx.KhrSwapChain.GetSwapchainImages(Ctx.Device, Ctx.SwapChain, &imageCount, pImages);
         }
     }
-    
+
     public void Dispose()
     {
         foreach (var imageView in Ctx.SwapChainImageViews!)
@@ -89,15 +93,15 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
             framebufferSize = Ctx.Window.FramebufferSize;
             Ctx.Window.DoEvents();
         }
-        
+
         Ctx.Vk!.DeviceWaitIdle(Ctx.Device);
 
         Dispose();
 
-        CreateSwapChain();
+        Create();
         CreateImageViews();
     }
-    
+
     internal void CreateImageViews()
     {
         Ctx.SwapChainImageViews = new ImageView[Ctx.SwapChainImages!.Length];
@@ -140,6 +144,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         {
             minImageCount = surfaceCapabilities.MaxImageCount;
         }
+
         return minImageCount;
     }
 
@@ -181,8 +186,10 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
         return new Extent2D
         {
-            Width = Math.Clamp((uint)Ctx.Window!.Size.X, capabilities.MinImageExtent.Width, capabilities.MaxImageExtent.Width),
-            Height = Math.Clamp((uint)Ctx.Window!.Size.Y, capabilities.MinImageExtent.Height, capabilities.MaxImageExtent.Height)
+            Width = Math.Clamp((uint)Ctx.Window!.Size.X, capabilities.MinImageExtent.Width,
+                capabilities.MaxImageExtent.Width),
+            Height = Math.Clamp((uint)Ctx.Window!.Size.Y, capabilities.MinImageExtent.Height,
+                capabilities.MaxImageExtent.Height)
         };
     }
 }

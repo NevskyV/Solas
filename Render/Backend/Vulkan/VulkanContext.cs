@@ -80,12 +80,23 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Buffer[]? UniformBuffers;
     internal DeviceMemory[]? UniformBuffersMemory;
 
-    public unsafe void Dispose()
+    internal DescriptorPool DescriptorPool;
+    internal DescriptorSet[]? DescriptorSets;
+
+    public void Dispose()
     {
+        Vk!.DestroyDescriptorSetLayout(Device, DescriptorSetLayout, null);
+        Vk!.DestroyDescriptorPool(Device, DescriptorPool, null);
         Vk!.DestroyBuffer(Device, IndexBuffer, null);
         Vk!.FreeMemory(Device, IndexBufferMemory, null);
         Vk!.DestroyBuffer(Device, VertexBuffer, null);
         Vk!.FreeMemory(Device, VertexBufferMemory, null);
+
+        for (int i = 0; i < MaxFramesInFlight; i++)
+        {
+            Vk!.DestroyBuffer(Device, UniformBuffers![i], null);
+            Vk!.FreeMemory(Device, UniformBuffersMemory![i], null);
+        }
 
         for (int i = 0; i < RenderFinishedSemaphores!.Length; i++)
         {
@@ -96,11 +107,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         {
             Vk!.DestroySemaphore(Device, PresentCompleteSemaphores![i], null);
             Vk!.DestroyFence(Device, InFlightFences![i], null);
-        }
-
-        foreach (var buffer in CommandBuffers!)
-        {
-            Vk!.FreeCommandBuffers(Device, CommandPool, 1, &buffer);
         }
 
         if (CommandPool.Handle != 0)

@@ -116,6 +116,10 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var scissor = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent);
         Ctx.Vk.CmdSetScissor(Ctx.CommandBuffers![Ctx.FrameIndex], 0, 1, &scissor);
 
+
+        Ctx.Vk!.CmdBindDescriptorSets(Ctx.CommandBuffers![Ctx.FrameIndex], PipelineBindPoint.Graphics,
+            Ctx.PipelineLayout, 0, 1, in Ctx.DescriptorSets![Ctx.FrameIndex], 0, null);
+
         Ctx.Vk.CmdDrawIndexed(Ctx.CommandBuffers![Ctx.FrameIndex], (uint)Ctx.Indices.Length, 1, 0, 0, 0);
 
         Ctx.Vk.CmdEndRendering(Ctx.CommandBuffers![Ctx.FrameIndex]);

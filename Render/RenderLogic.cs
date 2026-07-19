@@ -4,6 +4,7 @@ using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Solas.Attributes;
 using Solas.Components;
+using Solas.Enums;
 using Solas.Render.Backend.Vulkan;
 
 namespace Solas.Render;
@@ -14,6 +15,7 @@ public class RenderLogic : Logic
     private WindowSettings _windowSettings;
     private IWindow _window;
     private IRenderer _renderer;
+    private bool _isDestroyed;
 
     private void GetSettings()
     {
@@ -89,18 +91,23 @@ public class RenderLogic : Logic
 
     public void Update()
     {
+        if (_isDestroyed) return;
         if (!_window.IsClosing) _window.DoEvents();
-        else Dispose();
     }
 
     public void LateUpdate()
     {
-        _renderer.DrawFrame();
+        if (_isDestroyed) return;
+        if (!_window.IsClosing) _renderer.DrawFrame();
+        else Dispose();
     }
 
     public override void Dispose()
     {
+        if (_isDestroyed) return;
         _renderer.Dispose();
         _window.Dispose();
+        _isDestroyed = true;
+        Engine.State = GameState.None;
     }
 }

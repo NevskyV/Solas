@@ -24,6 +24,8 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanIndexBuffer _indexBuffer = new();
     private readonly VulkanDescriptorSetLayout _descriptorSetLayout = new();
     private readonly VulkanUniformBuffers _uniformBuffers = new();
+    private readonly VulkanDescriptorPool _descriptorPool = new();
+    private readonly VulkanDescriptorSets _descriptorSets = new();
 
     void IRenderer.Start(IWindow window)
     {
@@ -42,7 +44,9 @@ internal class VulkanRenderer : IRenderer
             _vertexBuffer,
             _indexBuffer,
             _uniformBuffers,
-            _descriptorSetLayout
+            _descriptorSetLayout,
+            _descriptorPool,
+            _descriptorSets
         ];
 
         foreach (var injectable in injectables)
@@ -63,6 +67,8 @@ internal class VulkanRenderer : IRenderer
         _vertexBuffer.Create();
         _indexBuffer.Create();
         _uniformBuffers.Create();
+        _descriptorPool.Create();
+        _descriptorSets.Create();
         _commands.CreateCommandBuffers();
         _synchronisation.CreateSyncObjects();
     }
@@ -140,7 +146,8 @@ internal class VulkanRenderer : IRenderer
             _swapChain.RecreateSwapChain();
             return;
         }
-        else if (result != Result.Success && result != Result.SuboptimalKhr)
+
+        if (result != Result.Success && result != Result.SuboptimalKhr)
         {
             throw new Exception("failed to acquire swap chain image!");
         }

@@ -99,7 +99,11 @@ public class RenderLogic : Logic
     {
         if (_isDestroyed) return;
         if (!_window.IsClosing) _renderer.DrawFrame();
-        else Dispose();
+        else
+        {
+            Engine.State = GameState.None;
+            //Game end
+        }
     }
 
     public override void Dispose()
@@ -108,6 +112,5 @@ public class RenderLogic : Logic
         _renderer.Dispose();
         _window.Dispose();
         _isDestroyed = true;
-        Engine.State = GameState.None;
     }
 }

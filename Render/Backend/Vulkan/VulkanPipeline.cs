@@ -69,6 +69,16 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 ScissorCount = 1
             };
 
+            PipelineDepthStencilStateCreateInfo depthStencil = new()
+            {
+                SType = StructureType.PipelineDepthStencilStateCreateInfo,
+                DepthTestEnable = true,
+                DepthWriteEnable = true,
+                DepthCompareOp = CompareOp.Less,
+                DepthBoundsTestEnable = false,
+                StencilTestEnable = false
+            };
+
             PipelineRasterizationStateCreateInfo rasterizer = new()
             {
                 SType = StructureType.PipelineRasterizationStateCreateInfo,
@@ -130,6 +140,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 SType = StructureType.PipelineRenderingCreateInfo,
                 ColorAttachmentCount = 1,
                 PColorAttachmentFormats = &colorFormat,
+                DepthAttachmentFormat = Ctx.DepthFormat,
                 PNext = null
             };
             GraphicsPipelineCreateInfo pipelineInfo = new()
@@ -145,6 +156,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 PMultisampleState = &multisampling,
                 PColorBlendState = &colorBlending,
                 PDynamicState = &dynamicState,
+                PDepthStencilState = &depthStencil,
                 Layout = Ctx.PipelineLayout,
                 RenderPass = default
             };

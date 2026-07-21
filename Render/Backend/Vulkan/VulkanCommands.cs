@@ -1,4 +1,5 @@
 ﻿using Silk.NET.Vulkan;
+using Solas.Render.Vulkan.Extensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan;
@@ -61,20 +62,30 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         // 2. Transition swapchain image layout to ColorAttachmentOptimal
         TransitionImageLayout(
-            imageIndex,
+            Ctx.SwapChainImages![imageIndex],
             ImageLayout.Undefined,
             ImageLayout.ColorAttachmentOptimal,
             AccessFlags2.None,
             AccessFlags2.ColorAttachmentWriteBit,
             PipelineStageFlags2.ColorAttachmentOutputBit,
-            PipelineStageFlags2.ColorAttachmentOutputBit
+            PipelineStageFlags2.ColorAttachmentOutputBit,
+            ImageAspectFlags.ColorBit
+        );
+
+        TransitionImageLayout(
+            Ctx.DepthImage,
+            ImageLayout.Undefined,
+            ImageLayout.DepthAttachmentOptimal,
+            AccessFlags2.DepthStencilAttachmentWriteBit,
+            AccessFlags2.DepthStencilAttachmentWriteBit,
+            PipelineStageFlags2.EarlyFragmentTestsBit | PipelineStageFlags2.LateFragmentTestsBit,
+            PipelineStageFlags2.EarlyFragmentTestsBit | PipelineStageFlags2.LateFragmentTestsBit,
+            ImageAspectFlags.DepthBit
         );
 
         // 3. Define clear color and dynamic rendering attachments
-        var clearColor = new ClearValue
-        {
-            Color = new ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f)
-        };
+        ClearValue clearColor = new ClearValue() { Color = new ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f) };
+        ClearValue clearDepth = new ClearValue() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) };
 
         var attachmentInfo = new RenderingAttachmentInfo
         {
@@ -86,13 +97,24 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ClearValue = clearColor
         };
 
+        var depthAttachmentInfo = new RenderingAttachmentInfo
+        {
+            SType = StructureType.RenderingAttachmentInfo,
+            ImageView = Ctx.DepthImageView,
+            ImageLayout = ImageLayout.DepthAttachmentOptimal,
+            LoadOp = AttachmentLoadOp.Clear,
+            StoreOp = AttachmentStoreOp.DontCare,
+            ClearValue = clearDepth,
+        };
+
         var renderingInfo = new RenderingInfo
         {
             SType = StructureType.RenderingInfo,
             RenderArea = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent),
             LayerCount = 1,
             ColorAttachmentCount = 1,
-            PColorAttachments = &attachmentInfo
+            PColorAttachments = &attachmentInfo,
+            PDepthAttachment = &depthAttachmentInfo
         };
 
         // 4. Record drawing commands
@@ -126,13 +148,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         // 5. Transition layout back to PresentSrcKhr
         TransitionImageLayout(
-            imageIndex,
+            Ctx.SwapChainImages![imageIndex],
             ImageLayout.ColorAttachmentOptimal,
             ImageLayout.PresentSrcKhr,
             AccessFlags2.ColorAttachmentWriteBit,
             AccessFlags2.None,
             PipelineStageFlags2.ColorAttachmentOutputBit,
-            PipelineStageFlags2.BottomOfPipeBit
+            PipelineStageFlags2.BottomOfPipeBit,
+            ImageAspectFlags.ColorBit
         );
 
         // 6. End command buffer recording
@@ -143,13 +166,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
     }
 
     private void TransitionImageLayout(
-        uint imageIndex,
+        Image image,
         ImageLayout oldLayout,
         ImageLayout newLayout,
         AccessFlags2 srcAccessMask,
         AccessFlags2 dstAccessMask,
         PipelineStageFlags2 srcStageMask,
-        PipelineStageFlags2 dstStageMask)
+        PipelineStageFlags2 dstStageMask,
+        ImageAspectFlags imageAspectFlags)
     {
         var barrier = new ImageMemoryBarrier2
         {
@@ -162,10 +186,10 @@ internal unsafe class VulkanCommands : VulkanInjectable
             NewLayout = newLayout,
             SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
             DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            Image = Ctx.SwapChainImages![imageIndex],
+            Image = image,
             SubresourceRange = new ImageSubresourceRange
             {
-                AspectMask = ImageAspectFlags.ColorBit,
+                AspectMask = imageAspectFlags,
                 BaseMipLevel = 0,
                 LevelCount = 1,
                 BaseArrayLayer = 0,

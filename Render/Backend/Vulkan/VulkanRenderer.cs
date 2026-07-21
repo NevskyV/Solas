@@ -29,11 +29,12 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanTextureImage _textureImage = new();
     private readonly VulkanTextureImageView _textureImageView = new();
     private readonly VulkanTextureSampler _textureSampler = new();
+    private readonly VulkanDepthResources _depthResources = new();
 
     void IRenderer.Start(IWindow window)
     {
         _context = new VulkanContext(window);
-
+        _context.DepthResources = _depthResources;
         VulkanInjectable[] injectables =
         [
             _debug,
@@ -52,7 +53,8 @@ internal class VulkanRenderer : IRenderer
             _descriptorSets,
             _textureImage,
             _textureImageView,
-            _textureSampler
+            _textureSampler,
+            _depthResources
         ];
 
         foreach (var injectable in injectables)
@@ -68,6 +70,7 @@ internal class VulkanRenderer : IRenderer
         _swapChain.Create();
         _swapChain.CreateImageViews();
         _descriptorSetLayout.Create();
+        _depthResources.Create();
         _pipeline.Create();
         _commands.CreateCommandPool();
         _textureImage.Create();

@@ -6,7 +6,7 @@ public static unsafe class VulkanImageViewExtension
 {
     extension(ImageView)
     {
-        internal static ImageView Create(VulkanContext ctx, Image image, Format format)
+        internal static ImageView Create(VulkanContext ctx, Image image, Format format, ImageAspectFlags aspectFlags)
         {
             var imageViewCreateInfo = new ImageViewCreateInfo
             {
@@ -16,7 +16,7 @@ public static unsafe class VulkanImageViewExtension
                 Format = format,
                 SubresourceRange =
                 {
-                    AspectMask = ImageAspectFlags.ColorBit,
+                    AspectMask = aspectFlags,
                     BaseMipLevel = 0,
                     LevelCount = 1,
                     BaseArrayLayer = 0,

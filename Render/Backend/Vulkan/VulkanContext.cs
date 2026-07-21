@@ -63,13 +63,22 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     internal readonly Vertex[] Vertices =
     [
-        new(new Vector2(-0.5f, -0.5f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
-        new(new Vector2(0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
-        new(new Vector2(0.5f, 0.5f), new Vector3(0.0f, 0.0f, 1.0f), new Vector2(0, 1)),
-        new(new Vector2(-0.5f, 0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1))
+        new(new Vector3(-0.5f, -0.5f, 0.0f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
+        new(new Vector3(0.5f, -0.5f, 0.0f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
+        new(new Vector3(0.5f, 0.5f, 0.0f), new Vector3(0.0f, 0.0f, 1.0f), new Vector2(0, 1)),
+        new(new Vector3(-0.5f, 0.5f, 0.0f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1)),
+
+        new(new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
+        new(new Vector3(0.5f, -0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
+        new(new Vector3(0.5f, 0.5f, -0.5f), new Vector3(0.0f, 0.0f, 1.0f), new Vector2(0, 1)),
+        new(new Vector3(-0.5f, 0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1))
     ];
 
-    internal readonly uint[] Indices = [0, 1, 2, 2, 3, 0];
+    internal readonly uint[] Indices =
+    [
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4
+    ];
 
     internal Buffer VertexBuffer;
     internal DeviceMemory VertexBufferMemory;
@@ -85,9 +94,14 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     internal Image TextureImage;
     internal DeviceMemory TextureImageMemory;
-
     internal ImageView TextureImageView;
     internal Sampler TextureSampler;
+
+    internal Image DepthImage;
+    internal DeviceMemory DepthImageMemory;
+    internal ImageView DepthImageView;
+    internal Format DepthFormat;
+    internal VulkanDepthResources DepthResources;
 
     public void Dispose()
     {

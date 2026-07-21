@@ -20,7 +20,8 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
         image.Data.AsSpan().CopyTo(new Span<byte>(data, (int)imageSize));
         Ctx.Vk!.UnmapMemory(Ctx.Device, stagingBufferMemory);
 
-        (Ctx.TextureImage, Ctx.TextureImageMemory) = CreateImage(
+        (Ctx.TextureImage, Ctx.TextureImageMemory) = Image.Create(
+            Ctx,
             image.Width,
             image.Height,
             Format.R8G8B8A8Srgb,
@@ -40,47 +41,7 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
         Ctx.Vk!.FreeMemory(Ctx.Device, stagingBufferMemory, null);
     }
 
-    private (Image, DeviceMemory) CreateImage(uint width, uint height, Format format,
-        ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties)
-    {
-        ImageCreateInfo imageInfo = new ImageCreateInfo()
-        {
-            SType = StructureType.ImageCreateInfo,
-            ImageType = ImageType.Type2D,
-            Format = format,
-            Extent = new Extent3D(width, height, 1),
-            MipLevels = 1,
-            ArrayLayers = 1,
-            Samples = SampleCountFlags.Count1Bit,
-            Tiling = tiling,
-            Usage = usage,
-            SharingMode = SharingMode.Exclusive
-        };
-
-        if (Ctx.Vk!.CreateImage(Ctx.Device, &imageInfo, null, out var img) != Result.Success)
-        {
-            throw new Exception("failed to create image!");
-        }
-
-        Ctx.Vk!.GetImageMemoryRequirements(Ctx.Device, img, out var memRequirements);
-
-        MemoryAllocateInfo allocInfo = new()
-        {
-            SType = StructureType.MemoryAllocateInfo,
-            AllocationSize = memRequirements.Size,
-            MemoryTypeIndex = Buffer.FindMemoryType(Ctx, memRequirements.MemoryTypeBits, properties),
-        };
-
-        if (Ctx.Vk!.AllocateMemory(Ctx.Device, in allocInfo, null, out var imageMemoryPtr) != Result.Success)
-        {
-            throw new Exception("failed to allocate image memory!");
-        }
-
-        Ctx.Vk!.BindImageMemory(Ctx.Device, img, imageMemoryPtr, 0);
-        return (img, imageMemoryPtr);
-    }
-
-    internal void TransitionImageLayout(VulkanContext ctx, CommandBuffer commandBuffer, Image image,
+    private void TransitionImageLayout(VulkanContext ctx, CommandBuffer commandBuffer, Image image,
         ImageLayout oldLayout, ImageLayout newLayout)
     {
         ImageMemoryBarrier barrier = new()

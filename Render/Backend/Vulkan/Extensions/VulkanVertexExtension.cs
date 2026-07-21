@@ -28,7 +28,7 @@ internal static class VulkanVertexExtension
                 {
                     Binding = 0,
                     Location = 0,
-                    Format = Format.R32G32Sfloat,
+                    Format = Format.R32G32B32Sfloat,
                     Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Pos)),
                 },
                 new()

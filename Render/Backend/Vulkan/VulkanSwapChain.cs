@@ -83,6 +83,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         }
 
         Ctx.KhrSwapChain!.DestroySwapchain(Ctx.Device, Ctx.SwapChain, null);
+        Ctx.DepthResources.Dispose();
     }
 
     internal void RecreateSwapChain()
@@ -101,6 +102,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
         Create();
         CreateImageViews();
+        Ctx.DepthResources.Create();
     }
 
     internal void CreateImageViews()
@@ -110,7 +112,8 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         for (int i = 0; i < Ctx.SwapChainImages.Length; i++)
         {
             Ctx.SwapChainImageViews[i] =
-                ImageView.Create(Ctx, Ctx.SwapChainImages[i], Ctx.SwapChainSurfaceFormat.Format);
+                ImageView.Create(Ctx, Ctx.SwapChainImages[i], Ctx.SwapChainSurfaceFormat.Format,
+                    ImageAspectFlags.ColorBit);
         }
     }
 

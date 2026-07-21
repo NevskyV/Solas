@@ -1,6 +1,6 @@
-﻿namespace Solas.Render.Backend.Vulkan;
+﻿namespace Solas.Render.Vulkan;
 
-internal abstract class VulkanInjectable 
+internal abstract class VulkanInjectable
 {
     internal VulkanContext Ctx { get; set; }
 }

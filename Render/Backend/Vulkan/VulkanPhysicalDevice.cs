@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanPhysicalDevice : VulkanInjectable
 {
@@ -45,7 +45,7 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         // 1. Check if the physical device supports Vulkan 1.3
         PhysicalDeviceProperties properties;
         Ctx.Vk!.GetPhysicalDeviceProperties(device, &properties);
-        // Note: Vk.Version13 is equivalent to Vulkan API version 1.3
+
         bool supportsVulkan13 = properties.ApiVersion >= Vk.Version13;
 
         // 2. Check if any queue family supports graphics operations
@@ -69,7 +69,7 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         }
 
         bool supportsAllRequiredExtensions = Ctx.RequiredDeviceExtensions.All(required =>
-            availableExtensions.Any(avail => 
+            availableExtensions.Any(avail =>
             {
                 // Convert the fixed byte buffer of the extension name to a C# string
                 var pName = avail.ExtensionName;
@@ -104,9 +104,9 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         };
 
         Ctx.Vk.GetPhysicalDeviceFeatures2(device, &features2);
-        
-        bool supportsRequiredFeatures = vk11Features.ShaderDrawParameters &&
-                                        vk13Features.DynamicRendering && vk13Features.Synchronization2 && 
+
+        bool supportsRequiredFeatures = vk11Features.ShaderDrawParameters && features2.Features.SamplerAnisotropy &&
+                                        vk13Features.DynamicRendering && vk13Features.Synchronization2 &&
                                         extDynamicStateFeatures.ExtendedDynamicState;
 
         return supportsVulkan13 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;

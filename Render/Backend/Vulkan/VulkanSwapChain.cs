@@ -1,7 +1,8 @@
 ﻿using Silk.NET.Maths;
 using Silk.NET.Vulkan;
+using Solas.Render.Vulkan.Extensions;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 {
@@ -106,34 +107,10 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
     {
         Ctx.SwapChainImageViews = new ImageView[Ctx.SwapChainImages!.Length];
 
-        var imageViewCreateInfo = new ImageViewCreateInfo
-        {
-            SType = StructureType.ImageViewCreateInfo,
-            ViewType = ImageViewType.Type2D,
-            Format = Ctx.SwapChainSurfaceFormat.Format,
-            SubresourceRange = new ImageSubresourceRange
-            {
-                AspectMask = ImageAspectFlags.ColorBit,
-                BaseMipLevel = 0,
-                LevelCount = 1,
-                BaseArrayLayer = 0,
-                LayerCount = 1
-            }
-        };
-
         for (int i = 0; i < Ctx.SwapChainImages.Length; i++)
         {
-            // Bind the current image to the creation info
-            imageViewCreateInfo.Image = Ctx.SwapChainImages[i];
-
-            ImageView imageView;
-            Result result = Ctx.Vk!.CreateImageView(Ctx.Device, &imageViewCreateInfo, null, &imageView);
-            if (result != Result.Success)
-            {
-                throw new Exception($"Failed to create image view for image index {i}: {result}");
-            }
-
-            Ctx.SwapChainImageViews[i] = imageView;
+            Ctx.SwapChainImageViews[i] =
+                ImageView.Create(Ctx, Ctx.SwapChainImages[i], Ctx.SwapChainSurfaceFormat.Format);
         }
     }
 

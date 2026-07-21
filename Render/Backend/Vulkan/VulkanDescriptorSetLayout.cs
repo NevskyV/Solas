@@ -1,6 +1,6 @@
 ﻿using Silk.NET.Vulkan;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDescriptorSetLayout : VulkanInjectable
 {
@@ -14,17 +14,30 @@ internal unsafe class VulkanDescriptorSetLayout : VulkanInjectable
             StageFlags = ShaderStageFlags.VertexBit
         };
 
-        DescriptorSetLayoutCreateInfo layoutInfo = new DescriptorSetLayoutCreateInfo()
+        DescriptorSetLayoutBinding combinedImageSamplerLayoutBinding = new DescriptorSetLayoutBinding()
         {
-            SType = StructureType.DescriptorSetLayoutCreateInfo,
-            BindingCount = 1,
-            PBindings = &uboLayoutBinding
+            Binding = 1,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.FragmentBit
         };
 
-        if (Ctx.Vk!.CreateDescriptorSetLayout(Ctx.Device, &layoutInfo, null, out Ctx.DescriptorSetLayout) !=
-            Result.Success)
+        var bindings = new[] { uboLayoutBinding, combinedImageSamplerLayoutBinding };
+
+        fixed (DescriptorSetLayoutBinding* pBindings = bindings)
         {
-            throw new Exception("failed to create descriptor set layout!");
+            DescriptorSetLayoutCreateInfo layoutInfo = new DescriptorSetLayoutCreateInfo()
+            {
+                SType = StructureType.DescriptorSetLayoutCreateInfo,
+                BindingCount = (uint)bindings.Length,
+                PBindings = pBindings
+            };
+
+            if (Ctx.Vk!.CreateDescriptorSetLayout(Ctx.Device, &layoutInfo, null, out Ctx.DescriptorSetLayout) !=
+                Result.Success)
+            {
+                throw new Exception("failed to create descriptor set layout!");
+            }
         }
     }
 }

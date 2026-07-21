@@ -1,7 +1,7 @@
 ﻿using Silk.NET.Vulkan;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanCommands : VulkanInjectable
 {

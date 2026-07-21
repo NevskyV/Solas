@@ -5,7 +5,7 @@ using Silk.NET.Windowing;
 using Solas.Attributes;
 using Solas.Components;
 using Solas.Enums;
-using Solas.Render.Backend.Vulkan;
+using Solas.Render.Vulkan;
 
 namespace Solas.Render;
 

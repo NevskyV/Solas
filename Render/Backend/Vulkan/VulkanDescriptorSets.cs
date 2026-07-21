@@ -1,7 +1,7 @@
 ﻿using Silk.NET.Vulkan;
 using Solas.Render.Components;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDescriptorSets : VulkanInjectable
 {
@@ -38,18 +38,38 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 Range = (ulong)sizeof(UniformBufferObject)
             };
 
-            WriteDescriptorSet descriptorWrite = new()
+            DescriptorImageInfo imageInfo = new()
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = Ctx.DescriptorSets[i],
-                DstBinding = 0,
-                DstArrayElement = 0,
-                DescriptorCount = 1,
-                DescriptorType = DescriptorType.UniformBuffer,
-                PBufferInfo = &bufferInfo,
+                Sampler = Ctx.TextureSampler,
+                ImageView = Ctx.TextureImageView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
             };
 
-            Ctx.Vk.UpdateDescriptorSets(Ctx.Device, 1, &descriptorWrite, []);
+            WriteDescriptorSet[] descriptorWrite =
+            [
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.DescriptorSets[i],
+                    DstBinding = 0,
+                    DstArrayElement = 0,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.UniformBuffer,
+                    PBufferInfo = &bufferInfo,
+                },
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.DescriptorSets[i],
+                    DstBinding = 1,
+                    DstArrayElement = 0,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.CombinedImageSampler,
+                    PImageInfo = &imageInfo,
+                }
+            ];
+
+            Ctx.Vk.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
         }
     }
 }

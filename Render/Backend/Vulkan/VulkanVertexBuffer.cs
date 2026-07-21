@@ -1,8 +1,9 @@
 ﻿using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Render.Vulkan.Extensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanVertexBuffer : VulkanInjectable
 {

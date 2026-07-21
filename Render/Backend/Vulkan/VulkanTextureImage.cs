@@ -1,14 +1,15 @@
 ﻿using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Render.Vulkan.Extensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanTextureImage : VulkanInjectable
 {
     internal void Create()
     {
-        var image = Texture.LoadFromFile("pipis.png");
+        var image = new Texture("pipis.png");
         var imageSize = (ulong)(image.Width * image.Height * 4);
         var (stagingBuffer, stagingBufferMemory) =
             Buffer.Create(Ctx, imageSize, BufferUsageFlags.TransferSrcBit,

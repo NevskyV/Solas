@@ -1,8 +1,9 @@
 ﻿using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Render.Vulkan.Extensions;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanPipeline : VulkanInjectable
 {

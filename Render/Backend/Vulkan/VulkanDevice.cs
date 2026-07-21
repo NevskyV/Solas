@@ -2,7 +2,7 @@
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDevice : VulkanInjectable
 {
@@ -17,9 +17,9 @@ internal unsafe class VulkanDevice : VulkanInjectable
         {
             Ctx.Vk.GetPhysicalDeviceQueueFamilyProperties(Ctx.PhysicalDevice, &queueFamilyCount, pQueueFamilies);
         }
-        
+
         uint queueIndex = uint.MaxValue; // Equivalent to ~0 (all bits set to 1)
-        
+
         for (uint qfpIndex = 0; qfpIndex < (uint)queueFamilies.Length; qfpIndex++)
         {
             // Check if queue family supports graphics operations
@@ -27,7 +27,8 @@ internal unsafe class VulkanDevice : VulkanInjectable
 
             // Check if queue family supports presentation to the KHR surface
             Bool32 supportsPresent = false;
-            Ctx.KhrSurface!.GetPhysicalDeviceSurfaceSupport(Ctx.PhysicalDevice, qfpIndex, Ctx.Surface, &supportsPresent);
+            Ctx.KhrSurface!.GetPhysicalDeviceSurfaceSupport(Ctx.PhysicalDevice, qfpIndex, Ctx.Surface,
+                &supportsPresent);
 
             if (supportsGraphics && supportsPresent)
             {
@@ -83,6 +84,7 @@ internal unsafe class VulkanDevice : VulkanInjectable
         var features2 = new PhysicalDeviceFeatures2
         {
             SType = StructureType.PhysicalDeviceFeatures2,
+            Features = { SamplerAnisotropy = true },
             PNext = &vk11Features
         };
 
@@ -122,7 +124,7 @@ internal unsafe class VulkanDevice : VulkanInjectable
             }
 
             Ctx.Device = device;
-            
+
             // Get the graphics queue handle
             Queue graphicsQueue;
             Ctx.Vk.GetDeviceQueue(Ctx.Device, (uint)graphicsIndex, 0, &graphicsQueue);
@@ -133,6 +135,5 @@ internal unsafe class VulkanDevice : VulkanInjectable
             // Clean up the allocated unmanaged string array pointer memory
             SilkMarshal.FreeString((nint)ppEnabledExtensionNames);
         }
-
     }
 }

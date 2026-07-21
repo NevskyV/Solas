@@ -1,26 +1,37 @@
 ﻿using Silk.NET.Vulkan;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDescriptorPool : VulkanInjectable
 {
     internal void Create()
     {
-        DescriptorPoolSize poolSize = new DescriptorPoolSize()
-        {
-            Type = DescriptorType.UniformBuffer,
-            DescriptorCount = Ctx.MaxFramesInFlight,
-        };
+        DescriptorPoolSize[] poolSize =
+        [
+            new()
+            {
+                Type = DescriptorType.UniformBuffer,
+                DescriptorCount = Ctx.MaxFramesInFlight,
+            },
+            new()
+            {
+                Type = DescriptorType.CombinedImageSampler,
+                DescriptorCount = Ctx.MaxFramesInFlight,
+            }
+        ];
 
-        DescriptorPoolCreateInfo poolInfo = new DescriptorPoolCreateInfo()
+        fixed (DescriptorPoolSize* pPoolSizes = poolSize)
         {
-            SType = StructureType.DescriptorPoolCreateInfo,
-            Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
-            MaxSets = Ctx.MaxFramesInFlight,
-            PoolSizeCount = 1,
-            PPoolSizes = &poolSize
-        };
+            DescriptorPoolCreateInfo poolInfo = new DescriptorPoolCreateInfo()
+            {
+                SType = StructureType.DescriptorPoolCreateInfo,
+                Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
+                MaxSets = Ctx.MaxFramesInFlight,
+                PoolSizeCount = (uint)poolSize.Length,
+                PPoolSizes = pPoolSizes
+            };
 
-        Ctx.Vk!.CreateDescriptorPool(Ctx.Device, &poolInfo, null, out Ctx.DescriptorPool);
+            Ctx.Vk!.CreateDescriptorPool(Ctx.Device, &poolInfo, null, out Ctx.DescriptorPool);
+        }
     }
 }

@@ -3,7 +3,7 @@ using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDebug : VulkanInjectable
 {
@@ -22,13 +22,14 @@ internal unsafe class VulkanDebug : VulkanInjectable
     internal void SetupDebugMessenger()
     {
         if (!Ctx.EnableValidationLayers) return;
-        
+
         if (!Ctx.Vk!.TryGetInstanceExtension(Ctx.Instance, out Ctx.DebugUtils)) return;
 
         DebugUtilsMessengerCreateInfoEXT createInfo = new();
         PopulateDebugMessengerCreateInfo(ref createInfo);
 
-        if (Ctx.DebugUtils!.CreateDebugUtilsMessenger(Ctx.Instance, in createInfo, null, out Ctx.DebugMessenger) != Result.Success)
+        if (Ctx.DebugUtils!.CreateDebugUtilsMessenger(Ctx.Instance, in createInfo, null, out Ctx.DebugMessenger) !=
+            Result.Success)
         {
             throw new Exception("failed to set up debug messenger!");
         }
@@ -57,12 +58,14 @@ internal unsafe class VulkanDebug : VulkanInjectable
             Ctx.Vk!.EnumerateInstanceLayerProperties(ref layerCount, availableLayersPtr);
         }
 
-        var availableLayerNames = availableLayers.Select(layer => Marshal.PtrToStringAnsi((IntPtr)layer.LayerName)).ToHashSet();
+        var availableLayerNames = availableLayers.Select(layer => Marshal.PtrToStringAnsi((IntPtr)layer.LayerName))
+            .ToHashSet();
 
         return Ctx.ValidationLayers.All(availableLayerNames.Contains);
     }
 
-    private uint DebugCallback(DebugUtilsMessageSeverityFlagsEXT messageSeverity, DebugUtilsMessageTypeFlagsEXT messageTypes, DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+    private uint DebugCallback(DebugUtilsMessageSeverityFlagsEXT messageSeverity,
+        DebugUtilsMessageTypeFlagsEXT messageTypes, DebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
     {
         Console.WriteLine("validation layer:" + Marshal.PtrToStringAnsi((nint)pCallbackData->PMessage));
 

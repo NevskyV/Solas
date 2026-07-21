@@ -6,7 +6,7 @@ using Silk.NET.Vulkan;
 using Silk.NET.Windowing;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal class VulkanRenderer : IRenderer
 {
@@ -27,6 +27,8 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanDescriptorPool _descriptorPool = new();
     private readonly VulkanDescriptorSets _descriptorSets = new();
     private readonly VulkanTextureImage _textureImage = new();
+    private readonly VulkanTextureImageView _textureImageView = new();
+    private readonly VulkanTextureSampler _textureSampler = new();
 
     void IRenderer.Start(IWindow window)
     {
@@ -48,7 +50,9 @@ internal class VulkanRenderer : IRenderer
             _descriptorSetLayout,
             _descriptorPool,
             _descriptorSets,
-            _textureImage
+            _textureImage,
+            _textureImageView,
+            _textureSampler
         ];
 
         foreach (var injectable in injectables)
@@ -67,6 +71,8 @@ internal class VulkanRenderer : IRenderer
         _pipeline.Create();
         _commands.CreateCommandPool();
         _textureImage.Create();
+        _textureImageView.Create();
+        _textureSampler.Create();
         _vertexBuffer.Create();
         _indexBuffer.Create();
         _uniformBuffers.Create();

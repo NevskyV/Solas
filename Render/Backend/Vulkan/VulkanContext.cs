@@ -7,7 +7,7 @@ using Solas.Render.Components;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan;
 
 internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
@@ -63,10 +63,10 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     internal readonly Vertex[] Vertices =
     [
-        new(new Vector2(-0.5f, -0.5f), new Vector3(1.0f, 0.0f, 0.0f)),
-        new(new Vector2(0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f)),
-        new(new Vector2(0.5f, 0.5f), new Vector3(0.0f, 0.0f, 1.0f)),
-        new(new Vector2(-0.5f, 0.5f), new Vector3(1.0f, 0.0f, 1.0f))
+        new(new Vector2(-0.5f, -0.5f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
+        new(new Vector2(0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
+        new(new Vector2(0.5f, 0.5f), new Vector3(0.0f, 0.0f, 1.0f), new Vector2(0, 1)),
+        new(new Vector2(-0.5f, 0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1))
     ];
 
     internal readonly uint[] Indices = [0, 1, 2, 2, 3, 0];
@@ -86,8 +86,13 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Image TextureImage;
     internal DeviceMemory TextureImageMemory;
 
+    internal ImageView TextureImageView;
+    internal Sampler TextureSampler;
+
     public void Dispose()
     {
+        Vk!.DestroySampler(Device, TextureSampler, null);
+        Vk!.DestroyImageView(Device, TextureImageView, null);
         Vk!.DestroyImage(Device, TextureImage, null);
         Vk!.FreeMemory(Device, TextureImageMemory, null);
 

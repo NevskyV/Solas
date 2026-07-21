@@ -1,9 +1,8 @@
-﻿using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 
-namespace Solas.Render.Backend.Vulkan;
+namespace Solas.Render.Vulkan.Extensions;
 
 internal static class VulkanVertexExtension
 {
@@ -23,21 +22,28 @@ internal static class VulkanVertexExtension
 
         internal static VertexInputAttributeDescription[] GetAttributeDescriptions()
         {
-            var attributeDescriptions = new[]
+            var attributeDescriptions = new VertexInputAttributeDescription[]
             {
-                new VertexInputAttributeDescription()
+                new()
                 {
                     Binding = 0,
                     Location = 0,
                     Format = Format.R32G32Sfloat,
                     Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Pos)),
                 },
-                new VertexInputAttributeDescription()
+                new()
                 {
                     Binding = 0,
                     Location = 1,
                     Format = Format.R32G32B32Sfloat,
                     Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Color)),
+                },
+                new()
+                {
+                    Binding = 0,
+                    Location = 2,
+                    Format = Format.R32G32Sfloat,
+                    Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.TexCoord)),
                 }
             };
 

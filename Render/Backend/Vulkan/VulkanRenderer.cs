@@ -26,6 +26,7 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanUniformBuffers _uniformBuffers = new();
     private readonly VulkanDescriptorPool _descriptorPool = new();
     private readonly VulkanDescriptorSets _descriptorSets = new();
+    private readonly VulkanTextureImage _textureImage = new();
 
     void IRenderer.Start(IWindow window)
     {
@@ -46,7 +47,8 @@ internal class VulkanRenderer : IRenderer
             _uniformBuffers,
             _descriptorSetLayout,
             _descriptorPool,
-            _descriptorSets
+            _descriptorSets,
+            _textureImage
         ];
 
         foreach (var injectable in injectables)
@@ -64,6 +66,7 @@ internal class VulkanRenderer : IRenderer
         _descriptorSetLayout.Create();
         _pipeline.Create();
         _commands.CreateCommandPool();
+        _textureImage.Create();
         _vertexBuffer.Create();
         _indexBuffer.Create();
         _uniformBuffers.Create();

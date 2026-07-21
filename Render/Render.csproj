@@ -19,13 +19,14 @@
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\"/>
 
-        <PackageReference Include="Solas.Core"/>
+        <PackageReference Include="Solas.Transform"/>
         <PackageReference Include="Silk.NET.Core"/>
         <PackageReference Include="Silk.NET.Input"/>
         <PackageReference Include="Silk.NET.Vulkan"/>
         <PackageReference Include="Silk.NET.Vulkan.Extensions.EXT"/>
         <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR"/>
         <PackageReference Include="Silk.NET.Windowing"/>
+        <PackageReference Include="StbImageSharp"/>
     </ItemGroup>
 
 </Project>

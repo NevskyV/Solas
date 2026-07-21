@@ -4,11 +4,11 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Backend.Vulkan;
 
-internal static class VulkanBufferExtension
+internal static unsafe class VulkanBufferExtension
 {
     extension(Buffer)
     {
-        internal static unsafe (Buffer, DeviceMemory) Create(VulkanContext ctx, ulong size, BufferUsageFlags usage,
+        internal static (Buffer, DeviceMemory) Create(VulkanContext ctx, ulong size, BufferUsageFlags usage,
             MemoryPropertyFlags properties)
         {
             BufferCreateInfo bufferCreateInfo = new()
@@ -27,7 +27,7 @@ internal static class VulkanBufferExtension
             {
                 SType = StructureType.MemoryAllocateInfo,
                 AllocationSize = memRequirements.Size,
-                MemoryTypeIndex = FindMemoryType(ctx, memRequirements.MemoryTypeBits, properties)
+                MemoryTypeIndex = Buffer.FindMemoryType(ctx, memRequirements.MemoryTypeBits, properties)
             };
 
             if (ctx.Vk.AllocateMemory(ctx.Device, &memoryAllocateInfo, null, out var bufferMemory) != Result.Success)
@@ -40,6 +40,16 @@ internal static class VulkanBufferExtension
         }
 
         internal static unsafe void CopyBuffer(VulkanContext ctx, Buffer srcBuffer, Buffer dstBuffer, ulong bufferSize)
+        {
+            var commandBuffer = Buffer.BeginSingleTimeCommands(ctx);
+
+            BufferCopy copyRegion = new() { Size = bufferSize, };
+            ctx.Vk!.CmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, in copyRegion);
+
+            Buffer.EndSingleTimeCommands(ctx, commandBuffer);
+        }
+
+        internal static CommandBuffer BeginSingleTimeCommands(VulkanContext ctx)
         {
             var allocInfo = new CommandBufferAllocateInfo()
             {
@@ -58,13 +68,11 @@ internal static class VulkanBufferExtension
             };
 
             ctx.Vk!.BeginCommandBuffer(commandBuffer, in beginInfo);
+            return commandBuffer;
+        }
 
-            BufferCopy copyRegion = new()
-            {
-                Size = bufferSize,
-            };
-
-            ctx.Vk!.CmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, in copyRegion);
+        internal static void EndSingleTimeCommands(VulkanContext ctx, CommandBuffer commandBuffer)
+        {
             ctx.Vk!.EndCommandBuffer(commandBuffer);
 
             SubmitInfo submitInfo = new()
@@ -79,19 +87,21 @@ internal static class VulkanBufferExtension
 
             ctx.Vk!.FreeCommandBuffers(ctx.Device, ctx.CommandPool, 1, in commandBuffer);
         }
-    }
 
-    internal static uint FindMemoryType(VulkanContext ctx, uint typeFilter, MemoryPropertyFlags properties)
-    {
-        PhysicalDeviceMemoryProperties memProperties = ctx.Vk!.GetPhysicalDeviceMemoryProperties(ctx.PhysicalDevice);
-        for (var i = 0; i < memProperties.MemoryTypeCount; i++)
+        internal static uint FindMemoryType(VulkanContext ctx, uint typeFilter, MemoryPropertyFlags properties)
         {
-            if ((typeFilter & (1 << i)) != 0 && (memProperties.MemoryTypes[i].PropertyFlags & properties) == properties)
+            PhysicalDeviceMemoryProperties
+                memProperties = ctx.Vk!.GetPhysicalDeviceMemoryProperties(ctx.PhysicalDevice);
+            for (var i = 0; i < memProperties.MemoryTypeCount; i++)
             {
-                return (uint)i;
+                if ((typeFilter & (1 << i)) != 0 &&
+                    (memProperties.MemoryTypes[i].PropertyFlags & properties) == properties)
+                {
+                    return (uint)i;
+                }
             }
-        }
 
-        throw new Exception("failed to find suitable memory type!");
+            throw new Exception("failed to find suitable memory type!");
+        }
     }
 }

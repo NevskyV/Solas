@@ -83,8 +83,14 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal DescriptorPool DescriptorPool;
     internal DescriptorSet[]? DescriptorSets;
 
+    internal Image TextureImage;
+    internal DeviceMemory TextureImageMemory;
+
     public void Dispose()
     {
+        Vk!.DestroyImage(Device, TextureImage, null);
+        Vk!.FreeMemory(Device, TextureImageMemory, null);
+
         Vk!.DestroyDescriptorSetLayout(Device, DescriptorSetLayout, null);
         Vk!.DestroyDescriptorPool(Device, DescriptorPool, null);
         Vk!.DestroyBuffer(Device, IndexBuffer, null);

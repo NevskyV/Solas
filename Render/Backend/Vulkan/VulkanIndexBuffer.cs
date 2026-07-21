@@ -1,5 +1,4 @@
 ﻿using Silk.NET.Vulkan;
-using Solas.Render.Components;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Backend.Vulkan;

@@ -31,10 +31,10 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
         var ubo = new UniformBufferObject()
         {
-            Model = Matrix4x4.Identity * Matrix4x4.CreateFromAxisAngle(new Vector3(0, 0, 1), time * Radians(45.0f)),
-            View = Matrix4x4.CreateLookAt(new Vector3(2, 2, 2), new Vector3(0, 0, 0), new Vector3(0, 0, 1)),
-            Proj = Matrix4x4.CreatePerspectiveFieldOfView(Radians(45.0f),
-                (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height, 0.1f, 10.0f)
+            Model = Matrix4x4.Identity * Matrix4x4.CreateFromAxisAngle(new Vector3(0, 1, 0), time * Radians(45.0f)),
+            View = Matrix4x4.CreateLookAt(new Vector3(2, 9, 8), new Vector3(0, 0, 0), new Vector3(0, 1, 0)),
+            Proj = Matrix4x4.CreatePerspectiveFieldOfView(Radians(105.0f),
+                (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height, 0.1f, 100.0f)
         };
 
         ubo.Proj.M22 *= -1;

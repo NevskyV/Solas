@@ -4,6 +4,7 @@ using Silk.NET.Core.Native;
 using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Windowing;
+using Solas.Render.Components;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Solas.Render.Vulkan;
@@ -76,6 +77,7 @@ internal class VulkanRenderer : IRenderer
         _textureImage.Create();
         _textureImageView.Create();
         _textureSampler.Create();
+        LoadModel();
         _vertexBuffer.Create();
         _indexBuffer.Create();
         _uniformBuffers.Create();
@@ -83,6 +85,13 @@ internal class VulkanRenderer : IRenderer
         _descriptorSets.Create();
         _commands.CreateCommandBuffers();
         _synchronisation.CreateSyncObjects();
+    }
+
+    private void LoadModel()
+    {
+        var mesh = new Mesh(_context.ModelPath);
+        _context.Vertices = mesh.Vertices;
+        _context.Indices = mesh.Indices;
     }
 
     private unsafe void CreateInstance()

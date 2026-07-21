@@ -11,6 +11,9 @@ namespace Solas.Render.Vulkan;
 
 internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
+    internal readonly string ModelPath = "neko.obj";
+    internal readonly string TexturePath = "neko.png";
+
     internal readonly uint MaxFramesInFlight = 2;
     internal uint FrameIndex;
     internal bool FrameBufferResized;
@@ -61,7 +64,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Semaphore[]? RenderFinishedSemaphores;
     internal Fence[]? InFlightFences;
 
-    internal readonly Vertex[] Vertices =
+    internal Vertex[] Vertices =
     [
         new(new Vector3(-0.5f, -0.5f, 0.0f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
         new(new Vector3(0.5f, -0.5f, 0.0f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
@@ -74,7 +77,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         new(new Vector3(-0.5f, 0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1))
     ];
 
-    internal readonly uint[] Indices =
+    internal uint[] Indices =
     [
         0, 1, 2, 2, 3, 0,
         4, 5, 6, 6, 7, 4

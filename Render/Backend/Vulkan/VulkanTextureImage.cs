@@ -9,7 +9,7 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
 {
     internal void Create()
     {
-        var image = new Texture("pipis.png");
+        var image = new Texture(Ctx.TexturePath);
         var imageSize = (ulong)(image.Width * image.Height * 4);
         var (stagingBuffer, stagingBufferMemory) =
             Buffer.Create(Ctx, imageSize, BufferUsageFlags.TransferSrcBit,

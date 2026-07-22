@@ -2,9 +2,9 @@
 
 namespace Solas.Render.Components;
 
-public readonly struct Vertex(Vector3 pos, Vector3 color, Vector2 texCoord)
+public readonly record struct Vertex(Vector3 Pos, Vector3 Color, Vector2 TexCoord)
 {
-    public readonly Vector3 Pos = pos;
-    public readonly Vector3 Color = color;
-    public readonly Vector2 TexCoord = texCoord;
+    public readonly Vector3 Pos = Pos;
+    public readonly Vector3 Color = Color;
+    public readonly Vector2 TexCoord = TexCoord;
 }

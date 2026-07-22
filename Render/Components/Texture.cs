@@ -1,5 +1,4 @@
-﻿using Solas.Assets;
-using StbImageSharp;
+﻿using StbImageSharp;
 
 namespace Solas.Render.Components;
 

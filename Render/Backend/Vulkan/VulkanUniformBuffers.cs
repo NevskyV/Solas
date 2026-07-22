@@ -2,6 +2,7 @@
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
+using Solas.Transform.MathExtensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan;
@@ -27,14 +28,26 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
     internal void Update(uint currentImage)
     {
-        var time = (float)Ctx.Window!.Time;
+        Vector3 cameraPos = Ctx.CameraTransform.Position.Value;
+        Vector3 cameraRot = Ctx.CameraTransform.Rotation.Value;
+
+        Quaternion cameraQuat = cameraRot.ToQuaternion();
+
+        Vector3 forward = Vector3.Transform(-Vector3.UnitZ, cameraQuat);
+        Vector3 up = Vector3.Transform(Vector3.UnitY, cameraQuat);
 
         var ubo = new UniformBufferObject()
         {
-            Model = Matrix4x4.Identity * Matrix4x4.CreateFromAxisAngle(new Vector3(0, 1, 0), time * Radians(45.0f)),
-            View = Matrix4x4.CreateLookAt(new Vector3(2, 9, 8), new Vector3(0, 0, 0), new Vector3(0, 1, 0)),
-            Proj = Matrix4x4.CreatePerspectiveFieldOfView(Radians(105.0f),
-                (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height, 0.1f, 100.0f)
+            Model = Matrix4x4.Identity,
+
+            View = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up),
+
+            Proj = Matrix4x4.CreatePerspectiveFieldOfView(
+                Radians(Ctx.CameraData.FieldOfView),
+                (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height,
+                0.1f,
+                100.0f
+            )
         };
 
         ubo.Proj.M22 *= -1;

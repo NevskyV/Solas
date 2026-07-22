@@ -1,9 +1,10 @@
-﻿using System.Numerics;
-using Silk.NET.Vulkan;
+﻿using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
 using Solas.Render.Components;
+using Solas.Render.Data;
+using Solas.Transform;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
@@ -13,6 +14,9 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
     internal readonly string ModelPath = "neko.obj";
     internal readonly string TexturePath = "neko.png";
+
+    internal TransformData CameraTransform;
+    internal CameraData CameraData;
 
     internal readonly uint MaxFramesInFlight = 2;
     internal uint FrameIndex;
@@ -64,24 +68,9 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Semaphore[]? RenderFinishedSemaphores;
     internal Fence[]? InFlightFences;
 
-    internal Vertex[] Vertices =
-    [
-        new(new Vector3(-0.5f, -0.5f, 0.0f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
-        new(new Vector3(0.5f, -0.5f, 0.0f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
-        new(new Vector3(0.5f, 0.5f, 0.0f), new Vector3(0.0f, 0.0f, 1.0f), new Vector2(0, 1)),
-        new(new Vector3(-0.5f, 0.5f, 0.0f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1)),
+    internal Vertex[]? Vertices;
 
-        new(new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(1.0f, 0.0f, 0.0f), new Vector2(1, 0)),
-        new(new Vector3(0.5f, -0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(0, 0)),
-        new(new Vector3(0.5f, 0.5f, -0.5f), new Vector3(0.0f, 0.0f, 1.0f), new Vector2(0, 1)),
-        new(new Vector3(-0.5f, 0.5f, -0.5f), new Vector3(1.0f, 0.0f, 1.0f), new Vector2(1, 1))
-    ];
-
-    internal uint[] Indices =
-    [
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4
-    ];
+    internal uint[]? Indices;
 
     internal Buffer VertexBuffer;
     internal DeviceMemory VertexBufferMemory;

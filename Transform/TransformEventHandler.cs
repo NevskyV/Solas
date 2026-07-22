@@ -8,22 +8,24 @@ public static class TransformEventHandler
 
     public static void RegisterData(TransformData data)
     {
-        if(!_handlers.TryGetValue(data.Entity.CurrentSpace, out var handler))
+        if (data.Entity == null) return;
+        if (!_handlers.TryGetValue(data.Entity.CurrentSpace, out var handler))
             _handlers.Add(data.Entity.CurrentSpace, handler = new TransformEventData());
         data.Position.OnChange += value => handler.PositionUpdateEvent(data, value);
         data.Rotation.OnChange += value => handler.RotationUpdateEvent(data, value);
-        data.Scale.OnChange    += value => handler.ScaleUpdateEvent(data, value);
+        data.Scale.OnChange += value => handler.ScaleUpdateEvent(data, value);
         handler.CreateDataEvent.Invoke(data);
     }
-    
+
     public static void UnregisterData(TransformData data)
     {
+        if (data.Entity == null) return;
         var handler = _handlers[data.Entity.CurrentSpace];
         data.Position.OnChange -= value => handler.PositionUpdateEvent(data, value);
         data.Rotation.OnChange -= value => handler.RotationUpdateEvent(data, value);
-        data.Scale.OnChange    -= value => handler.ScaleUpdateEvent(data, value);
+        data.Scale.OnChange -= value => handler.ScaleUpdateEvent(data, value);
         handler.DisposeDataEvent.Invoke(data);
     }
-    
+
     public static TransformEventData GetHandler(Space space) => _handlers[space];
 }

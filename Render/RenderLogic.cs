@@ -1,11 +1,14 @@
-﻿using System.Runtime.InteropServices;
-using Silk.NET.Core;
+﻿using Silk.NET.Core;
+using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.Windowing;
 using Solas.Attributes;
 using Solas.Components;
 using Solas.Enums;
+using Solas.Render.Data;
+using Solas.Render.Logics;
 using Solas.Render.Vulkan;
+using Solas.Transform;
 
 namespace Solas.Render;
 
@@ -15,10 +18,16 @@ public class RenderLogic : Logic
     private WindowSettings _windowSettings;
     private IWindow _window;
     private IRenderer _renderer;
+    private TransformData _cameraTransform;
+    private CameraData _cameraData;
+    private SceneCameraLogic _sceneCameraLogic;
     private bool _isDestroyed;
 
-    private void GetSettings()
+    private void Setup()
     {
+        _cameraTransform = Entity.GetData<TransformData>();
+        _cameraData = Entity.GetData<CameraData>();
+        _sceneCameraLogic = Entity.GetLogic<SceneCameraLogic>();
         _windowSettings = Query.GetSettings<WindowSettings>();
     }
 
@@ -38,6 +47,7 @@ public class RenderLogic : Logic
 
         _window = Window.Create(options);
         _window.Initialize();
+        _sceneCameraLogic.InputContext = _window.CreateInput();
 
         var loadedIcon = LoadIcon(_windowSettings.IconPath);
         if (loadedIcon != null)
@@ -78,13 +88,13 @@ public class RenderLogic : Logic
                 $"Graphics backend {(GraphicsBackend)_windowSettings.Api} is not supported.")
         };
 
-        _renderer.Start(_window);
+        _renderer.Start(_window, _cameraTransform, _cameraData);
         _window.Resize += _renderer.OnResize;
     }
 
     public void Initialize()
     {
-        GetSettings();
+        Setup();
         CreateWindow();
         CreateRenderer();
     }

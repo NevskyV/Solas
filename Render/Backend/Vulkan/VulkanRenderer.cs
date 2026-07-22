@@ -5,13 +5,15 @@ using Silk.NET.Maths;
 using Silk.NET.Vulkan;
 using Silk.NET.Windowing;
 using Solas.Render.Components;
+using Solas.Render.Data;
+using Solas.Transform;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
 namespace Solas.Render.Vulkan;
 
 internal class VulkanRenderer : IRenderer
 {
-    private VulkanContext _context;
+    private VulkanContext _context = null!;
 
     private readonly VulkanDebug _debug = new();
     private readonly VulkanSurface _surface = new();
@@ -32,10 +34,13 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanTextureSampler _textureSampler = new();
     private readonly VulkanDepthResources _depthResources = new();
 
-    void IRenderer.Start(IWindow window)
+    void IRenderer.Start(IWindow window, TransformData cameraTransform, CameraData cameraData)
     {
         _context = new VulkanContext(window);
         _context.DepthResources = _depthResources;
+        _context.CameraTransform = cameraTransform;
+        _context.CameraData = cameraData;
+
         VulkanInjectable[] injectables =
         [
             _debug,

@@ -33,14 +33,11 @@ internal class UpdateSystem
         _accumulator = 0;
         _isRunning = true;
 
-        var injectAction = EngineContext.SpacePool.InjectPoolsInUpdateRunners;
+        RefreshRunners();
+
         while (Engine.State != GameState.None)
         {
             double startTicks = _stopwatch.ElapsedTicks;
-
-            injectAction(CollectionsMarshal.AsSpan(EntityPool.UpdateRunners));
-            injectAction(CollectionsMarshal.AsSpan(EntityPool.FixedUpdateRunners));
-            injectAction(CollectionsMarshal.AsSpan(EntityPool.LateUpdateRunners));
 
             long tickStartTicks = _stopwatch.ElapsedTicks;
             Tick();
@@ -83,6 +80,13 @@ internal class UpdateSystem
         }
 
         _isRunning = false;
+    }
+
+    private void RefreshRunners()
+    {
+        EngineContext.SpacePool.InjectPoolsInUpdateRunners(CollectionsMarshal.AsSpan(EntityPool.UpdateRunners));
+        EngineContext.SpacePool.InjectPoolsInUpdateRunners(CollectionsMarshal.AsSpan(EntityPool.FixedUpdateRunners));
+        EngineContext.SpacePool.InjectPoolsInUpdateRunners(CollectionsMarshal.AsSpan(EntityPool.LateUpdateRunners));
     }
 
     private void Tick()

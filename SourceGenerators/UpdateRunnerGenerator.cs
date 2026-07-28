@@ -22,7 +22,7 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(compilationAndClasses, (spc, source) =>
         {
             var (compilation, classes) = source;
-            
+
             var runnersSb = new StringBuilder();
             var registerSb = new StringBuilder();
 
@@ -33,7 +33,7 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
                                  using Solas.Interfaces;
 
                                  namespace SolasGenerated;
-                                 
+
                                  """);
 
 
@@ -110,9 +110,9 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
                                  public void InjectPools(ReadOnlySpan<IComponentPool> pools)
                                  {
                                      _updatables.Clear();
-                                     foreach (var pool in pools)
+                                     for (int i = 0; i < pools.Length; i++)
                                      {
-                                         if (pool is ComponentPool<{{fullName}}> castedPool)
+                                         if (pools[i] is ComponentPool<{{fullName}}> castedPool)
                                          {
                                              _updatables.AddRange(castedPool.Components);
                                          }
@@ -126,17 +126,22 @@ public sealed class UpdateRunnerGenerator : IIncrementalGenerator
         if (parallel)
         {
             runners.AppendLine("        System.Threading.Tasks.Parallel.ForEach(");
-            runners.AppendLine("        System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 64),");
-            runners.AppendLine("        range =>");
-            runners.AppendLine("        {");
-            runners.AppendLine("            for (int i = range.Item1; i < range.Item2; i++)");
-            runners.AppendLine($"               _updatables[i].{methodName}();");
-            runners.AppendLine("        });");
+            runners.AppendLine(
+                "            System.Collections.Concurrent.Partitioner.Create(0, _updatables.Count, 8192),");
+            runners.AppendLine("            range =>");
+            runners.AppendLine("            {");
+            runners.AppendLine(
+                "                var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_updatables);");
+            runners.AppendLine("                for (int i = range.Item1; i < range.Item2; i++)");
+            runners.AppendLine($"                   span[i].{methodName}();");
+            runners.AppendLine("            });");
         }
         else
         {
-            runners.AppendLine("        for (int i = 0; i < _updatables.Count; i++)");
-            runners.AppendLine($"           _updatables[i].{methodName}();");
+            runners.AppendLine(
+                "        var span = System.Runtime.InteropServices.CollectionsMarshal.AsSpan(_updatables);");
+            runners.AppendLine("        for (int i = 0; i < span.Length; i++)");
+            runners.AppendLine($"           span[i].{methodName}();");
         }
 
         runners.AppendLine("""

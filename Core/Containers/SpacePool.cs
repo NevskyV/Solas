@@ -17,18 +17,30 @@ internal class SpacePool
 
     internal void InjectPoolsInUpdateRunners(ReadOnlySpan<IUpdateRunner> runners)
     {
-        foreach (var runner in runners)
+        List<IComponentPool> allContainers = new List<IComponentPool>();
+
+        for (int i = 0; i < _localSpaces.Count; i++)
         {
-            List<IComponentPool> allContainers = [];
-            foreach (var space in _localSpaces.Concat([WorldContext.GlobalSpace]))
-                allContainers.AddRange(EngineContext.EntityPool.GetComponentPoolsInSpace(space));
-            runner.InjectPools(CollectionsMarshal.AsSpan(allContainers));
+            allContainers.AddRange(EngineContext.EntityPool.GetComponentPoolsInSpace(_localSpaces[i]));
+        }
+
+        allContainers.AddRange(EngineContext.EntityPool.GetComponentPoolsInSpace(WorldContext.GlobalSpace));
+
+        var span = CollectionsMarshal.AsSpan(allContainers);
+        for (int i = 0; i < runners.Length; i++)
+        {
+            runners[i].InjectPools(span);
         }
     }
 
     internal void RunUpdateSystemInAllSpaces(IUpdateSystem system)
     {
-        Parallel.ForEach(_localSpaces.Concat([WorldContext.GlobalSpace]), system.Update);
+        for (int i = 0; i < _localSpaces.Count; i++)
+        {
+            system.Update(_localSpaces[i]);
+        }
+
+        system.Update(WorldContext.GlobalSpace);
     }
 
     #endregion
@@ -125,7 +137,7 @@ internal class SpacePool
             space.Name = Path.GetFileNameWithoutExtension(path);
             space.Path = path;
         }
-        
+
         Debug.WriteLine($"Loading space: {space.Name} with id {space.Id}");
         if (immediateBuild)
             EngineContext.DISystem.BuildDependencies(space);

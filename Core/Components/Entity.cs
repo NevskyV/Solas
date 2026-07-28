@@ -7,11 +7,11 @@ namespace Solas.Components;
 
 public sealed class Entity : IDisposable, IToggleable, IReferenceable
 {
+    internal readonly uint InternalId;
     private readonly List<IData> _data = [];
     private readonly List<Logic> _logics = [];
 
     public uint[] MaskChunks = [];
-
 
     public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
     {
@@ -24,6 +24,8 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         Id = id;
         MetaData = entityMetaData;
         CurrentSpace = space;
+
+        InternalId = EngineContext.EntityPool.GetNextInternalId();
 
         //Register
         EngineContext.EntityPool.RegisterEntity(this);

@@ -15,6 +15,13 @@ internal class EntityPool
     internal List<IUpdateRunner> FixedUpdateRunners { get; } = [];
     internal List<IUpdateRunner> LateUpdateRunners { get; } = [];
 
+    private uint _nextInternalId;
+
+    internal uint GetNextInternalId()
+    {
+        return Interlocked.Increment(ref _nextInternalId) - 1;
+    }
+
     #region Registration
 
     internal void RegisterSpace(Space space)

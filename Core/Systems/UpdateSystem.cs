@@ -6,22 +6,23 @@ using Solas.Interfaces;
 
 namespace Solas.Systems;
 
-
 internal class UpdateSystem
 {
+    internal readonly List<IUpdateSystem> FixedUpdateSystems = [];
+    internal readonly List<IUpdateSystem> LateUpdateSystems = [];
+    internal readonly List<IUpdateSystem> UpdateSystems = [];
+
     private const int MaxFixedStepsPerTick = 5;
     private readonly Stopwatch _stopwatch = new();
     private readonly double _tickToSeconds = 1.0 / Stopwatch.Frequency;
-    internal readonly List<IUpdateSystem> FixedUpdateSystems = [];
-    internal readonly List<IUpdateSystem> LateUpdateSystems = [];
-
-    internal readonly List<IUpdateSystem> UpdateSystems = [];
     private double _accumulator;
+    private double _previousTime;
 
     private bool _isRunning;
-
-    private double _previousTime;
     private EntityPool EntityPool => EngineContext.EntityPool;
+
+    private double _debugFrameAccumulator;
+    private int _debugFrameCount;
 
     internal void Start()
     {
@@ -37,25 +38,47 @@ internal class UpdateSystem
         {
             double startTicks = _stopwatch.ElapsedTicks;
 
-            //Injecting runners before Tick
             injectAction(CollectionsMarshal.AsSpan(EntityPool.UpdateRunners));
             injectAction(CollectionsMarshal.AsSpan(EntityPool.FixedUpdateRunners));
             injectAction(CollectionsMarshal.AsSpan(EntityPool.LateUpdateRunners));
 
+            long tickStartTicks = _stopwatch.ElapsedTicks;
             Tick();
+            long tickEndTicks = _stopwatch.ElapsedTicks;
 
-            var targetTicks = 1.0 / WorldContext.CoreSettings.TargetFrameTime * Stopwatch.Frequency;
-            var elapsedTicks = _stopwatch.ElapsedTicks - startTicks;
+            double tickMs = (tickEndTicks - tickStartTicks) * 1000.0 / Stopwatch.Frequency;
 
-            var remaining = targetTicks - elapsedTicks;
-
-            if (remaining > 0)
+            if (WorldContext.CoreSettings.IsProfilingEnabled)
             {
-                var ms = (int)(remaining * 1000 / Stopwatch.Frequency);
-                if (ms > 0)
-                    Thread.Sleep(ms);
-                while (Engine.State != GameState.None && _stopwatch.ElapsedTicks - startTicks < targetTicks)
-                    Thread.SpinWait(10);
+                _debugFrameAccumulator += tickMs;
+                _debugFrameCount++;
+
+                if (_debugFrameAccumulator >= 1000.0)
+                {
+                    double avgMs = _debugFrameAccumulator / _debugFrameCount;
+                    double potentialFps = 1000.0 / avgMs;
+                    Debug.WriteLine($"[Profiler] Tick Avg Time: {avgMs:F3} ms | Max Uncapped FPS: {potentialFps:F0}");
+
+                    _debugFrameAccumulator = 0;
+                    _debugFrameCount = 0;
+                }
+            }
+
+            if (!WorldContext.CoreSettings.IsProfilingEnabled)
+            {
+                var targetTicks = 1.0 / WorldContext.CoreSettings.TargetFrameTime * Stopwatch.Frequency;
+                var elapsedTicks = _stopwatch.ElapsedTicks - startTicks;
+
+                var remaining = targetTicks - elapsedTicks;
+
+                if (remaining > 0)
+                {
+                    var ms = (int)(remaining * 1000 / Stopwatch.Frequency);
+                    if (ms > 0)
+                        Thread.Sleep(ms);
+                    while (Engine.State != GameState.None && _stopwatch.ElapsedTicks - startTicks < targetTicks)
+                        Thread.SpinWait(10);
+                }
             }
         }
 
@@ -79,7 +102,7 @@ internal class UpdateSystem
         var steps = 0;
         while (_accumulator >= Time.FixedDeltaTime && steps < MaxFixedStepsPerTick)
         {
-            for (var i = 0; i < FixedUpdateSystems.Count; i++) 
+            for (var i = 0; i < FixedUpdateSystems.Count; i++)
                 EngineContext.SpacePool.RunUpdateSystemInAllSpaces(FixedUpdateSystems[i]);
             var fixedUpdatables = EntityPool.FixedUpdateRunners;
             for (var i = 0; i < fixedUpdatables.Count; i++) fixedUpdatables[i].Run();
@@ -93,12 +116,12 @@ internal class UpdateSystem
         var invFixedDelta = 1.0 / Time.FixedDeltaTime;
         Time.Alpha = _accumulator * invFixedDelta;
 
-        for (var i = 0; i < UpdateSystems.Count; i++) 
+        for (var i = 0; i < UpdateSystems.Count; i++)
             EngineContext.SpacePool.RunUpdateSystemInAllSpaces(UpdateSystems[i]);
         var updatables = EntityPool.UpdateRunners;
         for (var i = 0; i < updatables.Count; i++) updatables[i].Run();
 
-        for (var i = 0; i < LateUpdateSystems.Count; i++) 
+        for (var i = 0; i < LateUpdateSystems.Count; i++)
             EngineContext.SpacePool.RunUpdateSystemInAllSpaces(LateUpdateSystems[i]);
         var lateUpdatables = EntityPool.LateUpdateRunners;
         for (var i = 0; i < lateUpdatables.Count; i++) lateUpdatables[i].Run();

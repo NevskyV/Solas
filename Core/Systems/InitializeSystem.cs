@@ -12,62 +12,87 @@ internal class InitializeSystem(Space space)
 
     internal IEnumerable<Task> InitializeDependencies()
     {
-        var entities = Query.GetEntitiesIn(space).ToArray();
+        var entitiesList = EngineContext.EntityPool.GetEntitiesIn(space);
+        var entities = entitiesList is List<Entity> l ? l.ToArray() : entitiesList.ToArray();
 
         var guidsCount = Pool.OrderedEntitiesIds.Length;
         var orderedEntities = new Entity[guidsCount];
 
         if (Pool.OrderType == InitializationOrder.Custom)
         {
-            var entitiesCopy = entities.ToArray();
+            var entitiesCopy = (Entity[])entities.Clone();
             for (var i = 0; i < guidsCount; i++)
-                entities[i] = entitiesCopy.First(e => e.Id == Pool.OrderedEntitiesIds[i]);
+            {
+                var targetGuid = Pool.OrderedEntitiesIds[i];
+                for (int j = 0; j < entitiesCopy.Length; j++)
+                {
+                    if (entitiesCopy[j].Id == targetGuid)
+                    {
+                        entities[i] = entitiesCopy[j];
+                        break;
+                    }
+                }
+            }
         }
         else if (Pool.OrderType != InitializationOrder.Random)
         {
             var result = new Entity[entities.Length];
             var count = 0;
+
             for (var i = 0; i < entities.Length; i++)
             {
                 for (var j = 0; j < guidsCount; j++)
+                {
                     if (entities[i].Id == Pool.OrderedEntitiesIds[j])
                     {
                         orderedEntities[j] = entities[i];
                         entities[i] = null;
                         break;
                     }
+                }
 
                 if (entities[i] != null && Pool.OrderType == InitializationOrder.Suffixal)
                 {
-                    result[count] = entities[i];
-                    count++;
+                    result[count++] = entities[i];
                 }
             }
 
             for (var j = 0; j < guidsCount; j++)
             {
-                result[count] = orderedEntities[j];
-                count++;
+                result[count++] = orderedEntities[j];
             }
 
             if (Pool.OrderType == InitializationOrder.Prefixal)
-                foreach (var entity in entities)
-                    if (entity != null)
+            {
+                for (int i = 0; i < entities.Length; i++)
+                {
+                    if (entities[i] != null)
                     {
-                        result[count] = entity;
-                        count++;
+                        result[count++] = entities[i];
                     }
+                }
+            }
 
             entities = result;
         }
 
-        var allTasks = entities.SelectMany(entity => entity.Logics.ToArray().Select(InitializeLogic));
+        var allTasks = new List<Task>();
+        for (int i = 0; i < entities.Length; i++)
+        {
+            if (entities[i] == null) continue;
+            var logics = entities[i].Logics;
+            for (int j = 0; j < logics.Length; j++)
+            {
+                allTasks.Add(InitializeLogic(logics[j]));
+            }
+        }
+
         return allTasks;
     }
 
     private async Task InitializeLogic(Logic logic)
     {
-        if(logic is IInitializable init)
+        if (logic is IInitializable init)
         {
             await Task.Run(init.Initialize);
         }

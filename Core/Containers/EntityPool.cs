@@ -1,4 +1,5 @@
-﻿using Solas.Components;
+﻿using System.Buffers;
+using Solas.Components;
 using Solas.ComponentUtils;
 using Solas.Interfaces;
 using Solas.World;
@@ -33,9 +34,8 @@ internal class EntityPool
         var type = typeof(T);
         if (_componentPoolsInSpaces[space].TryGetValue(type, out var componentPool))
             return (ComponentPool<T>)componentPool;
+
         var pool = new ComponentPool<T>();
-        if (!_componentPoolsInSpaces[space].ContainsKey(type))
-            _componentPoolsInSpaces[space].Add(type, pool);
         _componentPoolsInSpaces[space][type] = pool;
         return pool;
     }
@@ -44,40 +44,52 @@ internal class EntityPool
     {
         entity.CurrentSpace ??= _entitiesInSpaces.Keys.Last();
         _entitiesInSpaces[entity.CurrentSpace].Add(entity);
-        foreach (var logic in entity.Logics) AddReferences(logic, entity);
-        foreach (var data in entity.Data) AddReferences(data, entity);
+
+        var logics = entity.Logics;
+        for (int i = 0; i < logics.Length; i++) AddReferences(logics[i], entity);
+
+        var data = entity.Data;
+        for (int i = 0; i < data.Length; i++) AddReferences(data[i], entity);
     }
 
     internal void UnregisterEntity(Entity entity)
     {
         _entitiesInSpaces[entity.CurrentSpace].Remove(entity);
-        var folder = Query.GetAllSpaceFoldersIn(entity.CurrentSpace).FirstOrDefault(f => f.EntityIds.Contains(entity.Id));
-        folder?.EntityIds.Remove(entity.Id);
-        
-        foreach (var logic in entity.Logics) RemoveReferences(logic, entity);
-        foreach (var data in entity.Data) RemoveReferences(data, entity);
+
+        var folders = Query.GetAllSpaceFoldersIn(entity.CurrentSpace);
+        for (int i = 0; i < folders.Count; i++)
+        {
+            if (folders[i].EntityIds.Contains(entity.Id))
+            {
+                folders[i].EntityIds.Remove(entity.Id);
+                break;
+            }
+        }
+
+        var logics = entity.Logics;
+        for (int i = 0; i < logics.Length; i++) RemoveReferences(logics[i], entity);
+
+        var data = entity.Data;
+        for (int i = 0; i < data.Length; i++) RemoveReferences(data[i], entity);
     }
 
     internal void UnregisterEntityById(Space space, Guid id)
     {
-        var entity = _entitiesInSpaces[space].FirstOrDefault(e => e.Id == id);
-        if (entity != null) UnregisterEntity(entity);
+        if (!_entitiesInSpaces.TryGetValue(space, out var entities)) return;
+
+        for (int i = 0; i < entities.Count; i++)
+        {
+            if (entities[i].Id == id)
+            {
+                UnregisterEntity(entities[i]);
+                break;
+            }
+        }
     }
 
-    internal void RegisterRunner(IUpdateRunner runner)
-    {
-        UpdateRunners.Add(runner);
-    }
-
-    internal void RegisterFixedRunner(IUpdateRunner runner)
-    {
-        FixedUpdateRunners.Add(runner);
-    }
-
-    internal void RegisterLateRunner(IUpdateRunner runner)
-    {
-        LateUpdateRunners.Add(runner);
-    }
+    internal void RegisterRunner(IUpdateRunner runner) => UpdateRunners.Add(runner);
+    internal void RegisterFixedRunner(IUpdateRunner runner) => FixedUpdateRunners.Add(runner);
+    internal void RegisterLateRunner(IUpdateRunner runner) => LateUpdateRunners.Add(runner);
 
     internal void AddReferences<T>(T component, Entity entity)
     {
@@ -98,53 +110,81 @@ internal class EntityPool
 
     internal IEnumerable<Entity> GetEntitiesIn(Space space)
     {
-        return _entitiesInSpaces[space];
+        return _entitiesInSpaces.TryGetValue(space, out var list) ? list : Array.Empty<Entity>();
     }
-    
+
     internal IEnumerable<Entity> GetEntitiesIn(SpaceFolder spaceFolder)
     {
-        return _entitiesInSpaces[spaceFolder.Space].Where(e => spaceFolder.EntityIds.Contains(e.Id));
+        if (!_entitiesInSpaces.TryGetValue(spaceFolder.Space, out var entities)) yield break;
+
+        var ids = spaceFolder.EntityIds;
+        for (int i = 0; i < entities.Count; i++)
+        {
+            if (ids.Contains(entities[i].Id))
+                yield return entities[i];
+        }
     }
 
     internal IEnumerable<Entity> GetEntitiesInAvailable(Space space)
     {
-        return _entitiesInSpaces
-            .Where(x => SpaceTree.GetAllAvailableSpacesFor(space).Contains(x.Key))
-            .SelectMany(x => x.Value);
-    }
-
-    internal IEnumerable<Entity> GetEntitiesWith(Space space, params Type[] types)
-    {
-        if (types == null || types.Length == 0) throw new NullReferenceException("No entities found with " + types);
-
-        var totalChunks = ComponentRegistry.Count / 32 + 1;
-        Span<uint> filter = stackalloc uint[totalChunks];
-        filter.Clear();
-
-        foreach (var type in types)
+        var availableSpaces = SpaceTree.GetAllAvailableSpacesFor(space);
+        for (int i = 0; i < availableSpaces.Count; i++)
         {
-            var id = ComponentRegistry.GetId(type);
-            filter[id / 32] |= 1u << (id % 32);
+            if (_entitiesInSpaces.TryGetValue(availableSpaces[i], out var list))
+            {
+                for (int j = 0; j < list.Count; j++)
+                    yield return list[j];
+            }
         }
-
-        var result = new List<Entity>();
-        foreach (var entity in _entitiesInSpaces[space])
-            if (IsMatch(entity.MaskChunks, filter))
-                result.Add(entity);
-
-        return result;
     }
 
     internal IEnumerable<Entity> GetEntitiesInAvailableWith(Space space, params Type[] types)
     {
-        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(x => GetEntitiesWith(x, types));
+        var availableSpaces = SpaceTree.GetAllAvailableSpacesFor(space);
+        for (int i = 0; i < availableSpaces.Count; i++)
+        {
+            foreach (var entity in GetEntitiesWith(availableSpaces[i], types))
+            {
+                yield return entity;
+            }
+        }
     }
 
-    private bool IsMatch(uint[] entityMask, ReadOnlySpan<uint> filter)
+    internal IEnumerable<Entity> GetEntitiesWith(Space space, params Type[] types)
     {
-        for (var i = 0; i < filter.Length; i++)
+        if (types == null || types.Length == 0) yield break;
+        if (!_entitiesInSpaces.TryGetValue(space, out var entities)) yield break;
+
+        var totalChunks = ComponentRegistry.Count / 32 + 1;
+
+        var filter = ArrayPool<uint>.Shared.Rent(totalChunks);
+        Array.Clear(filter, 0, totalChunks);
+
+        try
         {
-            var entityChunk = i < entityMask.Length ? entityMask[i] : 0;
+            for (int i = 0; i < types.Length; i++)
+            {
+                var id = ComponentRegistry.GetId(types[i]);
+                filter[id / 32] |= 1u << (id % 32);
+            }
+
+            for (int i = 0; i < entities.Count; i++)
+            {
+                if (IsMatch(entities[i].MaskChunks, filter, totalChunks))
+                    yield return entities[i];
+            }
+        }
+        finally
+        {
+            ArrayPool<uint>.Shared.Return(filter);
+        }
+    }
+
+    private static bool IsMatch(uint[] entityMask, uint[] filter, int filterLength)
+    {
+        for (var i = 0; i < filterLength; i++)
+        {
+            var entityChunk = i < entityMask.Length ? entityMask[i] : 0u;
             if ((entityChunk & filter[i]) != filter[i]) return false;
         }
 
@@ -154,11 +194,10 @@ internal class EntityPool
     internal IEnumerable<Entity> GetEntitiesByType<T>(Space space)
     {
         var type = typeof(T);
-        if (_componentPoolsInSpaces[space].ContainsKey(type))
+        if (_componentPoolsInSpaces.TryGetValue(space, out var pools) && pools.TryGetValue(type, out var value))
         {
-            var pool = (ComponentPool<T>)_componentPoolsInSpaces[space][type];
-            if (pool.Entities.Count > 0)
-                return pool.Entities;
+            var pool = (ComponentPool<T>)value;
+            return pool.Entities;
         }
 
         return [];
@@ -166,17 +205,23 @@ internal class EntityPool
 
     internal IEnumerable<Entity> GetEntitiesByTypeInAvailable<T>(Space space)
     {
-        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetEntitiesByType<T>);
+        var availableSpaces = SpaceTree.GetAllAvailableSpacesFor(space);
+        for (int i = 0; i < availableSpaces.Count; i++)
+        {
+            foreach (var entity in GetEntitiesByType<T>(availableSpaces[i]))
+            {
+                yield return entity;
+            }
+        }
     }
 
     internal IEnumerable<T> GetComponentsByType<T>(Space space)
     {
         var type = typeof(T);
-        if (_componentPoolsInSpaces[space].TryGetValue(type, out var value))
+        if (_componentPoolsInSpaces.TryGetValue(space, out var pools) && pools.TryGetValue(type, out var value))
         {
             var pool = (ComponentPool<T>)value;
-            if (pool.Entities.Count > 0)
-                return pool.Components;
+            return pool.Components;
         }
 
         return [];
@@ -184,62 +229,46 @@ internal class EntityPool
 
     internal IEnumerable<T> GetComponentsByTypeInAvailable<T>(Space space)
     {
-        return SpaceTree.GetAllAvailableSpacesFor(space).SelectMany(GetComponentsByType<T>);
+        var availableSpaces = SpaceTree.GetAllAvailableSpacesFor(space);
+        for (int i = 0; i < availableSpaces.Count; i++)
+        {
+            foreach (var component in GetComponentsByType<T>(availableSpaces[i]))
+            {
+                yield return component;
+            }
+        }
     }
 
     internal T GetComponentByType<T>(Space space)
     {
-        return GetComponentsByType<T>(space).FirstOrDefault();
+        var type = typeof(T);
+        if (_componentPoolsInSpaces.TryGetValue(space, out var pools) && pools.TryGetValue(type, out var value))
+        {
+            var pool = (ComponentPool<T>)value;
+            if (pool.Components.Count > 0)
+                return pool.Components[0];
+        }
+
+        return default;
     }
 
     internal T GetComponentByTypeInAvailable<T>(Space space)
     {
-        return GetComponentsByTypeInAvailable<T>(space).FirstOrDefault();
-    }
-
-    internal Entity TryGetEntityFor(object component, Space hintSpace = null)
-    {
-        if (component == null)
-            return null;
-
-        if (hintSpace != null)
+        var availableSpaces = SpaceTree.GetAllAvailableSpacesFor(space);
+        for (int i = 0; i < availableSpaces.Count; i++)
         {
-            var found = FindEntityForInSpace(component, hintSpace);
-            if (found != null)
-                return found;
+            var component = GetComponentByType<T>(availableSpaces[i]);
+            if (component != null) return component;
         }
 
-        foreach (var (space, _) in _componentPoolsInSpaces)
-        {
-            if (hintSpace != null && space == hintSpace)
-                continue;
-
-            var found = FindEntityForInSpace(component, space);
-            if (found != null)
-                return found;
-        }
-
-        return null;
-    }
-
-    private Entity FindEntityForInSpace(object component, Space space)
-    {
-        if (!_componentPoolsInSpaces.TryGetValue(space, out var pools))
-            return null;
-
-        foreach (var pool in pools.Values)
-        {
-            var entity = pool.FindEntityFor(component);
-            if (entity != null)
-                return entity;
-        }
-
-        return null;
+        return default;
     }
 
     internal IEnumerable<IComponentPool> GetComponentPoolsInSpace(Space space)
     {
-        return _componentPoolsInSpaces[space].Values;
+        if (_componentPoolsInSpaces.TryGetValue(space, out var pools))
+            return pools.Values;
+        return Array.Empty<IComponentPool>();
     }
 
     #endregion

@@ -30,20 +30,32 @@ internal class DISystem
 
     internal T AutoInject<T>(Space space) where T : Logic
     {
-        T result;
+        T result = null;
+        var targetType = typeof(T);
+
         if (_cache.TryGetValue(space, out var logics))
         {
-            result = (T)logics.FirstOrDefault(x => x.GetType() == typeof(T));
+            for (int i = 0; i < logics.Count; i++)
+            {
+                if (logics[i].GetType() == targetType)
+                {
+                    result = (T)logics[i];
+                    break;
+                }
+            }
+
             if (result == null)
             {
                 result = EngineContext.EntityPool.GetComponentByTypeInAvailable<T>(space);
-                _cache[space].Add(result);
+                if (result != null)
+                    logics.Add(result);
             }
         }
         else
         {
             result = EngineContext.EntityPool.GetComponentByTypeInAvailable<T>(space);
-            _cache.Add(space, [result]);
+            if (result != null)
+                _cache.Add(space, [result]);
         }
 
         return result;

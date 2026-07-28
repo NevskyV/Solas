@@ -29,7 +29,7 @@ public static class Command
         return EngineContext.DISystem.AutoInject<T>(space);
     }
 
-    public static T Inject<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    public static T Inject<T>(Guid id, Guid spaceId) where T : struct, IReferenceable
     {
         return DISystem.Inject<T>(id, spaceId);
     }
@@ -42,12 +42,12 @@ public static class Command
     {
         EngineContext.AssetsPool.RegisterNewAsset(asset);
     }
-    
+
     public static void WriteAsset(Asset asset, FileStream stream, BinaryWriter binaryWriter)
     {
         EngineContext.AssetsPool.WriteAsset(asset, stream, binaryWriter);
     }
-    
+
     public static void WritePrefab(Entity entity, FileStream stream, BinaryWriter binaryWriter)
     {
         EngineContext.AssetsPool.WritePrefab(entity, stream, binaryWriter);

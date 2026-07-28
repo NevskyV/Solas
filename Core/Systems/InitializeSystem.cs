@@ -46,12 +46,12 @@ internal class InitializeSystem(Space space)
                     if (entities[i].Id == Pool.OrderedEntitiesIds[j])
                     {
                         orderedEntities[j] = entities[i];
-                        entities[i] = null;
+                        entities[i] = Entity.Null;
                         break;
                     }
                 }
 
-                if (entities[i] != null && Pool.OrderType == InitializationOrder.Suffixal)
+                if (entities[i] != Entity.Null && Pool.OrderType == InitializationOrder.Suffixal)
                 {
                     result[count++] = entities[i];
                 }
@@ -66,7 +66,7 @@ internal class InitializeSystem(Space space)
             {
                 for (int i = 0; i < entities.Length; i++)
                 {
-                    if (entities[i] != null)
+                    if (entities[i] != Entity.Null)
                     {
                         result[count++] = entities[i];
                     }
@@ -79,7 +79,7 @@ internal class InitializeSystem(Space space)
         var allTasks = new List<Task>();
         for (int i = 0; i < entities.Length; i++)
         {
-            if (entities[i] == null) continue;
+            if (entities[i] == Entity.Null) continue;
             var logics = entities[i].Logics;
             for (int j = 0; j < logics.Length; j++)
             {

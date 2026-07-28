@@ -16,7 +16,7 @@ public abstract class Asset : IReferenceable
         return Guid.Empty;
     }
 
-    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : IReferenceable
     {
         return EngineContext.AssetsPool.LoadAsset<T>(id);
     }

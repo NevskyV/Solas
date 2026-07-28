@@ -11,7 +11,7 @@ public class SpaceFolder : IReferenceable, IBranchable, IDisposable
         Id = id == Guid.Empty ? Guid.NewGuid() : id;
         Space = space ?? WorldContext.GlobalSpace;
     }
-    
+
     public Space Space
     {
         get;
@@ -19,10 +19,10 @@ public class SpaceFolder : IReferenceable, IBranchable, IDisposable
         {
             if (field == value)
                 return;
-            if(field != null)
+            if (field != null)
                 EngineContext.SpacePool.UnregisterSpaceFolder(this, field);
             field = value;
-            if(field != null)
+            if (field != null)
                 EngineContext.SpacePool.RegisterSpaceFolder(this, field);
         }
     }
@@ -46,7 +46,7 @@ public class SpaceFolder : IReferenceable, IBranchable, IDisposable
         return Space.Id;
     }
 
-    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : IReferenceable
     {
         return EngineContext.SpacePool.GetSpaceFolderWith(id, spaceId);
     }

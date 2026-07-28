@@ -22,6 +22,8 @@ public class ComponentPool<T> : IComponentPool
         _sparse[(int)entity.InternalId] = index;
     }
 
+    public object GetComponentFor(Entity entity) => Get(entity);
+
     public void Remove(Entity entity)
     {
         var id = entity.InternalId;
@@ -30,6 +32,11 @@ public class ComponentPool<T> : IComponentPool
         var index = _sparse[(int)id];
         if (index < 0 || index >= Components.Count || Entities[index] != entity)
             return;
+
+        if (Components[index] is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
 
         var lastIndex = Components.Count - 1;
 
@@ -46,10 +53,10 @@ public class ComponentPool<T> : IComponentPool
     public Entity FindEntityFor(object component)
     {
         if (component is not T typed)
-            return null;
+            return Entity.Null;
 
         var index = Components.IndexOf(typed);
-        return index >= 0 ? Entities[index] : null;
+        return index >= 0 ? Entities[index] : Entity.Null;
     }
 
     private void EnsureSparseCapacity(uint internalId)
@@ -64,5 +71,14 @@ public class ComponentPool<T> : IComponentPool
         Array.Resize(ref _sparse, newSize);
 
         Array.Fill(_sparse, -1, oldSize, newSize - oldSize);
+    }
+
+    public T Get(Entity entity)
+    {
+        var id = entity.InternalId;
+        if (id >= _sparse.Length) return default;
+        int index = _sparse[(int)id];
+        if (index < 0 || index >= Components.Count) return default;
+        return Components[index];
     }
 }

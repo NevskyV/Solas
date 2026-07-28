@@ -1,66 +1,72 @@
-﻿using System.Runtime.InteropServices;
-using Solas.ComponentUtils;
+﻿using Solas.ComponentUtils;
 using Solas.Interfaces;
 using Solas.World;
 
 namespace Solas.Components;
 
-public sealed class Entity : IDisposable, IToggleable, IReferenceable
+public readonly record struct Entity : IDisposable, IToggleable, IReferenceable
 {
-    internal readonly uint InternalId;
-    private readonly List<IData> _data = [];
-    private readonly List<Logic> _logics = [];
+    public uint InternalId { get; }
+    public ushort Version { get; }
 
-    public uint[] MaskChunks = [];
+    public static Entity Null => new(0, 0);
+    public bool IsNull => InternalId == 0;
+    public bool IsAlive => EngineContext.EntityPool.IsAlive(this);
 
-    public Entity(Guid id = default, Space space = null, EntityMetaData entityMetaData = default)
+    private Entity(uint internalId, ushort version)
     {
-        //Set default values
-        id = id == Guid.Empty ? Guid.NewGuid() : id;
-        entityMetaData = entityMetaData == default ? EntityMetaData.CreateDefault() : entityMetaData;
-        space ??= WorldContext.GlobalSpace;
-
-        //Fill properties
-        Id = id;
-        MetaData = entityMetaData;
-        CurrentSpace = space;
-
-        InternalId = EngineContext.EntityPool.GetNextInternalId();
-
-        //Register
-        EngineContext.EntityPool.RegisterEntity(this);
+        InternalId = internalId;
+        Version = version;
     }
 
-    public EntityMetaData MetaData { get; set; }
-    public Space CurrentSpace { get; set; }
+    public Entity()
+    {
+        var handle = EngineContext.EntityPool.RegisterEntity(Guid.NewGuid(), WorldContext.GlobalSpace,
+            EntityMetaData.CreateDefault());
+        InternalId = handle.InternalId;
+        Version = handle.Version;
+        EngineContext.EntityPool.LinkEntityToSpace(this);
+    }
 
-    public ReadOnlySpan<IData> Data => CollectionsMarshal.AsSpan(_data);
-    public ReadOnlySpan<Logic> Logics => CollectionsMarshal.AsSpan(_logics);
+    public Entity(Guid id, Space space = null, EntityMetaData entityMetaData = default)
+        : this(EngineContext.EntityPool.RegisterEntity(id, space, entityMetaData))
+    {
+        EngineContext.EntityPool.LinkEntityToSpace(this);
+    }
+
+    private Entity((uint InternalId, ushort Version) handle) : this(handle.InternalId, handle.Version)
+    {
+    }
+
+    public Guid Id
+    {
+        get => EngineContext.EntityPool.GetGuid(this);
+        init => throw new Exception("You cannot modify this field, use constructor instead.");
+    }
+
+    public Space CurrentSpace
+    {
+        get => EngineContext.EntityPool.GetSpace(this);
+        set => EngineContext.EntityPool.SetSpace(this, value);
+    }
+
+    public EntityMetaData MetaData
+    {
+        get => EngineContext.EntityPool.GetMetaData(this);
+        set => EngineContext.EntityPool.SetMetaData(this, value);
+    }
+
+    public ReactiveProperty<bool> IsEnabled => EngineContext.EntityPool.GetIsEnabled(this);
+
+    public ReadOnlySpan<IData> Data => EngineContext.EntityPool.GetDataSpan(this);
+    public ReadOnlySpan<Logic> Logics => EngineContext.EntityPool.GetLogicSpan(this);
+
+    public Guid GetSpaceId() => CurrentSpace?.Id ?? Guid.Empty;
 
     public void Dispose()
     {
-        foreach (var logic in _logics) logic.Dispose();
-        foreach (var data in _data) data.Dispose();
-
         EngineContext.EntityPool.UnregisterEntity(this);
     }
-
-    public Guid Id { get; init; }
-
-    public Guid GetSpaceId()
-    {
-        return CurrentSpace.Id;
-    }
-
-    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
-    {
-        var space = EngineContext.SpacePool.GetSpace(spaceId);
-        if (space != null)
-            return EngineContext.EntityPool.GetEntitiesIn(space).First(x => x.Id == id);
-        return EngineContext.AssetsPool.LoadPrefab(id);
-    }
-
-    public ReactiveProperty<bool> IsEnabled { get; set; } = new();
 
     public async Task SwitchState(bool newState, uint setTime = 0)
     {
@@ -73,39 +79,24 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
         }
     }
 
-    private void UpdateMask<T>()
-    {
-        var id = ComponentRegistry.GetId(typeof(T));
-        var chunkIndex = id / 32;
-        var bitIndex = id % 32;
-
-        if (chunkIndex >= MaskChunks.Length) Array.Resize(ref MaskChunks, chunkIndex + 1);
-        MaskChunks[chunkIndex] |= 1u << bitIndex;
-    }
-
     #region Data Method Group
 
     public T AddData<T>(T data) where T : IData
     {
-        if (data.Entity == this || _data.Contains(data)) return default;
         data.Entity = this;
-        _data.Add(data);
-        EngineContext.EntityPool.AddReferences(data, this);
-        UpdateMask<T>();
+        EngineContext.EntityPool.AddData(this, data);
         return data;
     }
 
     public void RemoveData<T>(T data) where T : IData
     {
-        _data.Remove(data);
-        EngineContext.EntityPool.RemoveReferences(data, this);
-        UpdateMask<T>();
+        EngineContext.EntityPool.RemoveData(this, data);
         data.Dispose();
     }
 
     public T GetData<T>() where T : IData
     {
-        return (T)_data.First(x => x is T);
+        return EngineContext.EntityPool.GetData<T>(this);
     }
 
     #endregion
@@ -115,26 +106,19 @@ public sealed class Entity : IDisposable, IToggleable, IReferenceable
     public T AddLogic<T>() where T : Logic, IInjectable, new()
     {
         var newLogic = new T { Entity = this };
-        if (_logics.Contains(newLogic)) return newLogic;
-        _logics.Add(newLogic);
-
-        EngineContext.EntityPool.AddReferences(newLogic, this);
-
-        UpdateMask<T>();
+        EngineContext.EntityPool.AddLogic(this, newLogic);
         return newLogic;
     }
 
     public void RemoveLogic<T>(T logic) where T : Logic, new()
     {
-        _logics.Remove(logic);
-        EngineContext.EntityPool.RemoveReferences(logic, this);
-        UpdateMask<T>();
+        EngineContext.EntityPool.RemoveLogic(this, logic);
         logic.Dispose();
     }
 
     public T GetLogic<T>() where T : Logic
     {
-        return (T)_logics.First(x => x is T);
+        return EngineContext.EntityPool.GetLogic<T>(this);
     }
 
     #endregion

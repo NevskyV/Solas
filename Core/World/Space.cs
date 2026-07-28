@@ -36,7 +36,7 @@ public class Space : IBranchable, IReferenceable
         return Guid.Empty;
     }
 
-    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    public static IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : IReferenceable
     {
         return EngineContext.SpacePool.GetSpace(id);
     }

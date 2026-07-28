@@ -6,8 +6,8 @@ public interface IReferenceable
 
     public Guid GetSpaceId();
 
-    internal static virtual IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : class, IReferenceable
+    internal static virtual IReferenceable SearchReferenceable<T>(Guid id, Guid spaceId) where T : IReferenceable
     {
-        return null;
+        return default;
     }
 }

@@ -4,5 +4,5 @@ namespace Solas.Interfaces;
 
 public interface IToggleable
 {
-    public ReactiveProperty<bool> IsEnabled { get; set; }
+    public ReactiveProperty<bool> IsEnabled { get; }
 }

@@ -55,7 +55,7 @@ internal static class DependencyInjectionBuilder
 
         var serializableMembers = injectableMembers.Where(m => m.InjectType == InjectType.Inject).ToList();
 
-        sb.AppendLine($"    public {overrideAttribute}void WriteInject(FileStream stream, Entity entity = null)");
+        sb.AppendLine($"    public {overrideAttribute}void WriteInject(FileStream stream, Entity entity)");
         sb.AppendLine("    {");
         sb.AppendLine("        var injectables = Query.LastInjectables;");
         var membersCount = 0;
@@ -63,22 +63,28 @@ internal static class DependencyInjectionBuilder
         {
             sb.AppendLine($"        if (this.{member.Name} == null)");
             sb.AppendLine("        {");
-            
-            sb.AppendLine($"            Query.Serializer.Write(injectables[{membersCount}].Item1, stream, \"{member.Name}_Id\");");
-            sb.AppendLine($"            Query.Serializer.Write(injectables[{membersCount}].Item2, stream, \"{member.Name}_SpaceId\");");
+
+            sb.AppendLine(
+                $"            Query.Serializer.Write(injectables[{membersCount}].Item1, stream, \"{member.Name}_Id\");");
+            sb.AppendLine(
+                $"            Query.Serializer.Write(injectables[{membersCount}].Item2, stream, \"{member.Name}_SpaceId\");");
             sb.AppendLine("        }");
             sb.AppendLine("        else");
             sb.AppendLine("        {");
 
-            if (member.ReferenceKind == ReferenceKind.Logic || member.ReferenceKind == ReferenceKind.IData)
+            if (member.ReferenceKind is ReferenceKind.Logic or ReferenceKind.IData)
             {
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.Id, stream, \"{member.Name}_Id\");");
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Entity.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
+                sb.AppendLine(
+                    $"            Query.Serializer.Write(this.{member.Name}.Entity.Id, stream, \"{member.Name}_Id\");");
+                sb.AppendLine(
+                    $"            Query.Serializer.Write(this.{member.Name}.Entity.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
             }
             else
             {
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.Id, stream, \"{member.Name}_Id\");");
-                sb.AppendLine($"            Query.Serializer.Write(this.{member.Name}.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
+                sb.AppendLine(
+                    $"            Query.Serializer.Write(this.{member.Name}.Id, stream, \"{member.Name}_Id\");");
+                sb.AppendLine(
+                    $"            Query.Serializer.Write(this.{member.Name}.GetSpaceId(), stream, \"{member.Name}_SpaceId\");");
             }
 
             sb.AppendLine("        }");
@@ -137,7 +143,8 @@ internal static class DependencyInjectionBuilder
         var members = new List<InjectableMember>();
         var isLogic = symbol.InheritsFrom(logicBaseType);
 
-        var allDeclared = symbol.GetMembers().Where(m => (m is IFieldSymbol or IPropertySymbol) && !m.IsImplicitlyDeclared);
+        var allDeclared = symbol.GetMembers()
+            .Where(m => (m is IFieldSymbol or IPropertySymbol) && !m.IsImplicitlyDeclared);
 
         foreach (var m in allDeclared)
         {
@@ -156,9 +163,9 @@ internal static class DependencyInjectionBuilder
 
                 members.Add(new InjectableMember
                 {
-                    Name = m.Name, 
-                    TypeFullName = type.ToDisplayString(), 
-                    InjectType = injectType, 
+                    Name = m.Name,
+                    TypeFullName = type.ToDisplayString(),
+                    InjectType = injectType,
                     ReferenceKind = refKind
                 });
             }
@@ -175,9 +182,9 @@ internal static class DependencyInjectionBuilder
                     var refKind = GetReferenceKind(type, dataInterface, logicBaseType);
                     members.Add(new InjectableMember
                     {
-                        Name = m.Name, 
-                        TypeFullName = type.ToDisplayString(), 
-                        InjectType = InjectType.Inject, 
+                        Name = m.Name,
+                        TypeFullName = type.ToDisplayString(),
+                        InjectType = InjectType.Inject,
                         ReferenceKind = refKind
                     });
                 }

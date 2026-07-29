@@ -59,7 +59,19 @@ internal unsafe class VulkanCommands : VulkanInjectable
             throw new Exception("Failed to begin command buffer");
         }
 
-        // 2. Transition swapchain image layout to ColorAttachmentOptimal
+        // 1. Transition from MSAA Color Image into ColorAttachmentOptimal
+        TransitionImageLayout(
+            Ctx.ColorImage,
+            ImageLayout.Undefined,
+            ImageLayout.ColorAttachmentOptimal,
+            AccessFlags2.None,
+            AccessFlags2.ColorAttachmentWriteBit,
+            PipelineStageFlags2.ColorAttachmentOutputBit,
+            PipelineStageFlags2.ColorAttachmentOutputBit,
+            ImageAspectFlags.ColorBit
+        );
+
+        // 2. Transition from Swapchain Image to ColorAttachmentOptimal
         TransitionImageLayout(
             Ctx.SwapChainImages![imageIndex],
             ImageLayout.Undefined,
@@ -71,6 +83,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageAspectFlags.ColorBit
         );
 
+        // 3. Transition from MSAA Depth Image into DepthAttachmentOptimal
         TransitionImageLayout(
             Ctx.DepthImage,
             ImageLayout.Undefined,
@@ -89,11 +102,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var attachmentInfo = new RenderingAttachmentInfo
         {
             SType = StructureType.RenderingAttachmentInfo,
-            ImageView = Ctx.SwapChainImageViews![imageIndex],
+            ImageView = Ctx.ColorImageView,
             ImageLayout = ImageLayout.ColorAttachmentOptimal,
             LoadOp = AttachmentLoadOp.Clear,
-            StoreOp = AttachmentStoreOp.Store,
-            ClearValue = clearColor
+            StoreOp = AttachmentStoreOp.DontCare,
+            ClearValue = clearColor,
+            ResolveMode = ResolveModeFlags.AverageBit,
+            ResolveImageView = Ctx.SwapChainImageViews![imageIndex],
+            ResolveImageLayout = ImageLayout.ColorAttachmentOptimal
         };
 
         var depthAttachmentInfo = new RenderingAttachmentInfo
@@ -126,7 +142,6 @@ internal unsafe class VulkanCommands : VulkanInjectable
             Ctx.Vk.CmdBindVertexBuffers(Ctx.CommandBuffers![Ctx.FrameIndex], 0, pBuffer, new Span<ulong>([0]));
         }
 
-
         Ctx.Vk.CmdBindIndexBuffer(Ctx.CommandBuffers![Ctx.FrameIndex], Ctx.IndexBuffer, 0, IndexType.Uint32);
 
         // Viewport setup
@@ -141,7 +156,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         Ctx.Vk!.CmdBindDescriptorSets(Ctx.CommandBuffers![Ctx.FrameIndex], PipelineBindPoint.Graphics,
             Ctx.PipelineLayout, 0, 1, in Ctx.DescriptorSets![Ctx.FrameIndex], 0, null);
 
-        Ctx.Vk.CmdDrawIndexed(Ctx.CommandBuffers![Ctx.FrameIndex], (uint)Ctx.Indices.Length, 1, 0, 0, 0);
+        Ctx.Vk.CmdDrawIndexed(Ctx.CommandBuffers![Ctx.FrameIndex], (uint)Ctx.Indices!.Length, 1, 0, 0, 0);
 
         Ctx.Vk.CmdEndRendering(Ctx.CommandBuffers![Ctx.FrameIndex]);
 

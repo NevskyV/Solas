@@ -13,6 +13,7 @@ internal unsafe class VulkanDepthResources : VulkanInjectable, IDisposable
             Ctx.SwapChainExtent.Width,
             Ctx.SwapChainExtent.Height,
             1,
+            Ctx.MsaaSamples,
             Ctx.DepthFormat,
             ImageTiling.Optimal,
             ImageUsageFlags.DepthStencilAttachmentBit,

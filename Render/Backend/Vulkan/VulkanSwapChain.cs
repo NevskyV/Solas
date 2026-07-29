@@ -102,6 +102,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
         Create();
         CreateImageViews();
+        Ctx.ColorResources.Create();
         Ctx.DepthResources.Create();
     }
 

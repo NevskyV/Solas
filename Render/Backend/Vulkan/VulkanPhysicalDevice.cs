@@ -38,6 +38,7 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         }
 
         Ctx.PhysicalDevice = selectedDevice.Value;
+        Ctx.MsaaSamples = GetMaxUsableSampleCount();
     }
 
     private bool IsDeviceSuitable(PhysicalDevice device)
@@ -110,5 +111,43 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
                                         extDynamicStateFeatures.ExtendedDynamicState;
 
         return supportsVulkan13 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
+    }
+
+    private SampleCountFlags GetMaxUsableSampleCount()
+    {
+        var physicalDeviceProperties = Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice);
+        SampleCountFlags counts = physicalDeviceProperties.Limits.FramebufferColorSampleCounts &
+                                  physicalDeviceProperties.Limits.FramebufferDepthSampleCounts;
+        if ((counts & SampleCountFlags.Count64Bit) != 0)
+        {
+            return SampleCountFlags.Count64Bit;
+        }
+
+        if ((counts & SampleCountFlags.Count32Bit) != 0)
+        {
+            return SampleCountFlags.Count32Bit;
+        }
+
+        if ((counts & SampleCountFlags.Count16Bit) != 0)
+        {
+            return SampleCountFlags.Count16Bit;
+        }
+
+        if ((counts & SampleCountFlags.Count8Bit) != 0)
+        {
+            return SampleCountFlags.Count8Bit;
+        }
+
+        if ((counts & SampleCountFlags.Count4Bit) != 0)
+        {
+            return SampleCountFlags.Count4Bit;
+        }
+
+        if ((counts & SampleCountFlags.Count2Bit) != 0)
+        {
+            return SampleCountFlags.Count2Bit;
+        }
+
+        return SampleCountFlags.Count1Bit;
     }
 }

@@ -95,7 +95,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
             {
                 SType = StructureType.PipelineMultisampleStateCreateInfo,
                 SampleShadingEnable = false,
-                RasterizationSamples = SampleCountFlags.Count1Bit,
+                RasterizationSamples = Ctx.MsaaSamples,
             };
 
             PipelineColorBlendAttachmentState colorBlendAttachment = new()

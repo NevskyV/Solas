@@ -97,8 +97,18 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     internal uint MipLevels;
 
+    internal SampleCountFlags MsaaSamples = SampleCountFlags.Count1Bit;
+    internal Image ColorImage;
+    internal DeviceMemory ColorImageMemory;
+    internal ImageView ColorImageView;
+    internal VulkanColorResources ColorResources;
+
     public void Dispose()
     {
+        Vk!.DestroyImageView(Device, ColorImageView, null);
+        Vk!.DestroyImage(Device, ColorImage, null);
+        Vk!.FreeMemory(Device, ColorImageMemory, null);
+
         Vk!.DestroySampler(Device, TextureSampler, null);
         Vk!.DestroyImageView(Device, TextureImageView, null);
         Vk!.DestroyImage(Device, TextureImage, null);

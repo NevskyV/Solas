@@ -29,7 +29,7 @@ public static class Command
         return EngineContext.DISystem.AutoInject<T>(space);
     }
 
-    public static T Inject<T>(Guid id, Guid spaceId) where T : struct, IReferenceable
+    public static T Inject<T>(Guid id, Guid spaceId) where T : IReferenceable
     {
         return DISystem.Inject<T>(id, spaceId);
     }

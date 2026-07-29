@@ -6,8 +6,8 @@ namespace Solas.Components;
 
 public readonly record struct Entity : IDisposable, IToggleable, IReferenceable
 {
-    public uint InternalId { get; }
-    public ushort Version { get; }
+    internal uint InternalId { get; }
+    internal ushort Version { get; }
 
     public static Entity Null => new(0, 0);
     public bool IsNull => InternalId == 0;

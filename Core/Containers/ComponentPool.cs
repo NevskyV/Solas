@@ -50,15 +50,6 @@ public class ComponentPool<T> : IComponentPool
         Entities.RemoveAt(lastIndex);
     }
 
-    public Entity FindEntityFor(object component)
-    {
-        if (component is not T typed)
-            return Entity.Null;
-
-        var index = Components.IndexOf(typed);
-        return index >= 0 ? Entities[index] : Entity.Null;
-    }
-
     private void EnsureSparseCapacity(uint internalId)
     {
         var targetIndex = (int)internalId;

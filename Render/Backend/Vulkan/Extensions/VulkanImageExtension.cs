@@ -7,7 +7,8 @@ internal static unsafe class VulkanImageExtension
 {
     extension(Image)
     {
-        internal static (Image, DeviceMemory) Create(VulkanContext ctx, uint width, uint height, Format format,
+        internal static (Image, DeviceMemory) Create(VulkanContext ctx, uint width, uint height, uint mipLevels,
+            Format format,
             ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties)
         {
             ImageCreateInfo imageInfo = new ImageCreateInfo()
@@ -16,7 +17,7 @@ internal static unsafe class VulkanImageExtension
                 ImageType = ImageType.Type2D,
                 Format = format,
                 Extent = new Extent3D(width, height, 1),
-                MipLevels = 1,
+                MipLevels = mipLevels,
                 ArrayLayers = 1,
                 Samples = SampleCountFlags.Count1Bit,
                 Tiling = tiling,

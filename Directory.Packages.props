@@ -2,7 +2,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CoreVer Condition="'$(CoreVer)' == ''">0.2.5</CoreVer>
-    <TransformVer Condition="'$(TransformVer)' == ''">0.2.4</TransformVer>
+    <TransformVer Condition="'$(TransformVer)' == ''">0.2.5</TransformVer>
     <SourceGeneratorsVer Condition="'$(SourceGeneratorsVer)' == ''">0.2.5</SourceGeneratorsVer>
     <BuildVer Condition="'$(BuildVer)' == ''">0.2.1</BuildVer>
   </PropertyGroup>

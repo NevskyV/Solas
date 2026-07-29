@@ -15,7 +15,7 @@ internal unsafe class VulkanTextureSampler : VulkanInjectable
             MipmapMode = SamplerMipmapMode.Linear,
             MipLodBias = 0f,
             MinLod = 0f,
-            MaxLod = 0f,
+            MaxLod = Vk.LodClampNone,
             AddressModeU = SamplerAddressMode.Repeat,
             AddressModeV = SamplerAddressMode.Repeat,
             AddressModeW = SamplerAddressMode.Repeat,

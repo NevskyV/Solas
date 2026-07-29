@@ -113,7 +113,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         {
             Ctx.SwapChainImageViews[i] =
                 ImageView.Create(Ctx, Ctx.SwapChainImages[i], Ctx.SwapChainSurfaceFormat.Format,
-                    ImageAspectFlags.ColorBit);
+                    ImageAspectFlags.ColorBit, 1);
         }
     }
 

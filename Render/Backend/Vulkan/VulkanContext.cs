@@ -95,6 +95,8 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Format DepthFormat;
     internal VulkanDepthResources DepthResources;
 
+    internal uint MipLevels;
+
     public void Dispose()
     {
         Vk!.DestroySampler(Device, TextureSampler, null);

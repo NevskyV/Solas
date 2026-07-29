@@ -6,7 +6,8 @@ public static unsafe class VulkanImageViewExtension
 {
     extension(ImageView)
     {
-        internal static ImageView Create(VulkanContext ctx, Image image, Format format, ImageAspectFlags aspectFlags)
+        internal static ImageView Create(VulkanContext ctx, Image image, Format format, ImageAspectFlags aspectFlags,
+            uint mipLevels)
         {
             var imageViewCreateInfo = new ImageViewCreateInfo
             {
@@ -18,7 +19,7 @@ public static unsafe class VulkanImageViewExtension
                 {
                     AspectMask = aspectFlags,
                     BaseMipLevel = 0,
-                    LevelCount = 1,
+                    LevelCount = mipLevels,
                     BaseArrayLayer = 0,
                     LayerCount = 1
                 }

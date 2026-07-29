@@ -12,12 +12,13 @@ internal unsafe class VulkanDepthResources : VulkanInjectable, IDisposable
             Ctx,
             Ctx.SwapChainExtent.Width,
             Ctx.SwapChainExtent.Height,
+            1,
             Ctx.DepthFormat,
             ImageTiling.Optimal,
             ImageUsageFlags.DepthStencilAttachmentBit,
             MemoryPropertyFlags.DeviceLocalBit);
 
-        Ctx.DepthImageView = ImageView.Create(Ctx, Ctx.DepthImage, Ctx.DepthFormat, ImageAspectFlags.DepthBit);
+        Ctx.DepthImageView = ImageView.Create(Ctx, Ctx.DepthImage, Ctx.DepthFormat, ImageAspectFlags.DepthBit, 1);
     }
 
     private Format FindDepthFormat()

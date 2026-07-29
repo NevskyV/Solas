@@ -15,6 +15,9 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
             Buffer.Create(Ctx, imageSize, BufferUsageFlags.TransferSrcBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
 
+        Ctx.MipLevels = image.MipLevels;
+        //TODO: remove to individuals
+
         void* data;
         Ctx.Vk!.MapMemory(Ctx.Device, stagingBufferMemory, 0, imageSize, 0, &data);
         image.Data.AsSpan().CopyTo(new Span<byte>(data, (int)imageSize));
@@ -24,25 +27,117 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
             Ctx,
             image.Width,
             image.Height,
+            image.MipLevels,
             Format.R8G8B8A8Srgb,
             ImageTiling.Optimal,
-            ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
+            ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
             MemoryPropertyFlags.DeviceLocalBit);
 
         CommandBuffer commandBuffer = Buffer.BeginSingleTimeCommands(Ctx);
-        TransitionImageLayout(Ctx, commandBuffer, Ctx.TextureImage, ImageLayout.Undefined,
-            ImageLayout.TransferDstOptimal);
+        TransitionImageLayout(commandBuffer, Ctx.TextureImage, ImageLayout.Undefined,
+            ImageLayout.TransferDstOptimal, image.MipLevels);
         CopyBufferToImage(commandBuffer, stagingBuffer, Ctx.TextureImage, image.Width, image.Height);
-        TransitionImageLayout(Ctx, commandBuffer, Ctx.TextureImage, ImageLayout.TransferDstOptimal,
-            ImageLayout.ShaderReadOnlyOptimal);
+        GenerateMipMaps(commandBuffer, Ctx.TextureImage, Format.R8G8B8A8Srgb, (int)image.Width, (int)image.Height,
+            image.MipLevels);
         Buffer.EndSingleTimeCommands(Ctx, commandBuffer);
 
         Ctx.Vk!.DestroyBuffer(Ctx.Device, stagingBuffer, null);
         Ctx.Vk!.FreeMemory(Ctx.Device, stagingBufferMemory, null);
     }
 
-    private void TransitionImageLayout(VulkanContext ctx, CommandBuffer commandBuffer, Image image,
-        ImageLayout oldLayout, ImageLayout newLayout)
+    private void GenerateMipMaps(CommandBuffer commandBuffer, Image image, Format imageFormat, int width, int height,
+        uint mipLevels)
+    {
+        var formatProperties = Ctx.Vk!.GetPhysicalDeviceFormatProperties(Ctx.PhysicalDevice, imageFormat);
+
+        if ((formatProperties.OptimalTilingFeatures & FormatFeatureFlags.SampledImageFilterLinearBit) == 0)
+        {
+            throw new Exception("texture image format does not support linear blitting!");
+        }
+
+        ImageMemoryBarrier barrier = new()
+        {
+            SType = StructureType.ImageMemoryBarrier,
+            SrcAccessMask = AccessFlags.TransferWriteBit,
+            DstAccessMask = AccessFlags.TransferReadBit,
+            OldLayout = ImageLayout.TransferDstOptimal,
+            NewLayout = ImageLayout.TransferSrcOptimal,
+            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            Image = image,
+            SubresourceRange =
+            {
+                AspectMask = ImageAspectFlags.ColorBit,
+                BaseArrayLayer = 0,
+                LayerCount = 1,
+                LevelCount = 1,
+            }
+        };
+
+        int mipWidth = width;
+        int mipHeight = height;
+
+        for (uint i = 1; i < mipLevels; i++)
+        {
+            barrier.SubresourceRange.BaseMipLevel = i - 1;
+            barrier.OldLayout = ImageLayout.TransferDstOptimal;
+            barrier.NewLayout = ImageLayout.TransferSrcOptimal;
+            barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+            barrier.DstAccessMask = AccessFlags.TransferReadBit;
+
+            Ctx.Vk!.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.TransferBit, PipelineStageFlags.TransferBit,
+                0, 0, null, 0, null,
+                1, in barrier);
+
+            ImageBlit blit = new()
+            {
+                SrcSubresource = { AspectMask = ImageAspectFlags.ColorBit, MipLevel = i - 1, LayerCount = 1 },
+                SrcOffsets = { Element0 = { }, Element1 = new Offset3D(mipWidth, mipHeight, 1) },
+                DstSubresource = { AspectMask = ImageAspectFlags.ColorBit, MipLevel = i, LayerCount = 1 },
+                DstOffsets =
+                {
+                    Element0 = { },
+                    Element1 = new Offset3D(1 < mipWidth ? mipWidth / 2 : 1, 1 < mipHeight ? mipHeight / 2 : 1, 1)
+                }
+            };
+
+            Ctx.Vk!.CmdBlitImage(commandBuffer, image, ImageLayout.TransferSrcOptimal, image,
+                ImageLayout.TransferDstOptimal, 1, in blit, Filter.Linear);
+
+            barrier.OldLayout = ImageLayout.TransferSrcOptimal;
+            barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+            barrier.SrcAccessMask = AccessFlags.TransferReadBit;
+            barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+
+            Ctx.Vk!.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.TransferBit,
+                PipelineStageFlags.FragmentShaderBit,
+                0, 0, null, 0, null,
+                1, in barrier);
+
+            if (1 < mipWidth)
+            {
+                mipWidth /= 2;
+            }
+
+            if (1 < mipHeight)
+            {
+                mipHeight /= 2;
+            }
+        }
+
+        barrier.SubresourceRange.BaseMipLevel = mipLevels - 1;
+        barrier.OldLayout = ImageLayout.TransferDstOptimal;
+        barrier.NewLayout = ImageLayout.ShaderReadOnlyOptimal;
+        barrier.SrcAccessMask = AccessFlags.TransferWriteBit;
+        barrier.DstAccessMask = AccessFlags.ShaderReadBit;
+
+        Ctx.Vk!.CmdPipelineBarrier(commandBuffer, PipelineStageFlags.TransferBit, PipelineStageFlags.FragmentShaderBit,
+            0, 0, null, 0, null,
+            1, in barrier);
+    }
+
+    private void TransitionImageLayout(CommandBuffer commandBuffer, Image image,
+        ImageLayout oldLayout, ImageLayout newLayout, uint mipLevels)
     {
         ImageMemoryBarrier barrier = new()
         {
@@ -52,7 +147,7 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
             SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
             DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
             Image = image,
-            SubresourceRange = { AspectMask = ImageAspectFlags.ColorBit, LevelCount = 1, LayerCount = 1 }
+            SubresourceRange = { AspectMask = ImageAspectFlags.ColorBit, LevelCount = mipLevels, LayerCount = 1 }
         };
 
         PipelineStageFlags sourceStage;
@@ -79,7 +174,7 @@ internal unsafe class VulkanTextureImage : VulkanInjectable
             throw new Exception("unsupported layout transition!");
         }
 
-        ctx.Vk!.CmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0,
+        Ctx.Vk!.CmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0,
             null, 0, null, 1, in barrier);
     }
 

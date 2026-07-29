@@ -7,6 +7,7 @@ public class Texture // : Asset
     public byte[]? Data { get; private init; }
     public uint Width { get; private init; }
     public uint Height { get; private init; }
+    public uint MipLevels { get; private init; }
 
     public Texture(string path)
     {
@@ -16,5 +17,6 @@ public class Texture // : Asset
         Data = result.Data;
         Width = (uint)result.Width;
         Height = (uint)result.Height;
+        MipLevels = (uint)Math.Floor((Math.Log2(Math.Max(Width, Height)))) + 1;
     }
 }

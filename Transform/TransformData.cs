@@ -29,7 +29,7 @@ public class TransformData : IData, IBranchable
     public IBranchable GetRoot()
     {
         return Query.GetEntitiesInAvailable(Entity.CurrentSpace).FirstOrDefault(x => x.Id == RootId)
-            ?.GetData<TransformData>();
+            .GetData<TransformData>();
     }
 
     public IEnumerable<IBranchable> GetBranches()
@@ -39,7 +39,7 @@ public class TransformData : IData, IBranchable
         foreach (var branchId in BranchesIds)
         {
             result.Add(Query.GetEntitiesInAvailable(space).FirstOrDefault(x => x.Id == branchId)
-                ?.GetData<TransformData>());
+                .GetData<TransformData>());
         }
 
         return result;

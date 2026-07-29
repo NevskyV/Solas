@@ -127,6 +127,6 @@ public static class Engine
     {
         EngineContext.Updater.Stop();
         EngineContext.SpacePool.UnloadAllSpaces();
-        EngineContext.AssetsPool.SaveNewAssets();
+        EngineContext.AssetsPool.UnloadAllAssets();
     }
 }

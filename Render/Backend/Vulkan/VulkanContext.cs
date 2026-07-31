@@ -1,9 +1,12 @@
-﻿using Silk.NET.Vulkan;
+﻿using System.Resources;
+using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
 using Solas.Render.Components;
 using Solas.Render.Data;
+using Solas.Render.Logics;
+using Solas.Render.Vulkan.Extensions;
 using Solas.Transform;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
@@ -12,9 +15,6 @@ namespace Solas.Render.Vulkan;
 
 internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
-    internal readonly string ModelPath = "neko.obj";
-    internal readonly string TexturePath = "neko.png";
-
     internal TransformData CameraTransform;
     internal CameraData CameraData;
 
@@ -22,7 +22,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal uint FrameIndex;
     internal bool FrameBufferResized;
 
-    internal readonly bool EnableValidationLayers = true;
+    internal readonly bool EnableValidationLayers = false;
 
     internal readonly string[] RequiredDeviceExtensions =
     [
@@ -68,26 +68,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Semaphore[]? RenderFinishedSemaphores;
     internal Fence[]? InFlightFences;
 
-    internal Vertex[]? Vertices;
-
-    internal uint[]? Indices;
-
-    internal Buffer VertexBuffer;
-    internal DeviceMemory VertexBufferMemory;
-
-    internal Buffer IndexBuffer;
-    internal DeviceMemory IndexBufferMemory;
-
-    internal Buffer[]? UniformBuffers;
-    internal DeviceMemory[]? UniformBuffersMemory;
-
     internal DescriptorPool DescriptorPool;
-    internal DescriptorSet[]? DescriptorSets;
-
-    internal Image TextureImage;
-    internal DeviceMemory TextureImageMemory;
-    internal ImageView TextureImageView;
-    internal Sampler TextureSampler;
 
     internal Image DepthImage;
     internal DeviceMemory DepthImageMemory;
@@ -95,37 +76,26 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Format DepthFormat;
     internal VulkanDepthResources DepthResources;
 
-    internal uint MipLevels;
-
     internal SampleCountFlags MsaaSamples = SampleCountFlags.Count1Bit;
     internal Image ColorImage;
     internal DeviceMemory ColorImageMemory;
     internal ImageView ColorImageView;
     internal VulkanColorResources ColorResources;
 
+    internal Dictionary<MeshRenderLogic, VulkanRenderData> RenderDataMap = new();
+    internal List<VulkanRenderData> RenderData = [];
+    internal VulkanResourceManager ResourceManager;
+
     public void Dispose()
     {
+        ResourceManager.Dispose();
+
         Vk!.DestroyImageView(Device, ColorImageView, null);
         Vk!.DestroyImage(Device, ColorImage, null);
         Vk!.FreeMemory(Device, ColorImageMemory, null);
 
-        Vk!.DestroySampler(Device, TextureSampler, null);
-        Vk!.DestroyImageView(Device, TextureImageView, null);
-        Vk!.DestroyImage(Device, TextureImage, null);
-        Vk!.FreeMemory(Device, TextureImageMemory, null);
-
         Vk!.DestroyDescriptorSetLayout(Device, DescriptorSetLayout, null);
         Vk!.DestroyDescriptorPool(Device, DescriptorPool, null);
-        Vk!.DestroyBuffer(Device, IndexBuffer, null);
-        Vk!.FreeMemory(Device, IndexBufferMemory, null);
-        Vk!.DestroyBuffer(Device, VertexBuffer, null);
-        Vk!.FreeMemory(Device, VertexBufferMemory, null);
-
-        for (int i = 0; i < MaxFramesInFlight; i++)
-        {
-            Vk!.DestroyBuffer(Device, UniformBuffers![i], null);
-            Vk!.FreeMemory(Device, UniformBuffersMemory![i], null);
-        }
 
         for (int i = 0; i < RenderFinishedSemaphores!.Length; i++)
         {

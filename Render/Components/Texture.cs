@@ -1,10 +1,11 @@
-﻿using StbImageSharp;
+﻿using Solas.Assets;
+using StbImageSharp;
 
 namespace Solas.Render.Components;
 
-public class Texture // : Asset
+public class Texture : Asset
 {
-    public byte[]? Data { get; private init; }
+    public byte[]? Data { get; private set; }
     public uint Width { get; private init; }
     public uint Height { get; private init; }
     public uint MipLevels { get; private init; }
@@ -18,5 +19,10 @@ public class Texture // : Asset
         Width = (uint)result.Width;
         Height = (uint)result.Height;
         MipLevels = (uint)Math.Floor((Math.Log2(Math.Max(Width, Height)))) + 1;
+    }
+
+    public void FreeCpuData()
+    {
+        Data = null;
     }
 }

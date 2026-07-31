@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Collections.Concurrent;
+using System.Runtime.InteropServices;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
 using Silk.NET.Maths;
@@ -6,6 +7,8 @@ using Silk.NET.Vulkan;
 using Silk.NET.Windowing;
 using Solas.Render.Components;
 using Solas.Render.Data;
+using Solas.Render.Logics;
+using Solas.Render.Vulkan.Extensions;
 using Solas.Transform;
 using Semaphore = Silk.NET.Vulkan.Semaphore;
 
@@ -15,6 +18,8 @@ internal class VulkanRenderer : IRenderer
 {
     private VulkanContext _context = null!;
 
+    private readonly ConcurrentQueue<Action> _pendingActions = new();
+
     private readonly VulkanDebug _debug = new();
     private readonly VulkanSurface _surface = new();
     private readonly VulkanPhysicalDevice _physicalDevice = new();
@@ -23,17 +28,13 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanPipeline _pipeline = new();
     private readonly VulkanCommands _commands = new();
     private readonly VulkanSynchronisation _synchronisation = new();
-    private readonly VulkanVertexBuffer _vertexBuffer = new();
-    private readonly VulkanIndexBuffer _indexBuffer = new();
     private readonly VulkanDescriptorSetLayout _descriptorSetLayout = new();
     private readonly VulkanUniformBuffers _uniformBuffers = new();
     private readonly VulkanDescriptorPool _descriptorPool = new();
     private readonly VulkanDescriptorSets _descriptorSets = new();
-    private readonly VulkanTextureImage _textureImage = new();
-    private readonly VulkanTextureImageView _textureImageView = new();
-    private readonly VulkanTextureSampler _textureSampler = new();
     private readonly VulkanDepthResources _depthResources = new();
     private readonly VulkanColorResources _colorResources = new();
+    private readonly VulkanResourceManager _resourceManager = new();
 
     void IRenderer.Start(IWindow window, TransformData cameraTransform, CameraData cameraData)
     {
@@ -42,6 +43,7 @@ internal class VulkanRenderer : IRenderer
         _context.ColorResources = _colorResources;
         _context.CameraTransform = cameraTransform;
         _context.CameraData = cameraData;
+        _context.ResourceManager = _resourceManager;
 
         VulkanInjectable[] injectables =
         [
@@ -53,17 +55,13 @@ internal class VulkanRenderer : IRenderer
             _pipeline,
             _commands,
             _synchronisation,
-            _vertexBuffer,
-            _indexBuffer,
             _uniformBuffers,
             _descriptorSetLayout,
             _descriptorPool,
             _descriptorSets,
-            _textureImage,
-            _textureImageView,
-            _textureSampler,
             _depthResources,
-            _colorResources
+            _colorResources,
+            _resourceManager
         ];
 
         foreach (var injectable in injectables)
@@ -83,24 +81,117 @@ internal class VulkanRenderer : IRenderer
         _depthResources.Create();
         _pipeline.Create();
         _commands.CreateCommandPool();
-        _textureImage.Create();
-        _textureImageView.Create();
-        _textureSampler.Create();
-        LoadModel();
-        _vertexBuffer.Create();
-        _indexBuffer.Create();
-        _uniformBuffers.Create();
         _descriptorPool.Create();
-        _descriptorSets.Create();
+
+        SetupMeshRenderers();
+
         _commands.CreateCommandBuffers();
         _synchronisation.CreateSyncObjects();
     }
 
-    private void LoadModel()
+    private void SetupMeshRenderers()
     {
-        var mesh = new Mesh(_context.ModelPath);
-        _context.Vertices = mesh.Vertices;
-        _context.Indices = mesh.Indices;
+        var preloadedRenders = RenderLogicEventHandler.BorrowLoadedLogic();
+        for (var i = 0; i < preloadedRenders.Length; i++)
+        {
+            LoadModel(preloadedRenders[i]);
+        }
+
+        RenderLogicEventHandler.CreateLogicEvent += LoadModel;
+        RenderLogicEventHandler.MeshUpdateEvent += UpdateMesh;
+        RenderLogicEventHandler.TextureUpdateEvent += UpdateTexture;
+        RenderLogicEventHandler.DisposeLogicEvent += UnloadModel;
+    }
+
+    private void LoadModel(MeshRenderLogic logic)
+    {
+        _pendingActions.Enqueue(() =>
+        {
+            if (logic.Mesh == null || logic.Texture == null) return;
+            if (_context.RenderDataMap.ContainsKey(logic)) return;
+
+            var renderData = new VulkanRenderData(logic)
+            {
+                GpuMesh = _resourceManager.AcquireMesh(logic.Mesh),
+                GpuTexture = _resourceManager.AcquireTexture(logic.Texture)
+            };
+
+            _uniformBuffers.CreateForObject(renderData);
+            _descriptorSets.CreateForObject(renderData);
+
+            _context.RenderDataMap[logic] = renderData;
+            _context.RenderData.Add(renderData);
+        });
+    }
+
+    private void UpdateMesh(MeshRenderLogic logic, Mesh newMesh)
+    {
+        _pendingActions.Enqueue(() =>
+        {
+            if (!_context.RenderDataMap.TryGetValue(logic, out var renderData)) return;
+
+            _context.Vk!.DeviceWaitIdle(_context.Device);
+
+            if (logic.Mesh != null)
+            {
+                _resourceManager.ReleaseMesh(logic.Mesh.Id);
+            }
+
+            renderData.GpuMesh = _resourceManager.AcquireMesh(newMesh);
+        });
+    }
+
+    private void UpdateTexture(MeshRenderLogic logic, Texture newTexture)
+    {
+        _pendingActions.Enqueue(() =>
+        {
+            if (!_context.RenderDataMap.TryGetValue(logic, out var renderData)) return;
+
+            _context.Vk!.DeviceWaitIdle(_context.Device);
+
+            if (logic.Texture != null)
+            {
+                _resourceManager.ReleaseTexture(logic.Texture.Id);
+            }
+
+            renderData.GpuTexture = _resourceManager.AcquireTexture(newTexture);
+            _descriptorSets.UpdateTextureBinding(renderData);
+        });
+    }
+
+    private void UnloadModel(MeshRenderLogic logic)
+    {
+        _pendingActions.Enqueue(() =>
+        {
+            if (!_context.RenderDataMap.TryGetValue(logic, out var renderData)) return;
+
+            _context.Vk!.DeviceWaitIdle(_context.Device);
+
+            _descriptorSets.FreeForObject(renderData);
+            _uniformBuffers.DestroyForObject(renderData);
+
+            if (logic.Mesh != null)
+            {
+                _resourceManager.ReleaseMesh(logic.Mesh.Id);
+            }
+
+            if (logic.Texture != null)
+            {
+                _resourceManager.ReleaseTexture(logic.Texture.Id);
+            }
+
+            _context.RenderDataMap.Remove(logic);
+            _context.RenderData.Remove(renderData);
+        });
+    }
+
+    private void ProcessPendingActions()
+    {
+        if (_pendingActions.Count == 0) return;
+        while (_pendingActions.TryDequeue(out var action))
+        {
+            action.Invoke();
+        }
     }
 
     private unsafe void CreateInstance()
@@ -162,6 +253,8 @@ internal class VulkanRenderer : IRenderer
 
     unsafe void IRenderer.DrawFrame()
     {
+        ProcessPendingActions();
+
         if (_context.Vk!.WaitForFences(_context.Device, [_context.InFlightFences![_context.FrameIndex]], true,
                 ulong.MaxValue) != Result.Success)
         {
@@ -243,6 +336,11 @@ internal class VulkanRenderer : IRenderer
 
     public void Dispose()
     {
+        RenderLogicEventHandler.CreateLogicEvent -= LoadModel;
+        RenderLogicEventHandler.MeshUpdateEvent -= UpdateMesh;
+        RenderLogicEventHandler.TextureUpdateEvent -= UpdateTexture;
+        RenderLogicEventHandler.DisposeLogicEvent -= UnloadModel;
+
         _context.Vk!.DeviceWaitIdle(_context.Device);
         _swapChain.Dispose();
         _context.Dispose();

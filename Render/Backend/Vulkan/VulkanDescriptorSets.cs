@@ -1,14 +1,16 @@
 ﻿using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Render.Vulkan.Extensions;
 
 namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDescriptorSets : VulkanInjectable
 {
-    internal void Create()
+    internal void CreateForObject(VulkanRenderData data)
     {
         var layouts = new DescriptorSetLayout[Ctx.MaxFramesInFlight];
         Array.Fill(layouts, Ctx.DescriptorSetLayout);
+
         fixed (DescriptorSetLayout* pLayouts = layouts)
         {
             DescriptorSetAllocateInfo allocInfo = new()
@@ -19,8 +21,8 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 PSetLayouts = pLayouts,
             };
 
-            Ctx.DescriptorSets = new DescriptorSet[Ctx.MaxFramesInFlight];
-            fixed (DescriptorSet* descriptorSetsPtr = Ctx.DescriptorSets)
+            data.DescriptorSets = new DescriptorSet[Ctx.MaxFramesInFlight];
+            fixed (DescriptorSet* descriptorSetsPtr = data.DescriptorSets)
             {
                 if (Ctx.Vk!.AllocateDescriptorSets(Ctx.Device, &allocInfo, descriptorSetsPtr) != Result.Success)
                 {
@@ -33,15 +35,15 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
         {
             DescriptorBufferInfo bufferInfo = new()
             {
-                Buffer = Ctx.UniformBuffers![i],
+                Buffer = data.UniformBuffers[i],
                 Offset = 0,
                 Range = (ulong)sizeof(UniformBufferObject)
             };
 
             DescriptorImageInfo imageInfo = new()
             {
-                Sampler = Ctx.TextureSampler,
-                ImageView = Ctx.TextureImageView,
+                Sampler = data.GpuTexture.Sampler,
+                ImageView = data.GpuTexture.ImageView,
                 ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
             };
 
@@ -50,7 +52,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 new()
                 {
                     SType = StructureType.WriteDescriptorSet,
-                    DstSet = Ctx.DescriptorSets[i],
+                    DstSet = data.DescriptorSets[i],
                     DstBinding = 0,
                     DstArrayElement = 0,
                     DescriptorCount = 1,
@@ -60,7 +62,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 new()
                 {
                     SType = StructureType.WriteDescriptorSet,
-                    DstSet = Ctx.DescriptorSets[i],
+                    DstSet = data.DescriptorSets[i],
                     DstBinding = 1,
                     DstArrayElement = 0,
                     DescriptorCount = 1,
@@ -69,7 +71,45 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 }
             ];
 
-            Ctx.Vk.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
+            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
         }
+    }
+
+    internal void UpdateTextureBinding(VulkanRenderData data)
+    {
+        for (var i = 0; i < Ctx.MaxFramesInFlight; i++)
+        {
+            DescriptorImageInfo imageInfo = new()
+            {
+                Sampler = data.GpuTexture.Sampler,
+                ImageView = data.GpuTexture.ImageView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+            };
+
+            WriteDescriptorSet descriptorWrite = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = data.DescriptorSets[i],
+                DstBinding = 1,
+                DstArrayElement = 0,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.CombinedImageSampler,
+                PImageInfo = &imageInfo,
+            };
+
+            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, 1, in descriptorWrite, 0, null);
+        }
+    }
+
+    internal void FreeForObject(VulkanRenderData data)
+    {
+        if (data.DescriptorSets == null || data.DescriptorSets.Length == 0) return;
+
+        fixed (DescriptorSet* pDescriptorSets = data.DescriptorSets)
+        {
+            Ctx.Vk!.FreeDescriptorSets(Ctx.Device, Ctx.DescriptorPool, Ctx.MaxFramesInFlight, pDescriptorSets);
+        }
+
+        data.DescriptorSets = null!;
     }
 }

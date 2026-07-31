@@ -132,33 +132,45 @@ internal unsafe class VulkanCommands : VulkanInjectable
             PDepthAttachment = &depthAttachmentInfo
         };
 
+        var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
+
         // 4. Record drawing commands
-        Ctx.Vk.CmdBeginRendering(Ctx.CommandBuffers![Ctx.FrameIndex], &renderingInfo);
+        Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
 
-        Ctx.Vk.CmdBindPipeline(Ctx.CommandBuffers![Ctx.FrameIndex], PipelineBindPoint.Graphics, Ctx.GraphicsPipeline);
-
-        fixed (Buffer* pBuffer = &Ctx.VertexBuffer)
-        {
-            Ctx.Vk.CmdBindVertexBuffers(Ctx.CommandBuffers![Ctx.FrameIndex], 0, pBuffer, new Span<ulong>([0]));
-        }
-
-        Ctx.Vk.CmdBindIndexBuffer(Ctx.CommandBuffers![Ctx.FrameIndex], Ctx.IndexBuffer, 0, IndexType.Uint32);
+        Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, Ctx.GraphicsPipeline);
 
         // Viewport setup
         var viewport = new Viewport(0.0f, 0.0f, Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height, 0.0f, 1.0f);
-        Ctx.Vk.CmdSetViewport(Ctx.CommandBuffers![Ctx.FrameIndex], 0, 1, &viewport);
+        Ctx.Vk.CmdSetViewport(cmdBuffer, 0, 1, &viewport);
 
         // Scissor setup
         var scissor = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent);
-        Ctx.Vk.CmdSetScissor(Ctx.CommandBuffers![Ctx.FrameIndex], 0, 1, &scissor);
+        Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
+        Buffer lastVertexBuffer = default;
 
-        Ctx.Vk!.CmdBindDescriptorSets(Ctx.CommandBuffers![Ctx.FrameIndex], PipelineBindPoint.Graphics,
-            Ctx.PipelineLayout, 0, 1, in Ctx.DescriptorSets![Ctx.FrameIndex], 0, null);
+        foreach (var renderObject in Ctx.RenderData)
+        {
+            if (renderObject.GpuMesh == null || renderObject.GpuTexture == null) continue;
 
-        Ctx.Vk.CmdDrawIndexed(Ctx.CommandBuffers![Ctx.FrameIndex], (uint)Ctx.Indices!.Length, 1, 0, 0, 0);
+            var gpuMesh = renderObject.GpuMesh;
 
-        Ctx.Vk.CmdEndRendering(Ctx.CommandBuffers![Ctx.FrameIndex]);
+            if (gpuMesh.VertexBuffer.Handle != lastVertexBuffer.Handle)
+            {
+                ulong offset = 0;
+                Ctx.Vk.CmdBindVertexBuffers(cmdBuffer, 0, 1, in gpuMesh.VertexBuffer, in offset);
+                Ctx.Vk.CmdBindIndexBuffer(cmdBuffer, gpuMesh.IndexBuffer, 0, IndexType.Uint32);
+                lastVertexBuffer = gpuMesh.VertexBuffer;
+            }
+
+            var descriptorSet = renderObject.DescriptorSets[Ctx.FrameIndex];
+            Ctx.Vk.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Graphics, Ctx.PipelineLayout, 0, 1,
+                in descriptorSet, 0, null);
+
+            Ctx.Vk.CmdDrawIndexed(cmdBuffer, gpuMesh.IndexCount, 1, 0, 0, 0);
+        }
+
+        Ctx.Vk.CmdEndRendering(cmdBuffer);
 
         // 5. Transition layout back to PresentSrcKhr
         TransitionImageLayout(
@@ -173,7 +185,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         );
 
         // 6. End command buffer recording
-        if (Ctx.Vk!.EndCommandBuffer(Ctx.CommandBuffers![Ctx.FrameIndex]) != Result.Success)
+        if (Ctx.Vk!.EndCommandBuffer(cmdBuffer) != Result.Success)
         {
             throw new Exception("Failed to end command buffer");
         }

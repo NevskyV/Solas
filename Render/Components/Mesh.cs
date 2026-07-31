@@ -1,12 +1,13 @@
 ﻿using System.Numerics;
 using Silk.NET.Assimp;
+using Solas.Assets;
 
 namespace Solas.Render.Components;
 
-public class Mesh
+public class Mesh : Asset
 {
-    public Vertex[] Vertices { get; private init; }
-    public uint[] Indices { get; private init; }
+    public Vertex[]? Vertices { get; private set; }
+    public uint[]? Indices { get; private set; }
 
     public unsafe Mesh(string path)
     {
@@ -39,10 +40,18 @@ public class Mesh
                         uint index = face.MIndices[i];
 
                         var position = mesh->MVertices[index];
-                        var texture = mesh->MTextureCoords[0][(int)index];
+                        Vector2 uv = Vector2.Zero;
+                        if (mesh->MTextureCoords[0] != null)
+                        {
+                            var texture = mesh->MTextureCoords[0][(int)index];
+                            uv = new Vector2(texture.X, 1.0f - texture.Y);
+                        }
 
-                        Vertex vertex = new(new Vector3(position.X, position.Y, position.Z),
-                            new Vector3(1, 1, 1), new Vector2(texture.X, 1.0f - texture.Y));
+                        Vertex vertex = new(
+                            new Vector3(position.X, position.Y, position.Z),
+                            new Vector3(1, 1, 1),
+                            uv
+                        );
 
                         if (vertexMap.TryGetValue(vertex, out var meshIndex))
                         {
@@ -63,5 +72,11 @@ public class Mesh
                 VisitSceneNode(node->MChildren[c]);
             }
         }
+    }
+
+    public void FreeCpuData()
+    {
+        Vertices = null;
+        Indices = null;
     }
 }

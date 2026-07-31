@@ -4,34 +4,41 @@ namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanDescriptorPool : VulkanInjectable
 {
+    private const uint MaxObjectsCapacity = 10000;
+
     internal void Create()
     {
-        DescriptorPoolSize[] poolSize =
+        uint maxSets = Ctx.MaxFramesInFlight * MaxObjectsCapacity;
+
+        DescriptorPoolSize[] poolSizes =
         [
             new()
             {
                 Type = DescriptorType.UniformBuffer,
-                DescriptorCount = Ctx.MaxFramesInFlight,
+                DescriptorCount = maxSets,
             },
             new()
             {
                 Type = DescriptorType.CombinedImageSampler,
-                DescriptorCount = Ctx.MaxFramesInFlight,
+                DescriptorCount = maxSets,
             }
         ];
 
-        fixed (DescriptorPoolSize* pPoolSizes = poolSize)
+        fixed (DescriptorPoolSize* pPoolSizes = poolSizes)
         {
-            DescriptorPoolCreateInfo poolInfo = new DescriptorPoolCreateInfo()
+            DescriptorPoolCreateInfo poolInfo = new()
             {
                 SType = StructureType.DescriptorPoolCreateInfo,
                 Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
-                MaxSets = Ctx.MaxFramesInFlight,
-                PoolSizeCount = (uint)poolSize.Length,
+                MaxSets = maxSets,
+                PoolSizeCount = (uint)poolSizes.Length,
                 PPoolSizes = pPoolSizes
             };
 
-            Ctx.Vk!.CreateDescriptorPool(Ctx.Device, &poolInfo, null, out Ctx.DescriptorPool);
+            if (Ctx.Vk!.CreateDescriptorPool(Ctx.Device, &poolInfo, null, out Ctx.DescriptorPool) != Result.Success)
+            {
+                throw new Exception("failed to create descriptor pool!");
+            }
         }
     }
 }

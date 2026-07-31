@@ -8,7 +8,7 @@ public static class TransformEventHandler
 
     public static void RegisterData(TransformData data)
     {
-        if (data.Entity == null) return;
+        if (data.Entity.IsNull) return;
         if (!_handlers.TryGetValue(data.Entity.CurrentSpace, out var handler))
             _handlers.Add(data.Entity.CurrentSpace, handler = new TransformEventData());
         data.Position.OnChange += value => handler.PositionUpdateEvent(data, value);
@@ -19,7 +19,7 @@ public static class TransformEventHandler
 
     public static void UnregisterData(TransformData data)
     {
-        if (data.Entity == null) return;
+        if (data.Entity.IsNull) return;
         var handler = _handlers[data.Entity.CurrentSpace];
         data.Position.OnChange -= value => handler.PositionUpdateEvent(data, value);
         data.Rotation.OnChange -= value => handler.RotationUpdateEvent(data, value);

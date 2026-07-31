@@ -1,0 +1,23 @@
+﻿using System.Numerics;
+using Silk.NET.Vulkan;
+using Solas.Render.Logics;
+using Solas.Render.Vulkan.Components;
+using Buffer = Silk.NET.Vulkan.Buffer;
+
+namespace Solas.Render.Vulkan.Extensions;
+
+internal class VulkanRenderData
+{
+    internal MeshRenderLogic Logic { get; }
+    internal VulkanGpuMesh? GpuMesh = null!;
+    internal VulkanGpuTexture? GpuTexture = null!;
+
+    internal Buffer[]? UniformBuffers = null;
+    internal DeviceMemory[] UniformBuffersMemory = null!;
+    internal DescriptorSet[] DescriptorSets = null!;
+
+    internal VulkanRenderData(MeshRenderLogic logic)
+    {
+        Logic = logic;
+    }
+}

@@ -81,6 +81,7 @@ public class SceneCameraLogic : Logic, IInitializable
         {
             _isRotating = true;
             _lastMousePosition = mouse.Position;
+            mouse.Cursor.CursorMode = CursorMode.Raw;
         }
     }
 
@@ -89,6 +90,7 @@ public class SceneCameraLogic : Logic, IInitializable
         if (mouseButton == MouseButton.Right)
         {
             _isRotating = false;
+            mouse.Cursor.CursorMode = CursorMode.Normal;
         }
     }
 

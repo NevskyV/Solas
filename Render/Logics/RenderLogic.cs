@@ -6,11 +6,10 @@ using Solas.Attributes;
 using Solas.Components;
 using Solas.Enums;
 using Solas.Render.Data;
-using Solas.Render.Logics;
 using Solas.Render.Vulkan;
 using Solas.Transform;
 
-namespace Solas.Render;
+namespace Solas.Render.Logics;
 
 [Update, LateUpdate]
 public class RenderLogic : Logic

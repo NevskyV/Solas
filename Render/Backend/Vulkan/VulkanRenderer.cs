@@ -35,6 +35,10 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanDepthResources _depthResources = new();
     private readonly VulkanColorResources _colorResources = new();
     private readonly VulkanResourceManager _resourceManager = new();
+    private readonly VulkanShaderStorageBuffer _shaderStorageBuffer = new();
+    private readonly VulkanComputePipeline _computePipeline = new();
+    private readonly VulkanComputeDescriptorSets _computeDescriptorSets = new();
+    private readonly VulkanComputeDescriptorSetLayout _computeDescriptorSetLayout = new();
 
     void IRenderer.Start(IWindow window, TransformData cameraTransform, CameraData cameraData)
     {
@@ -61,7 +65,11 @@ internal class VulkanRenderer : IRenderer
             _descriptorSets,
             _depthResources,
             _colorResources,
-            _resourceManager
+            _resourceManager,
+            _shaderStorageBuffer,
+            _computePipeline,
+            _computeDescriptorSets,
+            _computeDescriptorSetLayout
         ];
 
         foreach (var injectable in injectables)
@@ -76,16 +84,20 @@ internal class VulkanRenderer : IRenderer
         _device.CreateLogicalDevice();
         _swapChain.Create();
         _swapChain.CreateImageViews();
-        _descriptorSetLayout.Create();
         _colorResources.Create();
         _depthResources.Create();
+        _descriptorSetLayout.Create();
+        _computeDescriptorSetLayout.Create();
         _pipeline.Create();
+        _computePipeline.Create();
         _commands.CreateCommandPool();
+        _shaderStorageBuffer.Create();
         _descriptorPool.Create();
+        _computeDescriptorSets.Create();
+        _commands.CreateCommandBuffers();
 
         SetupMeshRenderers();
 
-        _commands.CreateCommandBuffers();
         _synchronisation.CreateSyncObjects();
     }
 

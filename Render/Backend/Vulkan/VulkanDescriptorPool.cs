@@ -21,6 +21,11 @@ internal unsafe class VulkanDescriptorPool : VulkanInjectable
             {
                 Type = DescriptorType.CombinedImageSampler,
                 DescriptorCount = maxSets,
+            },
+            new()
+            {
+                Type = DescriptorType.StorageBuffer,
+                DescriptorCount = Ctx.MaxFramesInFlight * 2
             }
         ];
 

@@ -23,14 +23,15 @@ internal unsafe class VulkanDevice : VulkanInjectable
         for (uint qfpIndex = 0; qfpIndex < (uint)queueFamilies.Length; qfpIndex++)
         {
             // Check if queue family supports graphics operations
-            bool supportsGraphics = (queueFamilies[qfpIndex].QueueFlags & QueueFlags.GraphicsBit) != 0;
+            bool supportsGraphicsAndCompute = queueFamilies[qfpIndex].QueueFlags
+                .HasFlag(QueueFlags.GraphicsBit | QueueFlags.ComputeBit);
 
             // Check if queue family supports presentation to the KHR surface
             Bool32 supportsPresent = false;
             Ctx.KhrSurface!.GetPhysicalDeviceSurfaceSupport(Ctx.PhysicalDevice, qfpIndex, Ctx.Surface,
                 &supportsPresent);
 
-            if (supportsGraphics && supportsPresent)
+            if (supportsGraphicsAndCompute && supportsPresent)
             {
                 // Found a queue family that supports both graphics and present
                 queueIndex = qfpIndex;

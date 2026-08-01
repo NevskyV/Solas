@@ -134,6 +134,33 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
 
+        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.ComputePipeline);
+
+        var computeSet = Ctx.ComputeDescriptorSets[Ctx.FrameIndex];
+        Ctx.Vk!.CmdBindDescriptorSets(
+            cmdBuffer,
+            PipelineBindPoint.Compute,
+            Ctx.ComputePipelineLayout,
+            0, 1, &computeSet, 0, null);
+
+        Ctx.Vk!.CmdDispatch(cmdBuffer, 16, 1, 1);
+
+        MemoryBarrier2 memoryBarrier = new()
+        {
+            SType = StructureType.MemoryBarrier2,
+            SrcStageMask = PipelineStageFlags2.ComputeShaderBit,
+            SrcAccessMask = AccessFlags2.ShaderWriteBit,
+            DstStageMask = PipelineStageFlags2.FragmentShaderBit,
+            DstAccessMask = AccessFlags2.ShaderReadBit
+        };
+        DependencyInfo depInfo = new()
+        {
+            SType = StructureType.DependencyInfo,
+            MemoryBarrierCount = 1,
+            PMemoryBarriers = &memoryBarrier
+        };
+        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &depInfo);
+
         // 4. Record drawing commands
         Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
 

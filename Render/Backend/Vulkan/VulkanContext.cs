@@ -22,7 +22,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal uint FrameIndex;
     internal bool FrameBufferResized;
 
-    internal readonly bool EnableValidationLayers = false;
+    internal readonly bool EnableValidationLayers = true;
 
     internal readonly string[] RequiredDeviceExtensions =
     [
@@ -85,6 +85,13 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Dictionary<MeshRenderLogic, VulkanRenderData> RenderDataMap = new();
     internal List<VulkanRenderData> RenderData = [];
     internal VulkanResourceManager ResourceManager;
+
+    internal Buffer[] ShaderStorageBuffers;
+    internal DeviceMemory[] ShaderStorageBuffersMemory;
+    internal Pipeline ComputePipeline;
+    internal PipelineLayout ComputePipelineLayout;
+    internal DescriptorSet[] ComputeDescriptorSets;
+    internal DescriptorSetLayout ComputeDescriptorSetLayout;
 
     public void Dispose()
     {

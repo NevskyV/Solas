@@ -1,6 +1,8 @@
 ﻿using Silk.NET.Maths;
 using Silk.NET.Vulkan;
+using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
+using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan;
 
@@ -104,6 +106,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         CreateImageViews();
         Ctx.ColorResources.Create();
         Ctx.DepthResources.Create();
+        Ctx.LightingResources.RecreateLightingSwapChainResources();
     }
 
     internal void CreateImageViews()

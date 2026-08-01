@@ -40,6 +40,14 @@ public class Mesh : Asset
                         uint index = face.MIndices[i];
 
                         var position = mesh->MVertices[index];
+
+                        Vector3 normal = Vector3.UnitY;
+                        if (mesh->MNormals != null)
+                        {
+                            var norm = mesh->MNormals[index];
+                            normal = new Vector3(norm.X, norm.Y, norm.Z);
+                        }
+
                         Vector2 uv = Vector2.Zero;
                         if (mesh->MTextureCoords[0] != null)
                         {
@@ -49,7 +57,7 @@ public class Mesh : Asset
 
                         Vertex vertex = new(
                             new Vector3(position.X, position.Y, position.Z),
-                            new Vector3(1, 1, 1),
+                            normal,
                             uv
                         );
 

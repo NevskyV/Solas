@@ -8,7 +8,7 @@ namespace Solas.Render.Vulkan;
 
 internal static unsafe class VulkanMeshLoader
 {
-    internal static VulkanGpuMesh Upload(VulkanContext ctx, Mesh mesh)
+    internal static MeshGpu Upload(VulkanContext ctx, Mesh mesh)
     {
         var vertexBufferSize = (ulong)sizeof(Vertex) * (ulong)mesh.Vertices.Length;
         var (vertexStagingBuffer, vertexStagingMemory) = Buffer.Create(ctx, vertexBufferSize,
@@ -42,7 +42,7 @@ internal static unsafe class VulkanMeshLoader
         ctx.Vk!.DestroyBuffer(ctx.Device, indexStagingBuffer, null);
         ctx.Vk!.FreeMemory(ctx.Device, indexStagingMemory, null);
 
-        return new VulkanGpuMesh(ctx.Vk, ctx.Device, vertexBuffer, vertexBufferMemory, indexBuffer, indexBufferMemory,
+        return new MeshGpu(ctx.Vk, ctx.Device, vertexBuffer, vertexBufferMemory, indexBuffer, indexBufferMemory,
             (uint)mesh.Indices.Length);
     }
 }

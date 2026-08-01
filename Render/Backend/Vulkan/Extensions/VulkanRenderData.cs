@@ -9,8 +9,8 @@ namespace Solas.Render.Vulkan.Extensions;
 internal class VulkanRenderData
 {
     internal MeshRenderLogic Logic { get; }
-    internal VulkanGpuMesh? GpuMesh = null!;
-    internal VulkanGpuTexture? GpuTexture = null!;
+    internal MeshGpu? GpuMesh = null!;
+    internal TextureGpu? GpuTexture = null!;
 
     internal Buffer[]? UniformBuffers = null;
     internal DeviceMemory[] UniformBuffersMemory = null!;

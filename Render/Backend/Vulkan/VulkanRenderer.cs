@@ -37,8 +37,8 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanResourceManager _resourceManager = new();
     private readonly VulkanShaderStorageBuffer _shaderStorageBuffer = new();
     private readonly VulkanComputePipeline _computePipeline = new();
-    private readonly VulkanComputeDescriptorSets _computeDescriptorSets = new();
-    private readonly VulkanComputeDescriptorSetLayout _computeDescriptorSetLayout = new();
+    private readonly VulkanLightingResources _lightingResources = new();
+    private readonly VulkanLightingDescriptors _lightingDescriptors = new();
 
     void IRenderer.Start(IWindow window, TransformData cameraTransform, CameraData cameraData)
     {
@@ -48,6 +48,7 @@ internal class VulkanRenderer : IRenderer
         _context.CameraTransform = cameraTransform;
         _context.CameraData = cameraData;
         _context.ResourceManager = _resourceManager;
+        _context.LightingResources = _lightingResources;
 
         VulkanInjectable[] injectables =
         [
@@ -68,8 +69,8 @@ internal class VulkanRenderer : IRenderer
             _resourceManager,
             _shaderStorageBuffer,
             _computePipeline,
-            _computeDescriptorSets,
-            _computeDescriptorSetLayout
+            _lightingResources,
+            _lightingDescriptors,
         ];
 
         foreach (var injectable in injectables)
@@ -82,22 +83,28 @@ internal class VulkanRenderer : IRenderer
         _surface.Create();
         _physicalDevice.PickPhysicalDevice();
         _device.CreateLogicalDevice();
+
         _swapChain.Create();
         _swapChain.CreateImageViews();
         _colorResources.Create();
         _depthResources.Create();
+
+        _lightingDescriptors.CreateLayouts();
         _descriptorSetLayout.Create();
-        _computeDescriptorSetLayout.Create();
-        _pipeline.Create();
+
         _computePipeline.Create();
+        _pipeline.Create();
+
         _commands.CreateCommandPool();
-        _shaderStorageBuffer.Create();
+
+        _lightingResources.Create();
         _descriptorPool.Create();
-        _computeDescriptorSets.Create();
+
+        _lightingDescriptors.AllocateAndWriteSets();
+
         _commands.CreateCommandBuffers();
 
         SetupMeshRenderers();
-
         _synchronisation.CreateSyncObjects();
     }
 

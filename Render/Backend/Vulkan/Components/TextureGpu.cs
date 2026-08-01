@@ -2,7 +2,7 @@
 
 namespace Solas.Render.Vulkan.Components;
 
-internal unsafe class VulkanGpuTexture : IDisposable
+internal unsafe class TextureGpu : IDisposable
 {
     private readonly Vk _vk;
     private readonly Device _device;
@@ -12,7 +12,7 @@ internal unsafe class VulkanGpuTexture : IDisposable
     internal ImageView ImageView;
     internal Sampler Sampler;
 
-    internal VulkanGpuTexture(Vk vk, Device device, Image image, DeviceMemory memory, ImageView imageView,
+    internal TextureGpu(Vk vk, Device device, Image image, DeviceMemory memory, ImageView imageView,
         Sampler sampler)
     {
         _vk = vk;

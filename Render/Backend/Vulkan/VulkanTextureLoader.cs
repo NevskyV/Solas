@@ -8,7 +8,7 @@ namespace Solas.Render.Vulkan;
 
 internal static unsafe class VulkanTextureLoader
 {
-    internal static VulkanGpuTexture Upload(VulkanContext ctx, Texture texture)
+    internal static TextureGpu Upload(VulkanContext ctx, Texture texture)
     {
         var imageSize = (ulong)(texture.Width * texture.Height * 4);
         var (stagingBuffer, stagingMemory) = Buffer.Create(ctx, imageSize, BufferUsageFlags.TransferSrcBit,
@@ -43,7 +43,7 @@ internal static unsafe class VulkanTextureLoader
         var imageView = ImageView.Create(ctx, image, Format.R8G8B8A8Srgb, ImageAspectFlags.ColorBit, texture.MipLevels);
         var sampler = CreateSampler(ctx);
 
-        return new VulkanGpuTexture(ctx.Vk, ctx.Device, image, memory, imageView, sampler);
+        return new TextureGpu(ctx.Vk, ctx.Device, image, memory, imageView, sampler);
     }
 
     private static Sampler CreateSampler(VulkanContext ctx)

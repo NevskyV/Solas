@@ -5,13 +5,13 @@ namespace Solas.Render.Vulkan;
 
 internal class VulkanResourceManager : VulkanInjectable, IDisposable
 {
-    private readonly Dictionary<Guid, VulkanGpuMesh> _meshes = new();
+    private readonly Dictionary<Guid, MeshGpu> _meshes = new();
     private readonly Dictionary<Guid, int> _meshRefCount = new();
 
-    private readonly Dictionary<Guid, VulkanGpuTexture> _textures = new();
+    private readonly Dictionary<Guid, TextureGpu> _textures = new();
     private readonly Dictionary<Guid, int> _textureRefCount = new();
 
-    internal VulkanGpuMesh AcquireMesh(Mesh meshAsset)
+    internal MeshGpu AcquireMesh(Mesh meshAsset)
     {
         var id = meshAsset.Id;
         if (_meshes.TryGetValue(id, out var existingMesh))
@@ -41,7 +41,7 @@ internal class VulkanResourceManager : VulkanInjectable, IDisposable
         }
     }
 
-    internal VulkanGpuTexture AcquireTexture(Texture textureAsset)
+    internal TextureGpu AcquireTexture(Texture textureAsset)
     {
         var id = textureAsset.Id;
         if (_textures.TryGetValue(id, out var existingTexture))

@@ -49,23 +49,29 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         Vector3 forward = Vector3.Transform(-Vector3.UnitZ, cameraQuat);
         Vector3 up = Vector3.Transform(Vector3.UnitY, cameraQuat);
 
-        var view = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
-        var proj = Matrix4x4.CreatePerspectiveFieldOfView(
+        float aspectRatio = (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height;
+
+        Ctx.CameraViewMatrix = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
+        Ctx.CameraProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(
             Radians(Ctx.CameraData.FieldOfView),
-            (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height,
+            aspectRatio,
             0.1f,
             100.0f
         );
 
-        proj.M22 *= -1;
+        Ctx.CameraProjectionMatrix.M22 *= -1;
+
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Width / 16.0f);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Height / 16.0f);
 
         foreach (var renderer in Ctx.RenderData)
         {
             var ubo = new UniformBufferObject()
             {
                 Model = renderer.Logic.GetModelMatrix(),
-                View = view,
-                Proj = proj,
+                View = Ctx.CameraViewMatrix,
+                Proj = Ctx.CameraProjectionMatrix,
+                TileCount = new Vector2(tileCountX, tileCountY)
             };
 
             void* data;

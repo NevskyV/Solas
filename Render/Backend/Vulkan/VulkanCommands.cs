@@ -1,4 +1,6 @@
-﻿using Silk.NET.Vulkan;
+﻿using System.Numerics;
+using Silk.NET.Vulkan;
+using Solas.Render.Vulkan.Components;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan;
@@ -134,16 +136,45 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
 
-        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.ComputePipeline);
+        uint frameIdx = Ctx.FrameIndex;
 
-        var computeSet = Ctx.ComputeDescriptorSets[Ctx.FrameIndex];
-        Ctx.Vk!.CmdBindDescriptorSets(
-            cmdBuffer,
-            PipelineBindPoint.Compute,
-            Ctx.ComputePipelineLayout,
-            0, 1, &computeSet, 0, null);
+        uint zeroCounter = 0;
+        System.Buffer.MemoryCopy(&zeroCounter, Ctx.GlobalIndexCounterMappedPointers[frameIdx], 4, 4);
 
-        Ctx.Vk!.CmdDispatch(cmdBuffer, 16, 1, 1);
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Width / 16.0f);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Height / 16.0f);
+
+        Matrix4x4.Invert(Ctx.CameraProjectionMatrix, out Matrix4x4 invProj);
+
+        FrameParamsGpu frameParams = new()
+        {
+            ViewMatrix = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
+            InvProjectionMatrix = Matrix4x4.Transpose(invProj),
+            ScreenResolution = new Vector2(Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height),
+            TileCount = new Vector2(tileCountX, tileCountY),
+            TotalLightCount = (uint)Ctx.ActiveLights.Length
+        };
+
+        System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
+            sizeof(FrameParamsGpu));
+
+
+        fixed (PointLightGpu* pLights = Ctx.ActiveLights)
+        {
+            uint lightsSize = (uint)(sizeof(PointLightGpu) * Ctx.ActiveLights.Length);
+            System.Buffer.MemoryCopy(pLights, Ctx.LightBuffersMappedPointers[frameIdx], lightsSize, lightsSize);
+        }
+
+        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipeline);
+
+        DescriptorSet[] computeSets = [Ctx.LightingGlobalSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
+        fixed (DescriptorSet* pComputeSets = computeSets)
+        {
+            Ctx.Vk!.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipelineLayout, 0,
+                (uint)computeSets.Length, pComputeSets, 0, null);
+        }
+
+        Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, 1);
 
         MemoryBarrier2 memoryBarrier = new()
         {
@@ -153,13 +184,15 @@ internal unsafe class VulkanCommands : VulkanInjectable
             DstStageMask = PipelineStageFlags2.FragmentShaderBit,
             DstAccessMask = AccessFlags2.ShaderReadBit
         };
-        DependencyInfo depInfo = new()
+
+        DependencyInfo dependencyInfo = new()
         {
             SType = StructureType.DependencyInfo,
             MemoryBarrierCount = 1,
             PMemoryBarriers = &memoryBarrier
         };
-        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &depInfo);
+
+        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
 
         // 4. Record drawing commands
         Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
@@ -190,9 +223,24 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 lastVertexBuffer = gpuMesh.VertexBuffer;
             }
 
-            var descriptorSet = renderObject.DescriptorSets[Ctx.FrameIndex];
-            Ctx.Vk.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Graphics, Ctx.PipelineLayout, 0, 1,
-                in descriptorSet, 0, null);
+            DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
+            DescriptorSet objectMaterialSet1 = renderObject.DescriptorSets[Ctx.FrameIndex];
+
+            DescriptorSet[] descriptorSets = [lightingSet0, objectMaterialSet1];
+
+            fixed (DescriptorSet* pDescriptorSets = descriptorSets)
+            {
+                Ctx.Vk.CmdBindDescriptorSets(
+                    cmdBuffer,
+                    PipelineBindPoint.Graphics,
+                    Ctx.PipelineLayout,
+                    0,
+                    (uint)descriptorSets.Length,
+                    pDescriptorSets,
+                    0,
+                    null
+                );
+            }
 
             Ctx.Vk.CmdDrawIndexed(cmdBuffer, gpuMesh.IndexCount, 1, 0, 0, 0);
         }

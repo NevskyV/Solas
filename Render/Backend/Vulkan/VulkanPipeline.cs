@@ -1,4 +1,6 @@
-﻿using Silk.NET.Core.Native;
+﻿using System;
+using System.IO;
+using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
@@ -9,8 +11,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
 {
     internal void Create()
     {
-        var vertShaderCode = File.ReadAllBytes(@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders\slang.spv");
-
+        var vertShaderCode = File.ReadAllBytes(@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders\material.spv");
         var shaderModule = ShaderModule.Create(Ctx, vertShaderCode);
 
         PipelineShaderStageCreateInfo vertShaderStageInfo = new()
@@ -31,13 +32,16 @@ internal unsafe class VulkanPipeline : VulkanInjectable
 
         PipelineShaderStageCreateInfo[] shaderStages = [vertShaderStageInfo, fragShaderStageInfo];
 
+        DescriptorSetLayout[] setLayouts = [Ctx.LightingGlobalSet0Layout, Ctx.DescriptorSetLayout];
+
         var bindingDescription = Vertex.GetBindingDescription();
         var attributeDescriptions = Vertex.GetAttributeDescriptions();
         DynamicState[] dynamicStates = [DynamicState.Viewport, DynamicState.Scissor];
+
         fixed (DynamicState* pDynamicStates = dynamicStates)
         fixed (PipelineShaderStageCreateInfo* pStages = shaderStages)
         fixed (VertexInputAttributeDescription* attributeDescriptionsPtr = attributeDescriptions)
-        fixed (DescriptorSetLayout* pDescriptorSetLayout = &Ctx.DescriptorSetLayout)
+        fixed (DescriptorSetLayout* pDescriptorSetLayout = setLayouts)
         {
             PipelineVertexInputStateCreateInfo vertexInputInfo = new()
             {
@@ -55,14 +59,14 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 PrimitiveRestartEnable = false,
             };
 
-            var dynamicState = new PipelineDynamicStateCreateInfo
+            PipelineDynamicStateCreateInfo dynamicState = new()
             {
                 SType = StructureType.PipelineDynamicStateCreateInfo,
                 DynamicStateCount = (uint)dynamicStates.Length,
                 PDynamicStates = pDynamicStates
             };
 
-            var viewportState = new PipelineViewportStateCreateInfo
+            PipelineViewportStateCreateInfo viewportState = new()
             {
                 SType = StructureType.PipelineViewportStateCreateInfo,
                 ViewportCount = 1,
@@ -85,7 +89,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 DepthClampEnable = false,
                 RasterizerDiscardEnable = false,
                 PolygonMode = PolygonMode.Fill,
-                LineWidth = 1,
+                LineWidth = 1.0f,
                 CullMode = CullModeFlags.BackBit,
                 FrontFace = FrontFace.CounterClockwise,
                 DepthBiasEnable = false,
@@ -123,7 +127,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
             PipelineLayoutCreateInfo pipelineLayoutInfo = new()
             {
                 SType = StructureType.PipelineLayoutCreateInfo,
-                SetLayoutCount = 1,
+                SetLayoutCount = (uint)setLayouts.Length,
                 PSetLayouts = pDescriptorSetLayout,
                 PushConstantRangeCount = 0,
             };
@@ -143,6 +147,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 DepthAttachmentFormat = Ctx.DepthFormat,
                 PNext = null
             };
+
             GraphicsPipelineCreateInfo pipelineInfo = new()
             {
                 SType = StructureType.GraphicsPipelineCreateInfo,

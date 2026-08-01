@@ -3,7 +3,7 @@ using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan.Components;
 
-internal unsafe class VulkanGpuMesh : IDisposable
+internal unsafe class MeshGpu : IDisposable
 {
     private readonly Vk _vk;
     private readonly Device _device;
@@ -14,7 +14,7 @@ internal unsafe class VulkanGpuMesh : IDisposable
     internal DeviceMemory IndexBufferMemory;
     internal uint IndexCount;
 
-    internal VulkanGpuMesh(Vk vk, Device device, Buffer vertexBuffer, DeviceMemory vertexMemory, Buffer indexBuffer,
+    internal MeshGpu(Vk vk, Device device, Buffer vertexBuffer, DeviceMemory vertexMemory, Buffer indexBuffer,
         DeviceMemory indexMemory, uint indexCount)
     {
         _vk = vk;

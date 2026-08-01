@@ -36,7 +36,7 @@ internal static class VulkanVertexExtension
                     Binding = 0,
                     Location = 1,
                     Format = Format.R32G32B32Sfloat,
-                    Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Color)),
+                    Offset = (uint)Marshal.OffsetOf<Vertex>(nameof(Vertex.Normal)),
                 },
                 new()
                 {

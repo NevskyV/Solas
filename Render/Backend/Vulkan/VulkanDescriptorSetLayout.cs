@@ -6,27 +6,29 @@ internal unsafe class VulkanDescriptorSetLayout : VulkanInjectable
 {
     internal void Create()
     {
-        DescriptorSetLayoutBinding uboLayoutBinding = new DescriptorSetLayoutBinding()
+        DescriptorSetLayoutBinding uboLayoutBinding = new()
         {
             Binding = 0,
             DescriptorType = DescriptorType.UniformBuffer,
             DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.VertexBit
+            StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+            PImmutableSamplers = null
         };
 
-        DescriptorSetLayoutBinding combinedImageSamplerLayoutBinding = new DescriptorSetLayoutBinding()
+        DescriptorSetLayoutBinding samplerLayoutBinding = new()
         {
             Binding = 1,
             DescriptorType = DescriptorType.CombinedImageSampler,
             DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.FragmentBit
+            StageFlags = ShaderStageFlags.FragmentBit,
+            PImmutableSamplers = null
         };
 
-        var bindings = new[] { uboLayoutBinding, combinedImageSamplerLayoutBinding };
+        DescriptorSetLayoutBinding[] bindings = [uboLayoutBinding, samplerLayoutBinding];
 
         fixed (DescriptorSetLayoutBinding* pBindings = bindings)
         {
-            DescriptorSetLayoutCreateInfo layoutInfo = new DescriptorSetLayoutCreateInfo()
+            DescriptorSetLayoutCreateInfo layoutInfo = new()
             {
                 SType = StructureType.DescriptorSetLayoutCreateInfo,
                 BindingCount = (uint)bindings.Length,

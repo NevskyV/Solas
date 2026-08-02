@@ -192,9 +192,9 @@ internal unsafe class VulkanCommands : VulkanInjectable
         System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
             sizeof(FrameParamsGpu));
 
-        fixed (PointLightGpu* pLights = Ctx.ActiveLights)
+        fixed (LightGpu* pLights = Ctx.ActiveLights)
         {
-            uint lightsSize = (uint)(sizeof(PointLightGpu) * Ctx.ActiveLights.Length);
+            uint lightsSize = (uint)(sizeof(LightGpu) * Ctx.ActiveLights.Length);
             System.Buffer.MemoryCopy(pLights, Ctx.LightBuffersMappedPointers[frameIdx], lightsSize, lightsSize);
         }
 

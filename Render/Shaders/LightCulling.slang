@@ -1,6 +1,6 @@
 ﻿module LightCulling;
 
-import PointLight;
+import LightData;
 import SphereIntersection;
 
 public struct TileGrid
@@ -9,7 +9,7 @@ public struct TileGrid
     public uint lightCount;
 };
 
-[[vk::binding(0, 0)]] StructuredBuffer<PointLight> g_Lights;
+[[vk::binding(0, 0)]] StructuredBuffer<Light> g_Lights;
 [[vk::binding(1, 0)]] RWStructuredBuffer<uint> g_GlobalLightIndices;
 [[vk::binding(2, 0)]] RWStructuredBuffer<TileGrid> g_TileGrid;
 [[vk::binding(3, 0)]] RWStructuredBuffer<uint> g_GlobalIndexCounter;
@@ -66,16 +66,26 @@ void computeMain(
 
     for (uint lightIdx = localIndex; lightIdx < TotalLightCount; lightIdx += 256)
     {
-        PointLight light = g_Lights[lightIdx];
-        float4 viewPos = mul(ViewMatrix, float4(light.position, 1.0f));
+        Light light = g_Lights[lightIdx];
+        
+        bool inFrustum = false;
+        uint lightType = light.GetLightType();
 
-        bool inFrustum = true;
-        for (int p = 0; p < 4; p++)
+        if (lightType == 2)
         {
-            if (!SphereVsPlane(viewPos.xyz, light.radius, frustumPlanes[p]))
+            inFrustum = true;
+        }
+        else
+        {
+            float4 viewPos = mul(ViewMatrix, float4(light.GetPosition(), 1.0f));
+            inFrustum = true;
+            for (int p = 0; p < 4; p++)
             {
-                inFrustum = false;
-                break;
+                if (!SphereVsPlane(viewPos.xyz, light.GetRadius(), frustumPlanes[p]))
+                {
+                    inFrustum = false;
+                    break;
+                }
             }
         }
 
@@ -94,7 +104,7 @@ void computeMain(
     if (localIndex == 0)
     {
         InterlockedAdd(g_GlobalIndexCounter[0], s_TileLightCount, s_TileLightIndexOffset);
-        
+
         uint tileFlatIndex = tileID.x + tileID.y * (uint)TileCount.x;
         g_TileGrid[tileFlatIndex].lightOffset = s_TileLightIndexOffset;
         g_TileGrid[tileFlatIndex].lightCount = s_TileLightCount;

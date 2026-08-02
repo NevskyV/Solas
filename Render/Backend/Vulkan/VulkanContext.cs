@@ -131,15 +131,12 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         (uint)MathF.Max(1.0f, SwapChainExtent.Height * Settings.RenderScale)
     );
 
-    internal PointLightGpu[] ActiveLights =
+    internal LightGpu[] ActiveLights =
     [
-        new() { Position = new Vector3(0, 5, 3), Radius = 10.0f, Color = new Vector3(0.1f, 1, 1), Intensity = 1.0f },
-        new()
-        {
-            Position = new Vector3(3, -2, -2), Radius = 8.0f, Color = new Vector3(1, 0.1f, 0.5f), Intensity = 1.5f
-        },
-        new() { Position = new Vector3(3, 10, -2), Radius = 40.0f, Color = new Vector3(1, 1, 1), Intensity = 2f },
-        new() { Position = new Vector3(-10, 10, 5), Radius = 40.0f, Color = new Vector3(1, 1, 1), Intensity = 2f }
+        LightGpu.CreatePoint(new Vector3(4, 2, 0), 5.0f, new Vector3(1, 0, 0), 2.0f),
+        LightGpu.CreateSpot(new Vector3(-5, 1, 0), new Vector3(1, 0, 0), 8.0f, 15.0f, 60.0f, new Vector3(0, 1, 0),
+            1.5f),
+        LightGpu.CreateDirectional(new Vector3(-0.5f, -1.0f, -0.5f), new Vector3(1, 1, 0.9f), 0.5f)
     ];
 
     public void Dispose()

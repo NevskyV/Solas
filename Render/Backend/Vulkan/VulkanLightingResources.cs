@@ -12,7 +12,7 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
     internal void Create()
     {
-        uint lightsSize = (uint)(sizeof(PointLightGpu) * MaxLights);
+        uint lightsSize = (uint)(sizeof(LightGpu) * MaxLights);
         uint indicesSize = sizeof(uint) * MaxTileIndices;
 
         uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);

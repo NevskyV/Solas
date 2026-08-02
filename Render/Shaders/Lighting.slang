@@ -1,6 +1,6 @@
 ﻿module Lighting;
 
-import PointLight;
+import LightData;
 
 public struct TileGrid
 {
@@ -8,7 +8,7 @@ public struct TileGrid
     public uint lightCount;
 };
 
-[[vk::binding(0, 0)]] StructuredBuffer<PointLight> g_Lights;
+[[vk::binding(0, 0)]] StructuredBuffer<Light> g_Lights;
 [[vk::binding(1, 0)]] StructuredBuffer<uint> g_GlobalLightIndices;
 [[vk::binding(2, 0)]] StructuredBuffer<TileGrid> g_TileGrid;
 
@@ -23,7 +23,7 @@ public float3 EvaluateForwardPlusLighting(float2 screenPixelPos, float3 worldPos
     for (uint i = 0; i < tile.lightCount; i++)
     {
         uint globalLightIndex = g_GlobalLightIndices[tile.lightOffset + i];
-        PointLight light = g_Lights[globalLightIndex];
+        Light light = g_Lights[globalLightIndex];
 
         finalColor += light.CalculateLighting(worldPos, normal);
     }

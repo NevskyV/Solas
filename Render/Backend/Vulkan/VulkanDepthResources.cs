@@ -10,8 +10,8 @@ internal unsafe class VulkanDepthResources : VulkanInjectable, IDisposable
         Ctx.DepthFormat = FindDepthFormat();
         (Ctx.DepthImage, Ctx.DepthImageMemory) = Image.Create(
             Ctx,
-            Ctx.SwapChainExtent.Width,
-            Ctx.SwapChainExtent.Height,
+            Ctx.RenderExtent.Width,
+            Ctx.RenderExtent.Height,
             1,
             Ctx.MsaaSamples,
             Ctx.DepthFormat,

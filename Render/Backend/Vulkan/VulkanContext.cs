@@ -1,10 +1,8 @@
 ﻿using System.Numerics;
-using System.Resources;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
-using Solas.Render.Components;
 using Solas.Render.Data;
 using Solas.Render.Logics;
 using Solas.Render.Vulkan.Components;
@@ -17,14 +15,12 @@ namespace Solas.Render.Vulkan;
 
 internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
+    internal GraphicsSettings Settings;
     internal TransformData CameraTransform;
     internal CameraData CameraData;
 
-    internal readonly uint MaxFramesInFlight = 2;
     internal uint FrameIndex;
     internal bool FrameBufferResized;
-
-    internal readonly bool EnableValidationLayers = true;
 
     internal readonly string[] RequiredDeviceExtensions =
     [
@@ -126,6 +122,15 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Matrix4x4 CameraViewMatrix;
     internal Matrix4x4 CameraProjectionMatrix;
 
+    internal Image ResolveImage;
+    internal DeviceMemory ResolveImageMemory;
+    internal ImageView ResolveImageView;
+
+    internal Extent2D RenderExtent => new(
+        (uint)MathF.Max(1.0f, SwapChainExtent.Width * Settings.RenderScale),
+        (uint)MathF.Max(1.0f, SwapChainExtent.Height * Settings.RenderScale)
+    );
+
     internal PointLightGpu[] ActiveLights =
     [
         new() { Position = new Vector3(0, 5, 3), Radius = 10.0f, Color = new Vector3(0.1f, 1, 1), Intensity = 1.0f },
@@ -139,6 +144,13 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     public void Dispose()
     {
+        if (ResolveImageView.Handle != 0)
+        {
+            Vk!.DestroyImageView(Device, ResolveImageView, null);
+            Vk!.DestroyImage(Device, ResolveImage, null);
+            Vk!.FreeMemory(Device, ResolveImageMemory, null);
+        }
+
         if (LightCullingPipeline.Handle != 0)
         {
             Vk!.DestroyPipeline(Device, LightCullingPipeline, null);
@@ -181,7 +193,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
             ComputeDescriptorSetLayout = default;
         }
 
-        for (int i = 0; i < MaxFramesInFlight; i++)
+        for (int i = 0; i < Settings.MaxFramesInFlight; i++)
         {
             Vk!.DestroyBuffer(Device, TileGridBuffers[i], null);
             Vk!.FreeMemory(Device, TileGridBuffersMemory[i], null);
@@ -245,10 +257,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
         ResourceManager.Dispose();
 
-        Vk!.DestroyImageView(Device, ColorImageView, null);
-        Vk!.DestroyImage(Device, ColorImage, null);
-        Vk!.FreeMemory(Device, ColorImageMemory, null);
-
         Vk!.DestroyDescriptorSetLayout(Device, DescriptorSetLayout, null);
         Vk!.DestroyDescriptorPool(Device, DescriptorPool, null);
 
@@ -257,7 +265,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
             Vk!.DestroySemaphore(Device, RenderFinishedSemaphores![i], null);
         }
 
-        for (int i = 0; i < MaxFramesInFlight; i++)
+        for (int i = 0; i < Settings.MaxFramesInFlight; i++)
         {
             Vk!.DestroySemaphore(Device, PresentCompleteSemaphores![i], null);
             Vk!.DestroyFence(Device, InFlightFences![i], null);
@@ -280,7 +288,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
         Vk!.DestroyDevice(Device, null);
 
-        if (EnableValidationLayers)
+        if (Settings.EnableValidationLayers)
         {
             DebugUtils!.DestroyDebugUtilsMessenger(Instance, DebugMessenger, null);
         }

@@ -36,7 +36,7 @@ public class RenderLogic : Logic
         {
             Size = new Vector2D<int>(_windowSettings.Width, _windowSettings.Height),
             Title = _windowSettings.WindowTitle,
-            VSync = _windowSettings.Vsync,
+            VSync = false,
             API = (GraphicsBackend)_windowSettings.Api == GraphicsBackend.Vulkan
                 ? GraphicsAPI.DefaultVulkan
                 : GraphicsAPI.Default,

@@ -35,7 +35,6 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanDepthResources _depthResources = new();
     private readonly VulkanColorResources _colorResources = new();
     private readonly VulkanResourceManager _resourceManager = new();
-    private readonly VulkanShaderStorageBuffer _shaderStorageBuffer = new();
     private readonly VulkanComputePipeline _computePipeline = new();
     private readonly VulkanLightingResources _lightingResources = new();
     private readonly VulkanLightingDescriptors _lightingDescriptors = new();
@@ -50,33 +49,9 @@ internal class VulkanRenderer : IRenderer
         _context.ResourceManager = _resourceManager;
         _context.LightingResources = _lightingResources;
 
-        VulkanInjectable[] injectables =
-        [
-            _debug,
-            _surface,
-            _physicalDevice,
-            _device,
-            _swapChain,
-            _pipeline,
-            _commands,
-            _synchronisation,
-            _uniformBuffers,
-            _descriptorSetLayout,
-            _descriptorPool,
-            _descriptorSets,
-            _depthResources,
-            _colorResources,
-            _resourceManager,
-            _shaderStorageBuffer,
-            _computePipeline,
-            _lightingResources,
-            _lightingDescriptors,
-        ];
+        _context.Settings = Query.GetSettings<GraphicsSettings>();
 
-        foreach (var injectable in injectables)
-        {
-            injectable.Ctx = _context;
-        }
+        VulkanInjectable.Ctx = _context;
 
         CreateInstance();
         _debug.SetupDebugMessenger();
@@ -216,7 +191,7 @@ internal class VulkanRenderer : IRenderer
     private unsafe void CreateInstance()
     {
         _context.Vk = Vk.GetApi();
-        if (_context.EnableValidationLayers && !_debug.CheckValidationLayerSupport())
+        if (_context.Settings.EnableValidationLayers && !_debug.CheckValidationLayerSupport())
         {
             throw new Exception("validation layers requested, but not available!");
         }
@@ -224,7 +199,7 @@ internal class VulkanRenderer : IRenderer
         ApplicationInfo appInfo = new()
         {
             SType = StructureType.ApplicationInfo,
-            PApplicationName = (byte*)Marshal.StringToHGlobalAnsi("Hello Triangle"),
+            PApplicationName = (byte*)Marshal.StringToHGlobalAnsi("Solas Game"),
             ApplicationVersion = new Version32(1, 0, 0),
             PEngineName = (byte*)Marshal.StringToHGlobalAnsi("Solas"),
             EngineVersion = new Version32(1, 0, 0),
@@ -240,7 +215,7 @@ internal class VulkanRenderer : IRenderer
         var extensions = _debug.GetRequiredExtensions();
         createInfo.EnabledExtensionCount = (uint)extensions.Length;
         createInfo.PpEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(extensions);
-        if (_context.EnableValidationLayers)
+        if (_context.Settings.EnableValidationLayers)
         {
             createInfo.EnabledLayerCount = (uint)_context.ValidationLayers.Length;
             createInfo.PpEnabledLayerNames = (byte**)SilkMarshal.StringArrayToPtr(_context.ValidationLayers);
@@ -264,7 +239,7 @@ internal class VulkanRenderer : IRenderer
         Marshal.FreeHGlobal((IntPtr)appInfo.PEngineName);
         SilkMarshal.Free((nint)createInfo.PpEnabledExtensionNames);
 
-        if (_context.EnableValidationLayers)
+        if (_context.Settings.EnableValidationLayers)
         {
             SilkMarshal.Free((nint)createInfo.PpEnabledLayerNames);
         }
@@ -345,7 +320,7 @@ internal class VulkanRenderer : IRenderer
             }
         }
 
-        _context.FrameIndex = (_context.FrameIndex + 1) % _context.MaxFramesInFlight;
+        _context.FrameIndex = (_context.FrameIndex + 1) % _context.Settings.MaxFramesInFlight;
     }
 
     void IRenderer.OnResize(Vector2D<int> newSize)

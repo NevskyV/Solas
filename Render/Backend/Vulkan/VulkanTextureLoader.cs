@@ -62,7 +62,7 @@ internal static unsafe class VulkanTextureLoader
             AddressModeV = SamplerAddressMode.Repeat,
             AddressModeW = SamplerAddressMode.Repeat,
             AnisotropyEnable = true,
-            MaxAnisotropy = pProperties.Limits.MaxSamplerAnisotropy,
+            MaxAnisotropy = Math.Min(pProperties.Limits.MaxSamplerAnisotropy, ctx.Settings.AnisotropyLevel),
             CompareEnable = false,
             CompareOp = CompareOp.Always,
             BorderColor = BorderColor.FloatOpaqueBlack,

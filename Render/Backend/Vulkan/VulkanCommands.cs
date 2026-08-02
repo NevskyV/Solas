@@ -30,14 +30,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
     internal void CreateCommandBuffers()
     {
-        Ctx.CommandBuffers = new CommandBuffer[Ctx.MaxFramesInFlight];
+        Ctx.CommandBuffers = new CommandBuffer[Ctx.Settings.MaxFramesInFlight];
 
         CommandBufferAllocateInfo allocInfo = new()
         {
             SType = StructureType.CommandBufferAllocateInfo,
             CommandPool = Ctx.CommandPool,
             Level = CommandBufferLevel.Primary,
-            CommandBufferCount = Ctx.MaxFramesInFlight
+            CommandBufferCount = Ctx.Settings.MaxFramesInFlight
         };
         fixed (CommandBuffer* commandBuffersPtr = Ctx.CommandBuffers)
         {
@@ -61,7 +61,12 @@ internal unsafe class VulkanCommands : VulkanInjectable
             throw new Exception("Failed to begin command buffer");
         }
 
-        // 1. Transition from MSAA Color Image into ColorAttachmentOptimal
+        bool isScaling = Ctx.RenderExtent.Width != Ctx.SwapChainExtent.Width ||
+                         Ctx.RenderExtent.Height != Ctx.SwapChainExtent.Height;
+        bool isMsaa = Ctx.MsaaSamples != SampleCountFlags.Count1Bit;
+
+        Image srcBlitImage = default;
+
         TransitionImageLayout(
             Ctx.ColorImage,
             ImageLayout.Undefined,
@@ -73,19 +78,31 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageAspectFlags.ColorBit
         );
 
-        // 2. Transition from Swapchain Image to ColorAttachmentOptimal
+        if (isScaling && isMsaa)
+        {
+            TransitionImageLayout(
+                Ctx.ResolveImage,
+                ImageLayout.Undefined,
+                ImageLayout.ColorAttachmentOptimal,
+                AccessFlags2.None,
+                AccessFlags2.ColorAttachmentWriteBit,
+                PipelineStageFlags2.ColorAttachmentOutputBit,
+                PipelineStageFlags2.ColorAttachmentOutputBit,
+                ImageAspectFlags.ColorBit
+            );
+        }
+
         TransitionImageLayout(
             Ctx.SwapChainImages![imageIndex],
             ImageLayout.Undefined,
-            ImageLayout.ColorAttachmentOptimal,
+            isScaling ? ImageLayout.TransferDstOptimal : ImageLayout.ColorAttachmentOptimal,
             AccessFlags2.None,
-            AccessFlags2.ColorAttachmentWriteBit,
+            isScaling ? AccessFlags2.TransferWriteBit : AccessFlags2.ColorAttachmentWriteBit,
             PipelineStageFlags2.ColorAttachmentOutputBit,
-            PipelineStageFlags2.ColorAttachmentOutputBit,
+            isScaling ? PipelineStageFlags2.TransferBit : PipelineStageFlags2.ColorAttachmentOutputBit,
             ImageAspectFlags.ColorBit
         );
 
-        // 3. Transition from MSAA Depth Image into DepthAttachmentOptimal
         TransitionImageLayout(
             Ctx.DepthImage,
             ImageLayout.Undefined,
@@ -97,9 +114,26 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageAspectFlags.DepthBit
         );
 
-        // 3. Define clear color and dynamic rendering attachments
         ClearValue clearColor = new ClearValue() { Color = new ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f) };
         ClearValue clearDepth = new ClearValue() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) };
+
+        ImageView resolveTargetView = default;
+        if (isMsaa)
+        {
+            if (isScaling)
+            {
+                resolveTargetView = Ctx.ResolveImageView;
+                srcBlitImage = Ctx.ResolveImage;
+            }
+            else
+            {
+                resolveTargetView = Ctx.SwapChainImageViews![imageIndex];
+            }
+        }
+        else
+        {
+            srcBlitImage = Ctx.ColorImage;
+        }
 
         var attachmentInfo = new RenderingAttachmentInfo
         {
@@ -107,11 +141,11 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageView = Ctx.ColorImageView,
             ImageLayout = ImageLayout.ColorAttachmentOptimal,
             LoadOp = AttachmentLoadOp.Clear,
-            StoreOp = AttachmentStoreOp.DontCare,
+            StoreOp = (isScaling && isMsaa) ? AttachmentStoreOp.Store : AttachmentStoreOp.DontCare,
             ClearValue = clearColor,
-            ResolveMode = ResolveModeFlags.AverageBit,
-            ResolveImageView = Ctx.SwapChainImageViews![imageIndex],
-            ResolveImageLayout = ImageLayout.ColorAttachmentOptimal
+            ResolveMode = isMsaa ? ResolveModeFlags.AverageBit : ResolveModeFlags.None,
+            ResolveImageView = isMsaa ? resolveTargetView : default,
+            ResolveImageLayout = isMsaa ? ImageLayout.ColorAttachmentOptimal : ImageLayout.Undefined
         };
 
         var depthAttachmentInfo = new RenderingAttachmentInfo
@@ -127,7 +161,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var renderingInfo = new RenderingInfo
         {
             SType = StructureType.RenderingInfo,
-            RenderArea = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent),
+            RenderArea = new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent),
             LayerCount = 1,
             ColorAttachmentCount = 1,
             PColorAttachments = &attachmentInfo,
@@ -141,8 +175,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
         uint zeroCounter = 0;
         System.Buffer.MemoryCopy(&zeroCounter, Ctx.GlobalIndexCounterMappedPointers[frameIdx], 4, 4);
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Width / 16.0f);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Height / 16.0f);
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
 
         Matrix4x4.Invert(Ctx.CameraProjectionMatrix, out Matrix4x4 invProj);
 
@@ -150,14 +184,13 @@ internal unsafe class VulkanCommands : VulkanInjectable
         {
             ViewMatrix = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
             InvProjectionMatrix = Matrix4x4.Transpose(invProj),
-            ScreenResolution = new Vector2(Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height),
+            ScreenResolution = new Vector2(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height),
             TileCount = new Vector2(tileCountX, tileCountY),
             TotalLightCount = (uint)Ctx.ActiveLights.Length
         };
 
         System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
             sizeof(FrameParamsGpu));
-
 
         fixed (PointLightGpu* pLights = Ctx.ActiveLights)
         {
@@ -194,17 +227,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
 
-        // 4. Record drawing commands
         Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
 
         Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, Ctx.GraphicsPipeline);
 
-        // Viewport setup
-        var viewport = new Viewport(0.0f, 0.0f, Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height, 0.0f, 1.0f);
+        var viewport = new Viewport(0.0f, 0.0f, Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, 0.0f, 1.0f);
         Ctx.Vk.CmdSetViewport(cmdBuffer, 0, 1, &viewport);
 
-        // Scissor setup
-        var scissor = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent);
+        var scissor = new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent);
         Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
         Buffer lastVertexBuffer = default;
@@ -247,19 +277,81 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk.CmdEndRendering(cmdBuffer);
 
-        // 5. Transition layout back to PresentSrcKhr
-        TransitionImageLayout(
-            Ctx.SwapChainImages![imageIndex],
-            ImageLayout.ColorAttachmentOptimal,
-            ImageLayout.PresentSrcKhr,
-            AccessFlags2.ColorAttachmentWriteBit,
-            AccessFlags2.None,
-            PipelineStageFlags2.ColorAttachmentOutputBit,
-            PipelineStageFlags2.BottomOfPipeBit,
-            ImageAspectFlags.ColorBit
-        );
+        if (isScaling)
+        {
+            TransitionImageLayout(
+                srcBlitImage,
+                ImageLayout.ColorAttachmentOptimal,
+                ImageLayout.TransferSrcOptimal,
+                AccessFlags2.ColorAttachmentWriteBit,
+                AccessFlags2.TransferReadBit,
+                PipelineStageFlags2.ColorAttachmentOutputBit,
+                PipelineStageFlags2.TransferBit,
+                ImageAspectFlags.ColorBit
+            );
 
-        // 6. End command buffer recording
+            var blitRegion = new ImageBlit2
+            {
+                SType = StructureType.ImageBlit2,
+                SrcSubresource = new ImageSubresourceLayers
+                {
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    MipLevel = 0,
+                    BaseArrayLayer = 0,
+                    LayerCount = 1
+                },
+                DstSubresource = new ImageSubresourceLayers
+                {
+                    AspectMask = ImageAspectFlags.ColorBit,
+                    MipLevel = 0,
+                    BaseArrayLayer = 0,
+                    LayerCount = 1
+                }
+            };
+            blitRegion.SrcOffsets[0] = new Offset3D(0, 0, 0);
+            blitRegion.SrcOffsets[1] = new Offset3D((int)Ctx.RenderExtent.Width, (int)Ctx.RenderExtent.Height, 1);
+            blitRegion.DstOffsets[0] = new Offset3D(0, 0, 0);
+            blitRegion.DstOffsets[1] = new Offset3D((int)Ctx.SwapChainExtent.Width, (int)Ctx.SwapChainExtent.Height, 1);
+
+            var blitInfo = new BlitImageInfo2
+            {
+                SType = StructureType.BlitImageInfo2,
+                SrcImage = srcBlitImage,
+                SrcImageLayout = ImageLayout.TransferSrcOptimal,
+                DstImage = Ctx.SwapChainImages![imageIndex],
+                DstImageLayout = ImageLayout.TransferDstOptimal,
+                RegionCount = 1,
+                PRegions = &blitRegion,
+                Filter = Filter.Linear
+            };
+
+            Ctx.Vk.CmdBlitImage2(cmdBuffer, &blitInfo);
+
+            TransitionImageLayout(
+                Ctx.SwapChainImages![imageIndex],
+                ImageLayout.TransferDstOptimal,
+                ImageLayout.PresentSrcKhr,
+                AccessFlags2.TransferWriteBit,
+                AccessFlags2.None,
+                PipelineStageFlags2.TransferBit,
+                PipelineStageFlags2.BottomOfPipeBit,
+                ImageAspectFlags.ColorBit
+            );
+        }
+        else
+        {
+            TransitionImageLayout(
+                Ctx.SwapChainImages![imageIndex],
+                ImageLayout.ColorAttachmentOptimal,
+                ImageLayout.PresentSrcKhr,
+                AccessFlags2.ColorAttachmentWriteBit,
+                AccessFlags2.None,
+                PipelineStageFlags2.ColorAttachmentOutputBit,
+                PipelineStageFlags2.BottomOfPipeBit,
+                ImageAspectFlags.ColorBit
+            );
+        }
+
         if (Ctx.Vk!.EndCommandBuffer(cmdBuffer) != Result.Success)
         {
             throw new Exception("Failed to end command buffer");

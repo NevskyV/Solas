@@ -2,5 +2,5 @@
 
 internal abstract class VulkanInjectable
 {
-    internal VulkanContext Ctx { get; set; }
+    internal static VulkanContext Ctx { get; set; } = null!;
 }

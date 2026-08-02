@@ -11,6 +11,7 @@ struct UniformBuffer {
     float4x4 view;
     float4x4 proj;
     float2 tileCount;
+    float1 tileSize;
 };
 
 [[vk::binding(0, 1)]] ConstantBuffer<UniformBuffer> ubo;
@@ -48,7 +49,7 @@ float4 fragMain(VSOutput vertIn) : SV_TARGET {
     float3 N = normalize(vertIn.worldNormal);
     uint2 tileCount = uint2(ubo.tileCount);
     
-    float3 lightColor = EvaluateForwardPlusLighting(screenPixelPos, vertIn.worldPos, N, tileCount);
+    float3 lightColor = EvaluateForwardPlusLighting(screenPixelPos, vertIn.worldPos, N, tileCount, ubo.tileSize);
     
     return float4(texColor.rgb * lightColor, texColor.a);
 }

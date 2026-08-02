@@ -80,10 +80,10 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
 
     internal void AllocateAndWriteSets()
     {
-        Ctx.LightingGlobalSetsSet0 = new DescriptorSet[Ctx.MaxFramesInFlight];
-        Ctx.LightingFrameSetsSet1 = new DescriptorSet[Ctx.MaxFramesInFlight];
+        Ctx.LightingGlobalSetsSet0 = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
+        Ctx.LightingFrameSetsSet1 = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
 
-        for (int i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             DescriptorSetLayout l0 = Ctx.LightingGlobalSet0Layout;
             DescriptorSetAllocateInfo alloc0 = new()

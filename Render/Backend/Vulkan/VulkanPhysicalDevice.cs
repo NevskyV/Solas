@@ -118,6 +118,12 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         var physicalDeviceProperties = Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice);
         SampleCountFlags counts = physicalDeviceProperties.Limits.FramebufferColorSampleCounts &
                                   physicalDeviceProperties.Limits.FramebufferDepthSampleCounts;
+
+        if ((counts & (SampleCountFlags)Ctx.Settings.Msaa) != 0)
+        {
+            return (SampleCountFlags)Ctx.Settings.Msaa;
+        }
+
         if ((counts & SampleCountFlags.Count64Bit) != 0)
         {
             return SampleCountFlags.Count64Bit;

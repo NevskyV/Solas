@@ -13,11 +13,11 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
     internal void CreateForObject(VulkanRenderData data)
     {
-        data.UniformBuffers = new Buffer[Ctx.MaxFramesInFlight];
-        data.UniformBuffersMemory = new DeviceMemory[Ctx.MaxFramesInFlight];
+        data.UniformBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        data.UniformBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
         var bufferSize = (ulong)sizeof(UniformBufferObject);
-        for (var i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             var (buffer, bufferMem) = Buffer.Create(Ctx, bufferSize, BufferUsageFlags.UniformBufferBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
@@ -30,7 +30,7 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
     {
         if (data.UniformBuffers == null) return;
 
-        for (var i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             Ctx.Vk!.DestroyBuffer(Ctx.Device, data.UniformBuffers[i], null);
             Ctx.Vk!.FreeMemory(Ctx.Device, data.UniformBuffersMemory[i], null);
@@ -49,20 +49,20 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         Vector3 forward = Vector3.Transform(-Vector3.UnitZ, cameraQuat);
         Vector3 up = Vector3.Transform(Vector3.UnitY, cameraQuat);
 
-        float aspectRatio = (float)Ctx.SwapChainExtent.Width / Ctx.SwapChainExtent.Height;
+        float aspectRatio = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
 
         Ctx.CameraViewMatrix = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
         Ctx.CameraProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(
             Radians(Ctx.CameraData.FieldOfView),
             aspectRatio,
-            0.1f,
-            100.0f
+            Ctx.CameraData.NearClipPlane,
+            Ctx.CameraData.FarClipPlane
         );
 
         Ctx.CameraProjectionMatrix.M22 *= -1;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Width / 16.0f);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Height / 16.0f);
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
 
         foreach (var renderer in Ctx.RenderData)
         {
@@ -71,7 +71,8 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
                 Model = renderer.Logic.GetModelMatrix(),
                 View = Ctx.CameraViewMatrix,
                 Proj = Ctx.CameraProjectionMatrix,
-                TileCount = new Vector2(tileCountX, tileCountY)
+                TileCount = new Vector2(tileCountX, tileCountY),
+                TileSize = Ctx.Settings.TileSize
             };
 
             void* data;

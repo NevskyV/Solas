@@ -8,7 +8,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
 {
     internal void CreateForObject(VulkanRenderData data)
     {
-        var layouts = new DescriptorSetLayout[Ctx.MaxFramesInFlight];
+        var layouts = new DescriptorSetLayout[Ctx.Settings.MaxFramesInFlight];
         Array.Fill(layouts, Ctx.DescriptorSetLayout);
 
         fixed (DescriptorSetLayout* pLayouts = layouts)
@@ -17,11 +17,11 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             {
                 SType = StructureType.DescriptorSetAllocateInfo,
                 DescriptorPool = Ctx.DescriptorPool,
-                DescriptorSetCount = Ctx.MaxFramesInFlight,
+                DescriptorSetCount = Ctx.Settings.MaxFramesInFlight,
                 PSetLayouts = pLayouts,
             };
 
-            data.DescriptorSets = new DescriptorSet[Ctx.MaxFramesInFlight];
+            data.DescriptorSets = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
             fixed (DescriptorSet* descriptorSetsPtr = data.DescriptorSets)
             {
                 if (Ctx.Vk!.AllocateDescriptorSets(Ctx.Device, &allocInfo, descriptorSetsPtr) != Result.Success)
@@ -31,7 +31,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             }
         }
 
-        for (var i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             DescriptorBufferInfo bufferInfo = new()
             {
@@ -77,7 +77,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
 
     internal void UpdateTextureBinding(VulkanRenderData data)
     {
-        for (var i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             DescriptorImageInfo imageInfo = new()
             {
@@ -103,11 +103,11 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
 
     internal void FreeForObject(VulkanRenderData data)
     {
-        if (data.DescriptorSets == null || data.DescriptorSets.Length == 0) return;
+        if (data.DescriptorSets.Length == 0) return;
 
         fixed (DescriptorSet* pDescriptorSets = data.DescriptorSets)
         {
-            Ctx.Vk!.FreeDescriptorSets(Ctx.Device, Ctx.DescriptorPool, Ctx.MaxFramesInFlight, pDescriptorSets);
+            Ctx.Vk!.FreeDescriptorSets(Ctx.Device, Ctx.DescriptorPool, Ctx.Settings.MaxFramesInFlight, pDescriptorSets);
         }
 
         data.DescriptorSets = null!;

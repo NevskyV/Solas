@@ -1,8 +1,6 @@
 ﻿using Silk.NET.Maths;
 using Silk.NET.Vulkan;
-using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
-using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan;
 
@@ -48,7 +46,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
             ImageColorSpace = Ctx.SwapChainSurfaceFormat.ColorSpace,
             ImageExtent = Ctx.SwapChainExtent,
             ImageArrayLayers = 1,
-            ImageUsage = ImageUsageFlags.ColorAttachmentBit,
+            ImageUsage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.TransferDstBit,
             ImageSharingMode = SharingMode.Exclusive,
             PreTransform = surfaceCapabilities.CurrentTransform,
             CompositeAlpha = CompositeAlphaFlagsKHR.OpaqueBitKhr,
@@ -86,6 +84,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
         Ctx.KhrSwapChain!.DestroySwapchain(Ctx.Device, Ctx.SwapChain, null);
         Ctx.DepthResources.Dispose();
+        Ctx.ColorResources.Dispose();
     }
 
     internal void RecreateSwapChain()
@@ -141,7 +140,9 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
         foreach (var format in availableFormats)
         {
-            if (format.Format == Format.B8G8R8A8Srgb && format.ColorSpace == ColorSpaceKHR.SpaceSrgbNonlinearKhr)
+            if (Ctx.Settings.SupportsHdr && format is
+                    { Format: Format.R16G16B16A16Sfloat, ColorSpace: ColorSpaceKHR.SpaceSrgbNonlinearKhr } || format is
+                    { Format: Format.B8G8R8A8Srgb, ColorSpace: ColorSpaceKHR.SpaceSrgbNonlinearKhr })
             {
                 return format;
             }
@@ -152,9 +153,10 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
     private PresentModeKHR ChooseSwapPresentMode(PresentModeKHR[] availablePresentModes)
     {
-        if (availablePresentModes.Contains(PresentModeKHR.MailboxKhr))
+        var vsyncMode = (PresentModeKHR)Ctx.Settings.VsyncMode;
+        if (availablePresentModes.Contains(vsyncMode))
         {
-            return PresentModeKHR.MailboxKhr;
+            return vsyncMode;
         }
 
         return PresentModeKHR.FifoKhr; // Guaranteed to be supported by Vulkan specification

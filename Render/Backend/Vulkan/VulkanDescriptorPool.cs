@@ -8,7 +8,7 @@ internal unsafe class VulkanDescriptorPool : VulkanInjectable
 
     internal void Create()
     {
-        uint maxSets = Ctx.MaxFramesInFlight * MaxObjectsCapacity;
+        uint maxSets = Ctx.Settings.MaxFramesInFlight * MaxObjectsCapacity;
 
         DescriptorPoolSize[] poolSizes =
         [
@@ -25,7 +25,7 @@ internal unsafe class VulkanDescriptorPool : VulkanInjectable
             new()
             {
                 Type = DescriptorType.StorageBuffer,
-                DescriptorCount = Ctx.MaxFramesInFlight * 2
+                DescriptorCount = Ctx.Settings.MaxFramesInFlight * 2u
             }
         ];
 

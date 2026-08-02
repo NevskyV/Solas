@@ -7,9 +7,9 @@ internal unsafe class VulkanSynchronisation : VulkanInjectable
 {
     internal void CreateSyncObjects()
     {
-        Ctx.PresentCompleteSemaphores = new Semaphore[Ctx.MaxFramesInFlight];
+        Ctx.PresentCompleteSemaphores = new Semaphore[Ctx.Settings.MaxFramesInFlight];
         Ctx.RenderFinishedSemaphores = new Semaphore[Ctx.SwapChainImages!.Length];
-        Ctx.InFlightFences = new Fence[Ctx.MaxFramesInFlight];
+        Ctx.InFlightFences = new Fence[Ctx.Settings.MaxFramesInFlight];
 
         SemaphoreCreateInfo semaphoreInfo = new()
         {
@@ -22,7 +22,7 @@ internal unsafe class VulkanSynchronisation : VulkanInjectable
             Flags = FenceCreateFlags.SignaledBit,
         };
 
-        for (var i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             if (Ctx.Vk!.CreateSemaphore(Ctx.Device, in semaphoreInfo, null, out Ctx.PresentCompleteSemaphores[i]) !=
                 Result.Success ||

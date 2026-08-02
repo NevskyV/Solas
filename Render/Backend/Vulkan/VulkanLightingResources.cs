@@ -15,32 +15,32 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
         uint lightsSize = (uint)(sizeof(PointLightGpu) * MaxLights);
         uint indicesSize = sizeof(uint) * MaxTileIndices;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Width / 16.0f);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Height / 16.0f);
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
         uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY);
 
         uint counterSize = sizeof(uint);
         uint frameParamsSize = (uint)sizeof(FrameParamsGpu);
 
-        Ctx.LightBuffers = new Buffer[Ctx.MaxFramesInFlight];
-        Ctx.LightBuffersMemory = new DeviceMemory[Ctx.MaxFramesInFlight];
-        Ctx.LightBuffersMappedPointers = new void*[Ctx.MaxFramesInFlight];
+        Ctx.LightBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.LightBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.LightBuffersMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
 
-        Ctx.GlobalLightIndicesBuffers = new Buffer[Ctx.MaxFramesInFlight];
-        Ctx.GlobalLightIndicesBuffersMemory = new DeviceMemory[Ctx.MaxFramesInFlight];
+        Ctx.GlobalLightIndicesBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.GlobalLightIndicesBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
-        Ctx.TileGridBuffers = new Buffer[Ctx.MaxFramesInFlight];
-        Ctx.TileGridBuffersMemory = new DeviceMemory[Ctx.MaxFramesInFlight];
+        Ctx.TileGridBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.TileGridBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
-        Ctx.GlobalIndexCounterBuffers = new Buffer[Ctx.MaxFramesInFlight];
-        Ctx.GlobalIndexCounterBuffersMemory = new DeviceMemory[Ctx.MaxFramesInFlight];
-        Ctx.GlobalIndexCounterMappedPointers = new void*[Ctx.MaxFramesInFlight];
+        Ctx.GlobalIndexCounterBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.GlobalIndexCounterBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.GlobalIndexCounterMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
 
-        Ctx.FrameParamsBuffers = new Buffer[Ctx.MaxFramesInFlight];
-        Ctx.FrameParamsBuffersMemory = new DeviceMemory[Ctx.MaxFramesInFlight];
-        Ctx.FrameParamsMappedPointers = new void*[Ctx.MaxFramesInFlight];
+        Ctx.FrameParamsBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.FrameParamsBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.FrameParamsMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
 
-        for (int i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             var (lightBuf, lightMem) = Buffer.Create(Ctx, lightsSize, BufferUsageFlags.StorageBufferBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
@@ -78,19 +78,7 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
         }
     }
 
-    internal void UpdateGpuLights(PointLightGpu[] activeLights)
-    {
-        uint frameIdx = Ctx.FrameIndex;
-        void* mappedPtr = Ctx.LightBuffersMappedPointers[frameIdx];
-        uint lightsSize = (uint)(sizeof(PointLightGpu) * activeLights.Length);
-
-        fixed (PointLightGpu* pLights = activeLights)
-        {
-            System.Buffer.MemoryCopy(pLights, mappedPtr, lightsSize, lightsSize);
-        }
-    }
-
-    internal unsafe void RecreateLightingSwapChainResources()
+    internal void RecreateLightingSwapChainResources()
     {
         Ctx.Vk!.DeviceWaitIdle(Ctx.Device);
 
@@ -109,11 +97,11 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
             }
         }
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Width / 16.0f);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.SwapChainExtent.Height / 16.0f);
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
         uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY);
 
-        for (int i = 0; i < Ctx.MaxFramesInFlight; i++)
+        for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             var (gridBuf, gridMem) = Buffer.Create(
                 Ctx,

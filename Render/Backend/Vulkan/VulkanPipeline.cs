@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using Silk.NET.Core.Native;
+﻿using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
@@ -88,7 +86,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 SType = StructureType.PipelineRasterizationStateCreateInfo,
                 DepthClampEnable = false,
                 RasterizerDiscardEnable = false,
-                PolygonMode = PolygonMode.Fill,
+                PolygonMode = (PolygonMode)Ctx.Settings.PolygonMode,
                 LineWidth = 1.0f,
                 CullMode = CullModeFlags.BackBit,
                 FrontFace = FrontFace.CounterClockwise,

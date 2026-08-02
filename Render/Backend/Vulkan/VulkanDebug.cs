@@ -21,7 +21,7 @@ internal unsafe class VulkanDebug : VulkanInjectable
 
     internal void SetupDebugMessenger()
     {
-        if (!Ctx.EnableValidationLayers) return;
+        if (!Ctx.Settings.EnableValidationLayers) return;
 
         if (!Ctx.Vk!.TryGetInstanceExtension(Ctx.Instance, out Ctx.DebugUtils)) return;
 
@@ -40,7 +40,7 @@ internal unsafe class VulkanDebug : VulkanInjectable
         var glfwExtensions = Ctx.Window!.VkSurface!.GetRequiredExtensions(out var glfwExtensionCount);
         var extensions = SilkMarshal.PtrToStringArray((nint)glfwExtensions, (int)glfwExtensionCount);
 
-        if (Ctx.EnableValidationLayers)
+        if (Ctx.Settings.EnableValidationLayers)
         {
             return extensions.Append(ExtDebugUtils.ExtensionName).ToArray();
         }

@@ -3,8 +3,8 @@
 namespace Solas.Render.Vulkan.Components;
 
 [StructLayout(LayoutKind.Sequential, Size = 8)]
-public struct TileGridGpu
+internal struct TileGridGpu
 {
-    public uint LightOffset;
-    public uint LightCount;
+    internal uint LightOffset;
+    internal uint LightCount;
 }

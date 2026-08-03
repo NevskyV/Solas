@@ -1,10 +1,10 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace Solas.Render.Vulkan.Components;
+namespace Solas.Render.Components;
 
 [StructLayout(LayoutKind.Sequential, Size = 80)]
-public record struct LightGpu(
+internal record struct LightGpu(
     Vector4 PositionOrDirection,
     Vector4 ColorIntensity,
     Vector4 ShadowParams,
@@ -12,19 +12,19 @@ public record struct LightGpu(
     Vector4 Extra1 = default
 )
 {
-    public static LightGpu CreatePoint(Vector3 position, float radius, Vector3 color, float intensity,
-        bool castShadows = false)
+    internal static LightGpu CreatePoint(Vector3 position, float radius, Vector3 color, float intensity,
+        bool castShadows, float shadowBias, float shadowSoftness, float shadowStrength)
     {
         return new LightGpu(
             PositionOrDirection: new Vector4(position, 0.0f),
             ColorIntensity: new Vector4(color, intensity),
-            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, 0.005f, 1.5f, 1.0f),
+            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, shadowBias, shadowSoftness, shadowStrength),
             Extra0: new Vector4(radius, 0.0f, 0.0f, 0.0f)
         );
     }
 
-    public static LightGpu CreateSpot(Vector3 position, Vector3 direction, float radius, float innerAngleDeg,
-        float outerAngleDeg, Vector3 color, float intensity, bool castShadows = false)
+    internal static LightGpu CreateSpot(Vector3 position, Vector3 direction, float radius, float innerAngleDeg,
+        float outerAngleDeg, Vector3 color, float intensity, bool castShadows, float shadowBias, float shadowSoftness, float shadowStrength)
     {
         float innerRad = innerAngleDeg * MathF.PI / 180.0f;
         float outerRad = outerAngleDeg * MathF.PI / 180.0f;
@@ -33,19 +33,19 @@ public record struct LightGpu(
         return new LightGpu(
             PositionOrDirection: new Vector4(position, 1.0f),
             ColorIntensity: new Vector4(color, intensity),
-            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, 0.002f, 2.0f, 1.0f),
+            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, shadowBias,shadowSoftness, shadowStrength),
             Extra0: new Vector4(dirNorm, radius),
             Extra1: new Vector4(MathF.Cos(innerRad * 0.5f), MathF.Cos(outerRad * 0.5f), 0.0f, 0.0f)
         );
     }
 
-    public static LightGpu CreateDirectional(Vector3 direction, Vector3 color, float intensity,
-        bool castShadows = false)
+    internal static LightGpu CreateDirectional(Vector3 direction, Vector3 color, float intensity,
+        bool castShadows, float shadowBias, float shadowSoftness, float shadowStrength)
     {
         return new LightGpu(
             PositionOrDirection: new Vector4(Vector3.Normalize(direction), 2.0f),
             ColorIntensity: new Vector4(color, intensity),
-            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, 0.001f, 1.0f, 1.0f)
+            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, shadowBias, shadowSoftness, shadowStrength)
         );
     }
 }

@@ -17,7 +17,7 @@ public partial class MeshRenderLogic : Logic, IInitializable
         set
         {
             field = value;
-            MeshUpdate.Invoke(field);
+            RenderLogicEventHandler.MeshUpdateEvent(this, field);
         }
     }
 
@@ -28,19 +28,16 @@ public partial class MeshRenderLogic : Logic, IInitializable
         set
         {
             field = value;
-            TextureUpdate.Invoke(field);
+            RenderLogicEventHandler.TextureUpdateEvent(this, field);
         }
     }
 
     private TransformData? _transformData;
 
-    public Action<Texture> TextureUpdate = delegate { };
-    public Action<Mesh> MeshUpdate = delegate { };
-
     public void Initialize()
     {
         _transformData = Entity.GetData<TransformData>() ?? Entity.AddData(new TransformData());
-        RenderLogicEventHandler.RegisterData(this);
+        RenderLogicEventHandler.Register(this);
     }
 
     public Matrix4x4 GetModelMatrix()
@@ -54,6 +51,6 @@ public partial class MeshRenderLogic : Logic, IInitializable
 
     public override void Dispose()
     {
-        RenderLogicEventHandler.UnregisterData(this);
+        RenderLogicEventHandler.Unregister(this);
     }
 }

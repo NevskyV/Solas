@@ -4,13 +4,13 @@ using System.Runtime.InteropServices;
 namespace Solas.Render.Vulkan.Components;
 
 [StructLayout(LayoutKind.Sequential, Size = 160)]
-public struct FrameParamsGpu
+internal struct FrameParamsGpu
 {
-    public Matrix4x4 ViewMatrix;
-    public Matrix4x4 InvProjectionMatrix;
-    public Vector2 ScreenResolution;
-    public Vector2 TileCount;
-    public uint TotalLightCount;
+    internal Matrix4x4 ViewMatrix;
+    internal Matrix4x4 InvProjectionMatrix;
+    internal Vector2 ScreenResolution;
+    internal Vector2 TileCount;
+    internal uint TotalLightCount;
     private float _pad0;
     private float _pad1;
     private float _pad2;

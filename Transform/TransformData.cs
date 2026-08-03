@@ -5,7 +5,8 @@ using Solas.Interfaces;
 
 namespace Solas.Transform;
 
-public class TransformData : IData, IBranchable
+public class TransformData(Vector3 position = new(), Vector3 rotation = new(), Vector3 scale = new())
+    : IData, IBranchable
 {
     public Entity Entity
     {
@@ -17,9 +18,9 @@ public class TransformData : IData, IBranchable
         }
     }
 
-    public DataProperty<Vector3> Position = new();
-    public DataProperty<Vector3> Rotation = new();
-    public DataProperty<Vector3> Scale = new() { Value = new Vector3(1, 1, 1) };
+    public DataProperty<Vector3> Position = new() { Value = position };
+    public DataProperty<Vector3> Rotation = new() { Value = rotation };
+    public DataProperty<Vector3> Scale = new() { Value = scale };
 
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; } = [];

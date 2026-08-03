@@ -1,4 +1,5 @@
-﻿using Solas.SourceGenerators.GenericSerializers;
+using Microsoft.CodeAnalysis;
+using Solas.SourceGenerators.GenericSerializers;
 
 namespace Solas.SourceGenerators.Utils;
 
@@ -12,4 +13,6 @@ public struct MemberMetadata
     public bool IsNullable;
     public bool IsValueType;
     public bool IsReferenceLink;
+    public bool IsEnum;
+    public ITypeSymbol Type;
 }

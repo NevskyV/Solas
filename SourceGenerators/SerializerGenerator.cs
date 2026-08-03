@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -123,9 +123,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 ctx.AddSource($"{serializerName}.g.cs", SourceText.From(generatedSource, Encoding.UTF8));
                 allSerializers.Add((metadata, $"SolasGenerated.{serializerName}"));
 
-                foreach (var member in symbol.GetMembers().OfType<IFieldSymbol>())
-                    EnqueueMemberType(member.Type, queue);
-                foreach (var member in symbol.GetMembers().OfType<IPropertySymbol>())
+                foreach (var member in members)
                     EnqueueMemberType(member.Type, queue);
             }
 
@@ -171,20 +169,104 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
     private static List<MemberMetadata> GetSerializableMembers(INamedTypeSymbol type, Compilation compilation)
     {
+        var ignoreAttrSymbol = compilation.GetTypeByMetadataName("Solas.Attributes.SerializationIgnoreAttribute");
+        var seenNames = new HashSet<string>();
+
+        var typeHierarchy = new List<INamedTypeSymbol>();
+        var current = type;
+        while (current != null &&
+               current.SpecialType != SpecialType.System_Object &&
+               current.SpecialType != SpecialType.System_ValueType)
+        {
+            typeHierarchy.Add(current);
+            current = current.BaseType;
+        }
+
+        var membersPerType = new List<List<MemberMetadata>>();
+
+        foreach (var t in typeHierarchy)
+        {
+            var listForT = new List<MemberMetadata>();
+
+            var fields = t.GetMembers().OfType<IFieldSymbol>()
+                .Where(f => !f.IsStatic && !f.IsImplicitlyDeclared && f.DeclaredAccessibility == Accessibility.Public);
+
+            foreach (var f in fields)
+            {
+                if (seenNames.Add(f.Name))
+                {
+                    if (!IsIgnored(f, ignoreAttrSymbol))
+                    {
+                        listForT.Add(CreateMemberMetadata(f.Name, f.Type, compilation));
+                    }
+                }
+            }
+
+            var properties = t.GetMembers().OfType<IPropertySymbol>()
+                .Where(p => !p.IsStatic && p.GetMethod != null && p.SetMethod != null &&
+                            p.DeclaredAccessibility == Accessibility.Public);
+
+            foreach (var p in properties)
+            {
+                if (seenNames.Add(p.Name))
+                {
+                    if (!IsIgnored(p, ignoreAttrSymbol))
+                    {
+                        listForT.Add(CreateMemberMetadata(p.Name, p.Type, compilation));
+                    }
+                }
+            }
+
+            membersPerType.Add(listForT);
+        }
+
         var members = new List<MemberMetadata>();
-
-        var fields = type.GetMembers().OfType<IFieldSymbol>()
-            .Where(f => !f.IsStatic && !f.IsImplicitlyDeclared && f.DeclaredAccessibility == Accessibility.Public);
-
-        foreach (var f in fields) members.Add(CreateMemberMetadata(f.Name, f.Type, compilation));
-
-        var properties = type.GetMembers().OfType<IPropertySymbol>()
-            .Where(p => !p.IsStatic && p.GetMethod != null && p.SetMethod != null &&
-                        p.DeclaredAccessibility == Accessibility.Public);
-
-        foreach (var p in properties) members.Add(CreateMemberMetadata(p.Name, p.Type, compilation));
+        for (int i = membersPerType.Count - 1; i >= 0; i--)
+        {
+            members.AddRange(membersPerType[i]);
+        }
 
         return members;
+    }
+
+    private static bool IsIgnored(ISymbol symbol, INamedTypeSymbol? ignoreAttrSymbol)
+    {
+        if (HasSerializationIgnoreAttribute(symbol, ignoreAttrSymbol))
+            return true;
+
+        if (symbol is IPropertySymbol prop)
+        {
+            var overridden = prop.OverriddenProperty;
+            while (overridden != null)
+            {
+                if (HasSerializationIgnoreAttribute(overridden, ignoreAttrSymbol))
+                    return true;
+                overridden = overridden.OverriddenProperty;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasSerializationIgnoreAttribute(ISymbol symbol, INamedTypeSymbol? ignoreAttrSymbol)
+    {
+        foreach (var attr in symbol.GetAttributes())
+        {
+            var attrClass = attr.AttributeClass;
+            if (attrClass == null) continue;
+
+            if (ignoreAttrSymbol != null && SymbolEqualityComparer.Default.Equals(attrClass, ignoreAttrSymbol))
+                return true;
+
+            if (attrClass.ToDisplayString() == "Solas.Attributes.SerializationIgnoreAttribute")
+                return true;
+
+            if ((attrClass.Name is "SerializationIgnoreAttribute" or "SerializationIgnore") &&
+                attrClass.ContainingNamespace?.ToDisplayString() == "Solas.Attributes")
+                return true;
+        }
+
+        return false;
     }
 
     private static MemberMetadata CreateMemberMetadata(string name, ITypeSymbol type, Compilation compilation)
@@ -228,6 +310,17 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                                checkType.InheritsFrom(logicBaseType) ||
                                checkType.ImplementsInterface(referenceableInterface);
         _genericSerializers.TryGetValue(genericType, out var genericSerializer);
+
+        var targetSymbol = elementType.IsDataProperty(out var innerProp) ? innerProp! : elementType;
+        if (targetSymbol is IArrayTypeSymbol arr)
+        {
+            targetSymbol = arr.ElementType;
+        }
+
+        bool isEnum = targetSymbol.TypeKind == TypeKind.Enum ||
+                      (targetSymbol is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullableType &&
+                       nullableType.TypeArguments[0].TypeKind == TypeKind.Enum);
+
         return new MemberMetadata{
             Name = name,
             TypeFullName = type.ToDisplayString(),
@@ -236,7 +329,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             IsPrimitive = elementType.IsPrimitive(),
             IsNullable = type.NullableAnnotation == NullableAnnotation.Annotated,
             IsValueType = isValueType,
-            IsReferenceLink = isReferenceLink
+            IsReferenceLink = isReferenceLink,
+            Type = type,
+            IsEnum = isEnum
         };
     }
 
@@ -265,6 +360,11 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             
             var isDataProperty = member.TypeFullName.StartsWith("Solas.ComponentUtils.DataProperty<");
             var accessPath = isDataProperty ? $"{member.Name}.Value" : member.Name;
+            var writeExpr = member.GenericSerializer != null
+                ? member.GenericSerializer.Write(member, accessPath)
+                : (member.IsEnum
+                    ? $"serializer.Write((int)value.{accessPath}, stream, \"{member.Name}\");"
+                    : $"serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
 
             if (isDataProperty)
             {
@@ -274,18 +374,14 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 
                 if (member.IsValueType)
                 {
-                    sb.AppendLine(member.GenericSerializer != null
-                        ? $"            {member.GenericSerializer.Write(member, accessPath)}"
-                        : $"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine($"            {writeExpr}");
                 }
                 else 
                 {
                     sb.AppendLine($"            serializer.Write(value.{accessPath} != null, stream, \"IsInnerPropertyNull\");");
                     sb.AppendLine($"            if (value.{accessPath} != null)");
                     sb.AppendLine("            {");
-                    sb.AppendLine(member.GenericSerializer != null
-                        ? $"            {member.GenericSerializer.Write(member, accessPath)}"
-                        : $"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine($"                {writeExpr}");
                     sb.AppendLine("            }");
                 }
                 sb.AppendLine("        }");
@@ -297,16 +393,12 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                     sb.AppendLine($"        serializer.Write(value.{member.Name} != null, stream, \"{member.Name}\");");
                     sb.AppendLine($"        if (value.{member.Name} != null)");
                     sb.AppendLine("        {");
-                    sb.AppendLine(member.GenericSerializer != null
-                        ? $"            {member.GenericSerializer.Write(member, accessPath)}"
-                        : $"            serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine($"            {writeExpr}");
                     sb.AppendLine("        }");
                 }
                 else
                 {
-                    sb.AppendLine(member.GenericSerializer != null
-                        ? $"        {member.GenericSerializer.Write(member, accessPath)}"
-                        : $"        serializer.Write(value.{accessPath}, stream, \"{member.Name}\");");
+                    sb.AppendLine($"        {writeExpr}");
                 }
             }
         }
@@ -381,6 +473,11 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         if (member.GenericSerializer != null)
         {
             return member.GenericSerializer.Read(member);
+        }
+
+        if (member.IsEnum)
+        {
+            return $"({targetTypeFullName})Query.Serializer.ReadInt32(stream)";
         }
 
         return member.IsPrimitive || GetPrimitiveMethodSuffix(targetTypeFullName) != "null"

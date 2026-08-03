@@ -5,27 +5,33 @@ namespace Solas.Render;
 
 internal static class RenderLogicEventHandler
 {
-    private static List<MeshRenderLogic>? _loadedLogic = [];
+    private static List<MeshRenderLogic> _loadedLogic = [];
     internal static Action<MeshRenderLogic> CreateLogicEvent = delegate { };
     internal static Action<MeshRenderLogic> DisposeLogicEvent = delegate { };
     internal static Action<MeshRenderLogic, Mesh> MeshUpdateEvent = delegate { };
     internal static Action<MeshRenderLogic, Texture> TextureUpdateEvent = delegate { };
     private static bool _haveBorrowed;
 
-    internal static void RegisterData(MeshRenderLogic logic)
+    internal static void Register(MeshRenderLogic logic)
     {
         if (logic.Entity.IsNull) return;
         if (!_haveBorrowed) _loadedLogic.Add(logic);
-        logic.MeshUpdate += mesh => MeshUpdateEvent.Invoke(logic, mesh);
-        logic.TextureUpdate += texture => TextureUpdateEvent.Invoke(logic, texture);
         CreateLogicEvent.Invoke(logic);
     }
 
-    internal static void UnregisterData(MeshRenderLogic logic)
+    internal static void OnMeshUpdate(MeshRenderLogic logic, Mesh mesh)
+    {
+        MeshUpdateEvent.Invoke(logic, mesh);
+    }
+    
+    internal static void OnTextureUpdate(MeshRenderLogic logic, Texture texture)
+    {
+        TextureUpdateEvent.Invoke(logic, texture);
+    }
+
+    internal static void Unregister(MeshRenderLogic logic)
     {
         if (logic.Entity.IsNull) return;
-        logic.MeshUpdate -= mesh => MeshUpdateEvent.Invoke(logic, mesh);
-        logic.TextureUpdate -= texture => TextureUpdateEvent.Invoke(logic, texture);
         DisposeLogicEvent.Invoke(logic);
     }
 
@@ -33,7 +39,7 @@ internal static class RenderLogicEventHandler
     {
         _haveBorrowed = true;
         var res = _loadedLogic.ToArray();
-        _loadedLogic = null;
+        _loadedLogic = null!;
         return res;
     }
 }

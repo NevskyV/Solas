@@ -3,6 +3,7 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
+using Solas.Render.Components;
 using Solas.Render.Data;
 using Solas.Render.Logics;
 using Solas.Render.Vulkan.Components;
@@ -130,14 +131,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         (uint)MathF.Max(1.0f, SwapChainExtent.Width * Settings.RenderScale),
         (uint)MathF.Max(1.0f, SwapChainExtent.Height * Settings.RenderScale)
     );
-
-    internal LightGpu[] ActiveLights =
-    [
-        LightGpu.CreatePoint(new Vector3(4, 2, 0), 5.0f, new Vector3(1, 0, 0), 2.0f),
-        LightGpu.CreateSpot(new Vector3(-5, 1, 0), new Vector3(1, 0, 0), 8.0f, 15.0f, 60.0f, new Vector3(0, 1, 0),
-            1.5f),
-        LightGpu.CreateDirectional(new Vector3(-0.5f, -1.0f, -0.5f), new Vector3(1, 1, 0.9f), 0.5f)
-    ];
 
     public void Dispose()
     {

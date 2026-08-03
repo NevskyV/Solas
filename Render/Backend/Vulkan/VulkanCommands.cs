@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using Silk.NET.Vulkan;
+using Solas.Render.Components;
 using Solas.Render.Vulkan.Components;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -180,21 +181,24 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Matrix4x4.Invert(Ctx.CameraProjectionMatrix, out Matrix4x4 invProj);
 
+        var activeLights = LightDataEventHandler.GpuLights;
+
         FrameParamsGpu frameParams = new()
         {
             ViewMatrix = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
             InvProjectionMatrix = Matrix4x4.Transpose(invProj),
             ScreenResolution = new Vector2(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height),
             TileCount = new Vector2(tileCountX, tileCountY),
-            TotalLightCount = (uint)Ctx.ActiveLights.Length
+            TotalLightCount = (uint)activeLights.Length
         };
 
         System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
             sizeof(FrameParamsGpu));
+        
 
-        fixed (LightGpu* pLights = Ctx.ActiveLights)
+        fixed (LightGpu* pLights = activeLights)
         {
-            uint lightsSize = (uint)(sizeof(LightGpu) * Ctx.ActiveLights.Length);
+            uint lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
             System.Buffer.MemoryCopy(pLights, Ctx.LightBuffersMappedPointers[frameIdx], lightsSize, lightsSize);
         }
 

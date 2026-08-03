@@ -12,7 +12,7 @@ public static class WorldTransform
         var allEntitiesWithTransformData = Query.GetEntitiesByType<TransformData>(space).ToArray();
         var currentData = data;
         var foundEntity = allEntitiesWithTransformData.FirstOrDefault(x => x.Id == currentData.RootId);
-        while (foundEntity != null)
+        while (!foundEntity.IsNull)
         {
             currentData = foundEntity.GetData<TransformData>();
             resultPosition += currentData.Position.Value;
@@ -21,7 +21,7 @@ public static class WorldTransform
 
         return resultPosition;
     }
-    
+
     public static Vector3 GetWorldRotation(TransformData data)
     {
         var space = data.Entity.CurrentSpace;
@@ -30,7 +30,7 @@ public static class WorldTransform
         var allEntitiesWithTransformData = Query.GetEntitiesByType<TransformData>(space).ToArray();
         var currentData = data;
         var foundEntity = allEntitiesWithTransformData.FirstOrDefault(x => x.Id == currentData.RootId);
-        while (foundEntity != null)
+        while (!foundEntity.IsNull)
         {
             currentData = foundEntity.GetData<TransformData>();
             resultRotation += currentData.Rotation.Value;
@@ -39,7 +39,7 @@ public static class WorldTransform
 
         return resultRotation;
     }
-    
+
     public static Vector3 GetWorldScale(TransformData data)
     {
         var space = data.Entity.CurrentSpace;
@@ -48,7 +48,7 @@ public static class WorldTransform
         var allEntitiesWithTransformData = Query.GetEntitiesByType<TransformData>(space).ToArray();
         var currentData = data;
         var foundEntity = allEntitiesWithTransformData.FirstOrDefault(x => x.Id == currentData.RootId);
-        while (foundEntity != null)
+        while (!foundEntity.IsNull)
         {
             currentData = foundEntity.GetData<TransformData>();
             resultScale *= currentData.Scale.Value;

@@ -1,4 +1,4 @@
-﻿using Silk.NET.Vulkan;
+using Silk.NET.Vulkan;
 
 namespace Solas.Render.Vulkan;
 
@@ -11,7 +11,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             Binding = 0,
             DescriptorType = DescriptorType.StorageBuffer,
             DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.FragmentBit
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
         DescriptorSetLayoutBinding b1LightIndices = new()
@@ -19,7 +19,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             Binding = 1,
             DescriptorType = DescriptorType.StorageBuffer,
             DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.FragmentBit
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
         DescriptorSetLayoutBinding b2TileGrid = new()
@@ -27,7 +27,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             Binding = 2,
             DescriptorType = DescriptorType.StorageBuffer,
             DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.FragmentBit
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
         DescriptorSetLayoutBinding b3IndexCounter = new()
@@ -35,7 +35,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             Binding = 3,
             DescriptorType = DescriptorType.StorageBuffer,
             DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.ComputeBit
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
         DescriptorSetLayoutBinding[] set0Bindings = [b0Lights, b1LightIndices, b2TileGrid, b3IndexCounter];

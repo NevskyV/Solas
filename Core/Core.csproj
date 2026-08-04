@@ -19,7 +19,7 @@
     <ItemGroup>
         <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
         <None Include="SolasCoreIcon.png" Pack="true" PackagePath="\"/>
-        <PackageReference Include="Solas.SourceGenerators"
+        <ProjectReference Include="D:\CS-Projects\Solas\SolasEngine\SourceGenerators\SourceGenerators.csproj"
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
     </ItemGroup>

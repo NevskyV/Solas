@@ -17,7 +17,7 @@ public partial class MeshRenderLogic : Logic, IInitializable
         set
         {
             field = value;
-            RenderLogicEventHandler.MeshUpdateEvent(this, field);
+            RenderLogicEventHandler.OnMeshUpdate(this, field);
         }
     }
 
@@ -28,7 +28,18 @@ public partial class MeshRenderLogic : Logic, IInitializable
         set
         {
             field = value;
-            RenderLogicEventHandler.TextureUpdateEvent(this, field);
+            RenderLogicEventHandler.OnTextureUpdate(this, field);
+        }
+    }
+    
+    [Inject]
+    public Material? Material
+    {
+        get;
+        set
+        {
+            field = value;
+            RenderLogicEventHandler.OnMaterialUpdate(this, field);
         }
     }
 

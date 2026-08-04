@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+using System;
+using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Components;
@@ -18,8 +19,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             Flags = CommandPoolCreateFlags.ResetCommandBufferBit
         };
 
-        if (Ctx.Vk!.CreateCommandPool(Ctx.Device, &poolInfo, null, out Ctx.CommandPool) !=
-            Result.Success)
+        if (Ctx.Vk!.CreateCommandPool(Ctx.Device, &poolInfo, null, out Ctx.CommandPool) != Result.Success)
         {
             throw new Exception("failed to create command pool!");
         }
@@ -115,7 +115,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageAspectFlags.DepthBit
         );
 
-        ClearValue clearColor = new ClearValue() { Color = new ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f) };
+        ClearValue clearColor = new ClearValue() { Color = new ClearColorValue(0.1f, 0.1f, 0.15f, 1.0f) };
         ClearValue clearDepth = new ClearValue() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) };
 
         ImageView resolveTargetView = default;
@@ -170,7 +170,6 @@ internal unsafe class VulkanCommands : VulkanInjectable
         };
 
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
-
         uint frameIdx = Ctx.FrameIndex;
 
         uint zeroCounter = 0;
@@ -192,9 +191,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             TotalLightCount = (uint)activeLights.Length
         };
 
-        System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
-            sizeof(FrameParamsGpu));
-        
+        System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu), sizeof(FrameParamsGpu));
 
         fixed (LightGpu* pLights = activeLights)
         {
@@ -207,8 +204,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         DescriptorSet[] computeSets = [Ctx.LightingGlobalSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
         fixed (DescriptorSet* pComputeSets = computeSets)
         {
-            Ctx.Vk!.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipelineLayout, 0,
-                (uint)computeSets.Length, pComputeSets, 0, null);
+            Ctx.Vk!.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipelineLayout, 0, (uint)computeSets.Length, pComputeSets, 0, null);
         }
 
         Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, 1);
@@ -233,8 +229,6 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
 
-        Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, Ctx.GraphicsPipeline);
-
         var viewport = new Viewport(0.0f, 0.0f, Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, 0.0f, 1.0f);
         Ctx.Vk.CmdSetViewport(cmdBuffer, 0, 1, &viewport);
 
@@ -242,10 +236,20 @@ internal unsafe class VulkanCommands : VulkanInjectable
         Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
         Buffer lastVertexBuffer = default;
+        Pipeline lastPipeline = default;
 
         foreach (var renderObject in Ctx.RenderData)
         {
             if (renderObject.GpuMesh == null || renderObject.GpuTexture == null) continue;
+
+            var pipeline = renderObject.MaterialPipeline.Pipeline;
+            var layout = renderObject.MaterialPipeline.Layout;
+
+            if (pipeline.Handle != lastPipeline.Handle)
+            {
+                Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, pipeline);
+                lastPipeline = pipeline;
+            }
 
             var gpuMesh = renderObject.GpuMesh;
 
@@ -267,7 +271,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 Ctx.Vk.CmdBindDescriptorSets(
                     cmdBuffer,
                     PipelineBindPoint.Graphics,
-                    Ctx.PipelineLayout,
+                    layout,
                     0,
                     (uint)descriptorSets.Length,
                     pDescriptorSets,

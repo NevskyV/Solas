@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+using System;
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Silk.NET.Core;
 using Silk.NET.Core.Native;
@@ -26,7 +27,7 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanPhysicalDevice _physicalDevice = new();
     private readonly VulkanDevice _device = new();
     private readonly VulkanSwapChain _swapChain = new();
-    private readonly VulkanPipeline _pipeline = new();
+    private readonly VulkanPipelineFactory _pipelineFactory = new();
     private readonly VulkanCommands _commands = new();
     private readonly VulkanSynchronisation _synchronisation = new();
     private readonly VulkanDescriptorSetLayout _descriptorSetLayout = new();
@@ -69,7 +70,6 @@ internal class VulkanRenderer : IRenderer
         _descriptorSetLayout.Create();
 
         _computePipeline.Create();
-        _pipeline.Create();
 
         _commands.CreateCommandPool();
 
@@ -95,6 +95,7 @@ internal class VulkanRenderer : IRenderer
         RenderLogicEventHandler.CreateLogicEvent += LoadModel;
         RenderLogicEventHandler.MeshUpdateEvent += UpdateMesh;
         RenderLogicEventHandler.TextureUpdateEvent += UpdateTexture;
+        RenderLogicEventHandler.MaterialUpdateEvent += UpdateMaterial;
         RenderLogicEventHandler.DisposeLogicEvent += UnloadModel;
     }
 
@@ -102,13 +103,15 @@ internal class VulkanRenderer : IRenderer
     {
         _pendingActions.Enqueue(() =>
         {
-            if (logic.Mesh == null || logic.Texture == null) return;
+            if (logic.Mesh == null || logic.Texture == null || logic.Material == null) return;
             if (_context.RenderDataMap.ContainsKey(logic)) return;
 
             var renderData = new VulkanRenderData(logic)
             {
                 GpuMesh = _resourceManager.AcquireMesh(logic.Mesh),
-                GpuTexture = _resourceManager.AcquireTexture(logic.Texture)
+                GpuTexture = _resourceManager.AcquireTexture(logic.Texture),
+                Material = logic.Material,
+                MaterialPipeline = _pipelineFactory.GetOrCreatePipeline(logic.Material)
             };
 
             _uniformBuffers.CreateForObject(renderData);
@@ -151,6 +154,19 @@ internal class VulkanRenderer : IRenderer
 
             renderData.GpuTexture = _resourceManager.AcquireTexture(newTexture);
             _descriptorSets.UpdateTextureBinding(renderData);
+        });
+    }
+
+    private void UpdateMaterial(MeshRenderLogic logic, Material newMaterial)
+    {
+        _pendingActions.Enqueue(() =>
+        {
+            if (!_context.RenderDataMap.TryGetValue(logic, out var renderData)) return;
+
+            _context.Vk!.DeviceWaitIdle(_context.Device);
+
+            renderData.Material = newMaterial;
+            renderData.MaterialPipeline = _pipelineFactory.GetOrCreatePipeline(newMaterial);
         });
     }
 
@@ -334,9 +350,11 @@ internal class VulkanRenderer : IRenderer
         RenderLogicEventHandler.CreateLogicEvent -= LoadModel;
         RenderLogicEventHandler.MeshUpdateEvent -= UpdateMesh;
         RenderLogicEventHandler.TextureUpdateEvent -= UpdateTexture;
+        RenderLogicEventHandler.MaterialUpdateEvent -= UpdateMaterial;
         RenderLogicEventHandler.DisposeLogicEvent -= UnloadModel;
 
         _context.Vk!.DeviceWaitIdle(_context.Device);
+        _pipelineFactory.Dispose();
         _swapChain.Dispose();
         _context.Dispose();
     }

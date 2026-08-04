@@ -1,4 +1,5 @@
-﻿using Silk.NET.Vulkan;
+using System;
+using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
 
@@ -31,18 +32,20 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             }
         }
 
+        var extraMaterialSize = (ulong)(data.Material?.BuildCombinedUboData().Length ?? 0);
+
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             DescriptorBufferInfo bufferInfo = new()
             {
-                Buffer = data.UniformBuffers[i],
+                Buffer = data.UniformBuffers![i],
                 Offset = 0,
-                Range = (ulong)sizeof(UniformBufferObject)
+                Range = (ulong)sizeof(UniformBufferObject) + extraMaterialSize
             };
 
             DescriptorImageInfo imageInfo = new()
             {
-                Sampler = data.GpuTexture.Sampler,
+                Sampler = data.GpuTexture!.Sampler,
                 ImageView = data.GpuTexture.ImageView,
                 ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
             };
@@ -81,7 +84,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
         {
             DescriptorImageInfo imageInfo = new()
             {
-                Sampler = data.GpuTexture.Sampler,
+                Sampler = data.GpuTexture!.Sampler,
                 ImageView = data.GpuTexture.ImageView,
                 ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
             };

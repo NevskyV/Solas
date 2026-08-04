@@ -1,4 +1,6 @@
-﻿using Silk.NET.Core.Native;
+using System;
+using System.Collections.Generic;
+using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
@@ -6,19 +8,45 @@ using ShaderModule = Silk.NET.Vulkan.ShaderModule;
 
 namespace Solas.Render.Vulkan;
 
-internal unsafe class VulkanPipeline : VulkanInjectable
+internal unsafe class VulkanPipelineFactory : VulkanInjectable
 {
-    internal void Create()
+    private readonly Dictionary<string, VulkanMaterialPipeline> _pipelineCache = new();
+    private readonly SlangMaterialCompiler _compiler = new (@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders");
+
+    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material)
     {
-        var vertShaderCode = File.ReadAllBytes(@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders\material.spv");
-        var shaderModule = ShaderModule.Create(Ctx, vertShaderCode);
+        var hash = material?.GetPipelineHash() ?? "Default";
+
+        if (_pipelineCache.TryGetValue(hash, out var cachedPipeline))
+        {
+            return cachedPipeline;
+        }
+
+        var pipeline = CreatePipelineForMaterial(material, hash);
+        _pipelineCache[hash] = pipeline;
+        return pipeline;
+    }
+
+    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, string hash)
+    {
+        byte[] spirvCode;
+        if (material != null)
+        {
+            spirvCode = _compiler.CompileToSpirv(material);
+        }
+        else
+        {
+            spirvCode = _compiler.CompileToSpirv(new Material(Dimensions.ThreeD));
+        }
+
+        var shaderModule = ShaderModule.Create(Ctx, spirvCode);
 
         PipelineShaderStageCreateInfo vertShaderStageInfo = new()
         {
             SType = StructureType.PipelineShaderStageCreateInfo,
             Stage = ShaderStageFlags.VertexBit,
             Module = shaderModule,
-            PName = (byte*)SilkMarshal.StringToPtr("vertMain")
+            PName = (byte*)SilkMarshal.StringToPtr("vertexMain")
         };
 
         PipelineShaderStageCreateInfo fragShaderStageInfo = new()
@@ -26,7 +54,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
             SType = StructureType.PipelineShaderStageCreateInfo,
             Stage = ShaderStageFlags.FragmentBit,
             Module = shaderModule,
-            PName = (byte*)SilkMarshal.StringToPtr("fragMain")
+            PName = (byte*)SilkMarshal.StringToPtr("fragmentMain")
         };
 
         PipelineShaderStageCreateInfo[] shaderStages = [vertShaderStageInfo, fragShaderStageInfo];
@@ -36,6 +64,9 @@ internal unsafe class VulkanPipeline : VulkanInjectable
         var bindingDescription = Vertex.GetBindingDescription();
         var attributeDescriptions = Vertex.GetAttributeDescriptions();
         DynamicState[] dynamicStates = [DynamicState.Viewport, DynamicState.Scissor];
+
+        PipelineLayout pipelineLayout;
+        Pipeline graphicsPipeline;
 
         fixed (DynamicState* pDynamicStates = dynamicStates)
         fixed (PipelineShaderStageCreateInfo* pStages = shaderStages)
@@ -89,7 +120,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 RasterizerDiscardEnable = false,
                 PolygonMode = (PolygonMode)Ctx.Settings.PolygonMode,
                 LineWidth = 1.0f,
-                CullMode = CullModeFlags.BackBit,
+                CullMode = CullModeFlags.None,
                 FrontFace = FrontFace.CounterClockwise,
                 DepthBiasEnable = false,
             };
@@ -131,8 +162,7 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 PushConstantRangeCount = 0,
             };
 
-            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out Ctx.PipelineLayout) !=
-                Result.Success)
+            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out pipelineLayout) != Result.Success)
             {
                 throw new Exception("failed to create pipeline layout!");
             }
@@ -161,20 +191,34 @@ internal unsafe class VulkanPipeline : VulkanInjectable
                 PColorBlendState = &colorBlending,
                 PDynamicState = &dynamicState,
                 PDepthStencilState = &depthStencil,
-                Layout = Ctx.PipelineLayout,
+                Layout = pipelineLayout,
                 RenderPass = default
             };
 
-            if (Ctx.Vk!.CreateGraphicsPipelines(Ctx.Device, default, 1, in pipelineInfo,
-                    null, out Ctx.GraphicsPipeline) != Result.Success)
+            if (Ctx.Vk!.CreateGraphicsPipelines(Ctx.Device, default, 1, in pipelineInfo, null, out graphicsPipeline) != Result.Success)
             {
                 throw new Exception("failed to create graphics pipeline!");
             }
         }
 
         Ctx.Vk!.DestroyShaderModule(Ctx.Device, shaderModule, null);
-
         SilkMarshal.Free((nint)vertShaderStageInfo.PName);
         SilkMarshal.Free((nint)fragShaderStageInfo.PName);
+
+        return new VulkanMaterialPipeline
+        {
+            Pipeline = graphicsPipeline,
+            Layout = pipelineLayout,
+            Hash = hash
+        };
+    }
+
+    internal void Dispose()
+    {
+        foreach (var pipeline in _pipelineCache.Values)
+        {
+            pipeline.Dispose(Ctx.Vk!, Ctx.Device);
+        }
+        _pipelineCache.Clear();
     }
 }

@@ -10,6 +10,7 @@ internal static class RenderLogicEventHandler
     internal static Action<MeshRenderLogic> DisposeLogicEvent = delegate { };
     internal static Action<MeshRenderLogic, Mesh> MeshUpdateEvent = delegate { };
     internal static Action<MeshRenderLogic, Texture> TextureUpdateEvent = delegate { };
+    internal static Action<MeshRenderLogic, Material> MaterialUpdateEvent = delegate { };
     private static bool _haveBorrowed;
 
     internal static void Register(MeshRenderLogic logic)
@@ -27,6 +28,11 @@ internal static class RenderLogicEventHandler
     internal static void OnTextureUpdate(MeshRenderLogic logic, Texture texture)
     {
         TextureUpdateEvent.Invoke(logic, texture);
+    }
+    
+    internal static void OnMaterialUpdate(MeshRenderLogic logic, Material material)
+    {
+        MaterialUpdateEvent.Invoke(logic, material);
     }
 
     internal static void Unregister(MeshRenderLogic logic)

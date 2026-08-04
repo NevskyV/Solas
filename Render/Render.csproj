@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
@@ -19,8 +19,11 @@
     <ItemGroup>
         <None Include="..\README.md" Pack="true" PackagePath="\"/>
         <PackageReference Include="Silk.NET.Assimp"/>
-
+        <PackageReference Include="SlangShaderSharp"/>
         <ProjectReference Include="D:\CS-Projects\Solas\SolasEngine\Transform\Transform.csproj"/>
+        <ProjectReference Include="D:\CS-Projects\Solas\SolasEngine\SourceGenerators\SourceGenerators.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
 
         <PackageReference Include="Silk.NET.Core"/>
         <PackageReference Include="Silk.NET.Input"/>
@@ -29,6 +32,13 @@
         <PackageReference Include="Silk.NET.Vulkan.Extensions.KHR"/>
         <PackageReference Include="Silk.NET.Windowing"/>
         <PackageReference Include="StbImageSharp"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AdditionalFiles Include="Shaders\BaseTextureModule.slang" />
+        <AdditionalFiles Include="Shaders\Lit3DModule.slang" />
+        <AdditionalFiles Include="Shaders\ToonModule.slang" />
+        <AdditionalFiles Include="Shaders\Outline3DModule.slang" />
     </ItemGroup>
 
 </Project>

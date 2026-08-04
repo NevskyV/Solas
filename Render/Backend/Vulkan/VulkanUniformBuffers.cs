@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+using System;
+using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
@@ -16,7 +17,9 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         data.UniformBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         data.UniformBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
-        var bufferSize = (ulong)sizeof(UniformBufferObject);
+        var extraMaterialSize = (ulong)(data.Material?.BuildCombinedUboData().Length ?? 0);
+        var bufferSize = (ulong)sizeof(UniformBufferObject) + extraMaterialSize;
+
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             var (buffer, bufferMem) = Buffer.Create(Ctx, bufferSize, BufferUsageFlags.UniformBufferBit,
@@ -68,17 +71,30 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         {
             var ubo = new UniformBufferObject()
             {
-                Model = renderer.Logic.GetModelMatrix(),
-                View = Ctx.CameraViewMatrix,
-                Proj = Ctx.CameraProjectionMatrix,
+                Model = Matrix4x4.Transpose(renderer.Logic.GetModelMatrix()),
+                View = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
+                Proj = Matrix4x4.Transpose(Ctx.CameraProjectionMatrix),
                 TileCount = new Vector2(tileCountX, tileCountY),
                 TileSize = Ctx.Settings.TileSize
             };
 
+            var extraBytes = renderer.Material?.BuildCombinedUboData() ?? [];
+            var totalSize = (ulong)sizeof(UniformBufferObject) + (ulong)extraBytes.Length;
+
             void* data;
-            Ctx.Vk!.MapMemory(Ctx.Device, renderer.UniformBuffersMemory[currentImage], 0,
-                (ulong)sizeof(UniformBufferObject), 0, &data);
+            Ctx.Vk!.MapMemory(Ctx.Device, renderer.UniformBuffersMemory[currentImage], 0, totalSize, 0, &data);
+
             new Span<UniformBufferObject>(data, 1)[0] = ubo;
+
+            if (extraBytes.Length > 0)
+            {
+                byte* dstPtr = (byte*)data + sizeof(UniformBufferObject);
+                fixed (byte* srcPtr = extraBytes)
+                {
+                    System.Buffer.MemoryCopy(srcPtr, dstPtr, extraBytes.Length, extraBytes.Length);
+                }
+            }
+
             Ctx.Vk!.UnmapMemory(Ctx.Device, renderer.UniformBuffersMemory[currentImage]);
         }
     }

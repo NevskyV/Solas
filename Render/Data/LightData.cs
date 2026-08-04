@@ -16,7 +16,7 @@ public abstract class LightData : IData
         }
     }
 
-    public LightDimensions Dimensions
+    public Dimensions Dimensions
     {
         get;
         set
@@ -24,7 +24,7 @@ public abstract class LightData : IData
             field = value;
             LightDataEventHandler.OnLightUpdate(this);
         }
-    } = LightDimensions.Count3;
+    } = Dimensions.ThreeD;
 
     public Vector3 Color
     {

@@ -16,7 +16,7 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <PackageReference Include="Solas.Core"/>
+        <ProjectReference Include="D:\CS-Projects\Solas\SolasEngine\Core\Core.csproj"/>
         <None Include="..\README_SIMPLE.md" Pack="true" PackagePath="\"/>
         <None Include="SolasTransformIcon.png" Pack="true" PackagePath="\"/>
     </ItemGroup>

@@ -1,8 +1,7 @@
-﻿using Silk.NET.Vulkan;
-using Solas.Attributes;
+﻿using Solas.Attributes;
 using Solas.Components;
 
-namespace Solas.Render;
+namespace Solas.Render.Settings;
 
 [SettingsSection]
 public class GraphicsSettings : IData

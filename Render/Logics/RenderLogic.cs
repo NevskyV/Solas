@@ -6,6 +6,7 @@ using Solas.Attributes;
 using Solas.Components;
 using Solas.Enums;
 using Solas.Render.Data;
+using Solas.Render.Settings;
 using Solas.Render.Vulkan;
 using Solas.Transform;
 

@@ -6,6 +6,7 @@ using Silk.NET.Windowing;
 using Solas.Render.Components;
 using Solas.Render.Data;
 using Solas.Render.Logics;
+using Solas.Render.Settings;
 using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
 using Solas.Transform;

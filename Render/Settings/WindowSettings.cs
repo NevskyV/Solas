@@ -1,7 +1,7 @@
 ﻿using Solas.Attributes;
 using Solas.Components;
 
-namespace Solas.Render;
+namespace Solas.Render.Settings;
 
 [SettingsSection]
 public class WindowSettings : IData

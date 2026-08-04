@@ -20,7 +20,7 @@ public class TransformData(Vector3 position = new(), Vector3 rotation = new(), V
 
     public DataProperty<Vector3> Position = new() { Value = position };
     public DataProperty<Vector3> Rotation = new() { Value = rotation };
-    public DataProperty<Vector3> Scale = new() { Value = scale };
+    public DataProperty<Vector3> Scale = new() { Value = scale == Vector3.Zero ? Vector3.One : scale };
 
     public Guid RootId { get; set; }
     public List<Guid> BranchesIds { get; set; } = [];

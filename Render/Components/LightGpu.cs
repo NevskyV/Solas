@@ -23,12 +23,12 @@ internal record struct LightGpu(
         );
     }
 
-    internal static LightGpu CreateSpot(Vector3 position, Vector3 direction, float radius, float innerAngleDeg,
+    internal static LightGpu CreateSpot(Vector3 position, Quaternion rotation, float radius, float innerAngleDeg,
         float outerAngleDeg, Vector3 color, float intensity, bool castShadows, float shadowBias, float shadowSoftness, float shadowStrength)
     {
         float innerRad = innerAngleDeg * MathF.PI / 180.0f;
         float outerRad = outerAngleDeg * MathF.PI / 180.0f;
-        Vector3 dirNorm = Vector3.Normalize(direction);
+        Vector3 dirNorm = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, rotation));
 
         return new LightGpu(
             PositionOrDirection: new Vector4(position, 1.0f),
@@ -39,11 +39,11 @@ internal record struct LightGpu(
         );
     }
 
-    internal static LightGpu CreateDirectional(Vector3 direction, Vector3 color, float intensity,
+    internal static LightGpu CreateDirectional(Quaternion rotation, Vector3 color, float intensity,
         bool castShadows, float shadowBias, float shadowSoftness, float shadowStrength)
     {
         return new LightGpu(
-            PositionOrDirection: new Vector4(Vector3.Normalize(direction), 2.0f),
+            PositionOrDirection: new Vector4(Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, rotation)), 2.0f),
             ColorIntensity: new Vector4(color, intensity),
             ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, shadowBias, shadowSoftness, shadowStrength)
         );

@@ -1,5 +1,6 @@
 ﻿using Solas.Render.Components;
 using Solas.Transform;
+using Solas.Transform.MathExtensions;
 
 namespace Solas.Render.Data;
 
@@ -41,7 +42,7 @@ public class SpotLightData : LightData
         return LightGpu.CreateSpot
         (
             transformData.Position.Value, 
-            transformData.Rotation.Value,
+            transformData.Rotation.Value.ToQuaternion(),
             Radius,
             InnerAngleDegrees,
             OuterAngleDegrees,

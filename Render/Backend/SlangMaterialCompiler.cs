@@ -1,26 +1,29 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using SlangShaderSharp;
 using Solas.Render.Components;
 
-namespace Solas.Render.Vulkan;
+namespace Solas.Render;
 
 public sealed class SlangMaterialCompiler
 {
+    public static readonly SlangMaterialCompiler Instance = new(
+    [
+        Path.Combine(AppContext.BaseDirectory, "StandardShaders"),
+        Path.Combine(AppContext.BaseDirectory, "StandardShaders", "Modules"),
+        ..Directory.GetDirectories(Query.GetPath("assets://"), "*", SearchOption.AllDirectories)
+    ]);
+
     private readonly IGlobalSession _globalSession;
     private readonly ISession _session;
 
-    public SlangMaterialCompiler(string shaderDirectory)
+    public SlangMaterialCompiler(string[] shaderDirectories)
     {
         Slang.CreateGlobalSession(0, out _globalSession);
 
         var sessionDesc = new SessionDesc
         {
             Targets = [new TargetDesc { Format = SlangCompileTarget.Spirv }],
-            SearchPaths = [shaderDirectory]
+            SearchPaths = shaderDirectories
         };
 
         _globalSession.CreateSession(sessionDesc, out _session);
@@ -60,11 +63,13 @@ public sealed class SlangMaterialCompiler
         string vertChain = BuildVertexGenericChain(vertModules);
         string fragChain = BuildFragmentGenericChain(fragModules);
         string masterModule = material.Dimensions == Dimensions.TwoD ? "Material2D" : "Material3D";
-        string bootstrapperCode = BuildBootstrapper(masterModule, material.Modules, vertModules, fragModules, vertChain, fragChain);
+        string bootstrapperCode =
+            BuildBootstrapper(masterModule, material.Modules, vertModules, fragModules, vertChain, fragChain);
 
         var blob = Slang.CreateBlob(Encoding.UTF8.GetBytes(bootstrapperCode));
 
-        var customLinkerMod = _session.LoadModuleFromSource("RuntimeLinker", "RuntimeLinker.slang", blob, out var diag1);
+        var customLinkerMod =
+            _session.LoadModuleFromSource("RuntimeLinker", "RuntimeLinker.slang", blob, out var diag1);
         CheckDiagnostics(diag1);
 
         if (customLinkerMod == null)
@@ -73,7 +78,8 @@ public sealed class SlangMaterialCompiler
         customLinkerMod.FindEntryPointByName("fragmentMain", out var fragEntry);
         customLinkerMod.FindEntryPointByName("vertexMain", out var vertEntry);
 
-        _session.CreateCompositeComponentType([.. components, customLinkerMod, vertEntry, fragEntry], out var linkedProgram, out var diag2);
+        _session.CreateCompositeComponentType([.. components, customLinkerMod, vertEntry, fragEntry],
+            out var linkedProgram, out var diag2);
         CheckDiagnostics(diag2);
 
         if (linkedProgram == null)
@@ -141,7 +147,8 @@ public sealed class SlangMaterialCompiler
         return result;
     }
 
-    private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> modules, List<ShaderModule> vertModules, List<ShaderModule> fragModules, string vertChain, string fragChain)
+    private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> modules, List<ShaderModule> vertModules,
+        List<ShaderModule> fragModules, string vertChain, string fragChain)
     {
         var sb = new StringBuilder();
 
@@ -169,6 +176,7 @@ public sealed class SlangMaterialCompiler
                 sb.AppendLine($"    {modules[i].SlangParamsName} modParams_{i};");
             }
         }
+
         sb.AppendLine("};");
         sb.AppendLine();
         sb.AppendLine("[[vk::binding(0, 1)]] ConstantBuffer<MaterialParamsUBO> matUbo;");
@@ -195,6 +203,7 @@ public sealed class SlangMaterialCompiler
                 }
             }
         }
+
         sb.AppendLine($"    return vertMain<{vertChain}>(input, vertChainInstance);");
         sb.AppendLine("}");
         sb.AppendLine();
@@ -220,6 +229,7 @@ public sealed class SlangMaterialCompiler
                 }
             }
         }
+
         sb.AppendLine($"    return fragMain<{fragChain}>(input, fragChainInstance);");
         sb.AppendLine("}");
 
@@ -234,6 +244,7 @@ public sealed class SlangMaterialCompiler
         {
             sb.Append("tail.");
         }
+
         sb.Append("head");
         return sb.ToString();
     }

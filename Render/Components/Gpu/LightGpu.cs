@@ -24,7 +24,8 @@ internal record struct LightGpu(
     }
 
     internal static LightGpu CreateSpot(Vector3 position, Quaternion rotation, float radius, float innerAngleDeg,
-        float outerAngleDeg, Vector3 color, float intensity, bool castShadows, float shadowBias, float shadowSoftness, float shadowStrength)
+        float outerAngleDeg, Vector3 color, float intensity, bool castShadows, float shadowBias, float shadowSoftness,
+        float shadowStrength)
     {
         float innerRad = innerAngleDeg * MathF.PI / 180.0f;
         float outerRad = outerAngleDeg * MathF.PI / 180.0f;
@@ -33,7 +34,7 @@ internal record struct LightGpu(
         return new LightGpu(
             PositionOrDirection: new Vector4(position, 1.0f),
             ColorIntensity: new Vector4(color, intensity),
-            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, shadowBias,shadowSoftness, shadowStrength),
+            ShadowParams: new Vector4(castShadows ? 0.0f : -1.0f, shadowBias, shadowSoftness, shadowStrength),
             Extra0: new Vector4(dirNorm, radius),
             Extra1: new Vector4(MathF.Cos(innerRad * 0.5f), MathF.Cos(outerRad * 0.5f), 0.0f, 0.0f)
         );

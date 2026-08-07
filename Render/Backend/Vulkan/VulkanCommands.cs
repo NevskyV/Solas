@@ -115,7 +115,9 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageAspectFlags.DepthBit
         );
 
-        ClearValue clearColor = new ClearValue() { Color = new ClearColorValue(0.1f, 0.1f, 0.15f, 1.0f) };
+        var camColor = Ctx.CameraData.BackgroundColor;
+        ClearValue clearColor = new ClearValue()
+            { Color = new ClearColorValue(camColor.X, camColor.Y, camColor.Z, 1.0f) };
         ClearValue clearDepth = new ClearValue() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) };
 
         ImageView resolveTargetView = default;
@@ -191,7 +193,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
             TotalLightCount = (uint)activeLights.Length
         };
 
-        System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu), sizeof(FrameParamsGpu));
+        System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
+            sizeof(FrameParamsGpu));
 
         fixed (LightGpu* pLights = activeLights)
         {
@@ -204,7 +207,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
         DescriptorSet[] computeSets = [Ctx.LightingGlobalSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
         fixed (DescriptorSet* pComputeSets = computeSets)
         {
-            Ctx.Vk!.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipelineLayout, 0, (uint)computeSets.Length, pComputeSets, 0, null);
+            Ctx.Vk!.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipelineLayout, 0,
+                (uint)computeSets.Length, pComputeSets, 0, null);
         }
 
         Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, 1);

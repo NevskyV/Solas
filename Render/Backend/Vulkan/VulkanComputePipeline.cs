@@ -1,4 +1,5 @@
-﻿using Silk.NET.Core.Native;
+﻿using System.Reflection;
+using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
 namespace Solas.Render.Vulkan;
@@ -7,7 +8,12 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
 {
     internal void Create()
     {
-        byte[] computeCode = File.ReadAllBytes(@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders\light_culling.spv");
+        var assembly = typeof(VulkanComputePipeline).Assembly;
+        using var stream = assembly.GetManifestResourceStream("Solas.Render.StandardShaders.Embedded.LightCulling.spv")
+                           ?? throw new FileNotFoundException("Light culling shader resource not found.");
+
+        byte[] computeCode = new byte[stream.Length];
+        stream.ReadExactly(computeCode);
         ShaderModule shaderModule = CreateShaderModule(computeCode);
 
         DescriptorSetLayout[] setLayouts = [Ctx.LightingGlobalSet0Layout, Ctx.LightingFrameSet1Layout];

@@ -35,10 +35,14 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AdditionalFiles Include="Shaders\BaseTextureModule.slang" />
-        <AdditionalFiles Include="Shaders\Lit3DModule.slang" />
-        <AdditionalFiles Include="Shaders\ToonModule.slang" />
-        <AdditionalFiles Include="Shaders\Outline3DModule.slang" />
+        <AdditionalFiles Include="StandardShaders\Modules\*.slang"/>
+        <None Include="StandardShaders\**\*.*" Exclude="StandardShaders\Embedded\**\*.*">
+            <Pack>true</Pack>
+            <PackagePath>contentFiles/any/any/StandardShaders\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
+            <PackageCopyToOutput>true</PackageCopyToOutput>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+        <EmbeddedResource Include="StandardShaders\Embedded\*.spv"/>
     </ItemGroup>
 
 </Project>

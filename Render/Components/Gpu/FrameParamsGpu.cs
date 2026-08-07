@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
 
-namespace Solas.Render.Vulkan.Components;
+namespace Solas.Render.Components;
 
 [StructLayout(LayoutKind.Sequential, Size = 160)]
 internal struct FrameParamsGpu

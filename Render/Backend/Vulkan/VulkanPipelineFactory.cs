@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
@@ -11,7 +9,6 @@ namespace Solas.Render.Vulkan;
 internal unsafe class VulkanPipelineFactory : VulkanInjectable
 {
     private readonly Dictionary<string, VulkanMaterialPipeline> _pipelineCache = new();
-    private readonly SlangMaterialCompiler _compiler = new (@"D:\CS-Projects\Solas\SolasEngine\Render\Shaders");
 
     internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material)
     {
@@ -32,11 +29,11 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
         byte[] spirvCode;
         if (material != null)
         {
-            spirvCode = _compiler.CompileToSpirv(material);
+            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(material);
         }
         else
         {
-            spirvCode = _compiler.CompileToSpirv(new Material(Dimensions.ThreeD));
+            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(new Material(Dimensions.ThreeD));
         }
 
         var shaderModule = ShaderModule.Create(Ctx, spirvCode);
@@ -162,7 +159,8 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 PushConstantRangeCount = 0,
             };
 
-            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out pipelineLayout) != Result.Success)
+            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out pipelineLayout) !=
+                Result.Success)
             {
                 throw new Exception("failed to create pipeline layout!");
             }
@@ -195,7 +193,8 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 RenderPass = default
             };
 
-            if (Ctx.Vk!.CreateGraphicsPipelines(Ctx.Device, default, 1, in pipelineInfo, null, out graphicsPipeline) != Result.Success)
+            if (Ctx.Vk!.CreateGraphicsPipelines(Ctx.Device, default, 1, in pipelineInfo, null, out graphicsPipeline) !=
+                Result.Success)
             {
                 throw new Exception("failed to create graphics pipeline!");
             }
@@ -219,6 +218,7 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
         {
             pipeline.Dispose(Ctx.Vk!, Ctx.Device);
         }
+
         _pipelineCache.Clear();
     }
 }

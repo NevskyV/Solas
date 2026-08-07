@@ -1,17 +1,11 @@
-﻿
-using Solas.Assets;
+﻿using Solas.Assets;
 
 namespace Solas.Render.Components;
 
-public sealed class Material : Asset
+public sealed class Material(Dimensions dimensions) : Asset
 {
-    public readonly Dimensions Dimensions;
+    public readonly Dimensions Dimensions = dimensions;
     private readonly List<ShaderModule> _modules = [];
-
-    public Material(Dimensions dimensions)
-    {
-        Dimensions = dimensions;
-    }
 
     public IReadOnlyList<ShaderModule> Modules => _modules;
 
@@ -35,7 +29,7 @@ public sealed class Material : Asset
     public unsafe byte[] BuildCombinedUboData()
     {
         int totalSize = 0;
-        
+
         foreach (var module in _modules)
         {
             totalSize += module.SizeInBytes;
@@ -59,12 +53,12 @@ public sealed class Material : Asset
     public string GetPipelineHash()
     {
         var hash = Dimensions.ToString();
-        
+
         foreach (var module in _modules)
         {
             hash += $"_{module.SlangModuleName}";
         }
-        
+
         return hash;
     }
 }

@@ -55,12 +55,24 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         float aspectRatio = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
 
         Ctx.CameraViewMatrix = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
-        Ctx.CameraProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(
-            Radians(Ctx.CameraData.FieldOfView),
-            aspectRatio,
-            Ctx.CameraData.NearClipPlane,
-            Ctx.CameraData.FarClipPlane
-        );
+        if (Ctx.CameraData.Type == CameraType.Perspective)
+        {
+            Ctx.CameraProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(
+                Radians(Ctx.CameraData.FieldOfView),
+                aspectRatio,
+                Ctx.CameraData.NearClipPlane,
+                Ctx.CameraData.FarClipPlane
+            );
+        }
+        else
+        {
+            Ctx.CameraProjectionMatrix = Matrix4x4.CreateOrthographic(
+                Ctx.CameraData.Size * aspectRatio,
+                Ctx.CameraData.Size,
+                Ctx.CameraData.NearClipPlane,
+                Ctx.CameraData.FarClipPlane
+            );
+        }
 
         Ctx.CameraProjectionMatrix.M22 *= -1;
 

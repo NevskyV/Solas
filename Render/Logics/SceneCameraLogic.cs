@@ -43,11 +43,20 @@ public class SceneCameraLogic : Logic, IInitializable
 
     private void OnMouseScroll(IMouse mouse, ScrollWheel scrollWheel)
     {
-        float fov = _cameraData.FieldOfView;
+        if (_cameraData.Type == CameraType.Perspective)
+        {
+            float value = _cameraData.FieldOfView;
 
-        fov -= scrollWheel.Y * _zoomSensitivity;
+            value -= scrollWheel.Y * _zoomSensitivity;
+            _cameraData.FieldOfView = Math.Clamp(value, 1.0f, 120.0f);
+        }
+        else
+        {
+            float value = _cameraData.Size;
 
-        _cameraData.FieldOfView = Math.Clamp(fov, 1.0f, 120.0f);
+            value -= scrollWheel.Y * _zoomSensitivity;
+            _cameraData.Size = Math.Clamp(value, 1.0f, 120.0f);
+        }
     }
 
     public void Update()

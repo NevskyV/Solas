@@ -17,6 +17,7 @@ public VSOutput screenVertMain(uint vertexID)
 }
 
 [[vk::binding(1, 1)]] public Sampler2D texture;
+[[vk::binding(2, 1)]] public Sampler2D sceneTexture;
 
 public float4 screenFragMain<TFragChain : IFragmentChain>(VSOutput input, TFragChain fragChain)
 {

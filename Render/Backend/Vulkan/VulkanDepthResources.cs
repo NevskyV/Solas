@@ -1,4 +1,4 @@
-﻿using Silk.NET.Vulkan;
+using Silk.NET.Vulkan;
 using Solas.Render.Vulkan.Extensions;
 
 namespace Solas.Render.Vulkan;
@@ -19,12 +19,13 @@ internal unsafe class VulkanDepthResources : VulkanInjectable, IDisposable
             ImageUsageFlags.DepthStencilAttachmentBit,
             MemoryPropertyFlags.DeviceLocalBit);
 
-        Ctx.DepthImageView = ImageView.Create(Ctx, Ctx.DepthImage, Ctx.DepthFormat, ImageAspectFlags.DepthBit, 1);
+        ImageAspectFlags aspectFlags = ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit;
+        Ctx.DepthImageView = ImageView.Create(Ctx, Ctx.DepthImage, Ctx.DepthFormat, aspectFlags, 1);
     }
 
     private Format FindDepthFormat()
     {
-        return FindSupportedFormat([Format.D32Sfloat, Format.D32SfloatS8Uint, Format.D24UnormS8Uint],
+        return FindSupportedFormat([Format.D24UnormS8Uint, Format.D32SfloatS8Uint, Format.D16UnormS8Uint, Format.D32Sfloat],
             ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
     }
 

@@ -86,11 +86,19 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal List<VulkanRenderData> RenderData = [];
     internal VulkanResourceManager ResourceManager;
 
+    internal Image ScreenPingImage;
+    internal DeviceMemory ScreenPingImageMemory;
+    internal ImageView ScreenPingImageView;
+
+    internal Image ScreenPongImage;
+    internal DeviceMemory ScreenPongImageMemory;
+    internal ImageView ScreenPongImageView;
+
     internal Sampler ScreenSampler;
     internal Buffer[] ScreenUniformBuffers = [];
     internal DeviceMemory[] ScreenUniformBuffersMemory = [];
-    internal DescriptorSet[] ScreenDescriptorSets = [];
-    internal VulkanMaterialPipeline ScreenPipeline;
+    internal DescriptorSet[][] ScreenDescriptorSets = [];
+    internal VulkanMaterialPipeline[] ScreenPipelines = [];
 
     internal Buffer[] ShaderStorageBuffers;
     internal DeviceMemory[] ShaderStorageBuffersMemory;

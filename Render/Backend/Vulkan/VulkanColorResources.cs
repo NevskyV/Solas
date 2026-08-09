@@ -32,6 +32,21 @@ internal class VulkanColorResources : VulkanInjectable, IDisposable
             Ctx.ResolveImageView = ImageView.Create(Ctx, Ctx.ResolveImage, colorFormat, ImageAspectFlags.ColorBit, 1);
         }
 
+        ImageUsageFlags pingPongUsage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
+        (Ctx.ScreenPingImage, Ctx.ScreenPingImageMemory) = Image.Create(Ctx, Ctx.RenderExtent.Width,
+            Ctx.RenderExtent.Height, 1,
+            SampleCountFlags.Count1Bit, colorFormat, ImageTiling.Optimal,
+            pingPongUsage,
+            MemoryPropertyFlags.DeviceLocalBit);
+        Ctx.ScreenPingImageView = ImageView.Create(Ctx, Ctx.ScreenPingImage, colorFormat, ImageAspectFlags.ColorBit, 1);
+
+        (Ctx.ScreenPongImage, Ctx.ScreenPongImageMemory) = Image.Create(Ctx, Ctx.RenderExtent.Width,
+            Ctx.RenderExtent.Height, 1,
+            SampleCountFlags.Count1Bit, colorFormat, ImageTiling.Optimal,
+            pingPongUsage,
+            MemoryPropertyFlags.DeviceLocalBit);
+        Ctx.ScreenPongImageView = ImageView.Create(Ctx, Ctx.ScreenPongImage, colorFormat, ImageAspectFlags.ColorBit, 1);
+
         Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice, out var pProperties);
         SamplerCreateInfo samplerInfo = new()
         {
@@ -76,6 +91,22 @@ internal class VulkanColorResources : VulkanInjectable, IDisposable
             Ctx.Vk!.DestroyImage(Ctx.Device, Ctx.ResolveImage, null);
             Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.ResolveImageMemory, null);
             Ctx.ResolveImageView = default;
+        }
+
+        if (Ctx.ScreenPingImageView.Handle != 0)
+        {
+            Ctx.Vk!.DestroyImageView(Ctx.Device, Ctx.ScreenPingImageView, null);
+            Ctx.Vk!.DestroyImage(Ctx.Device, Ctx.ScreenPingImage, null);
+            Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.ScreenPingImageMemory, null);
+            Ctx.ScreenPingImageView = default;
+        }
+
+        if (Ctx.ScreenPongImageView.Handle != 0)
+        {
+            Ctx.Vk!.DestroyImageView(Ctx.Device, Ctx.ScreenPongImageView, null);
+            Ctx.Vk!.DestroyImage(Ctx.Device, Ctx.ScreenPongImage, null);
+            Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.ScreenPongImageMemory, null);
+            Ctx.ScreenPongImageView = default;
         }
     }
 }

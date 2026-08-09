@@ -29,7 +29,7 @@ public sealed class SlangMaterialCompiler
         _globalSession.CreateSession(sessionDesc, out _session);
     }
 
-    public unsafe byte[] CompileToSpirv(Material material)
+    public unsafe byte[] CompileToSpirv(Material material, int passIndex = 0)
     {
         var components = new List<IComponentType>();
 
@@ -54,10 +54,12 @@ public sealed class SlangMaterialCompiler
             if (customMod != null) components.Add(customMod);
         }
 
+        var passModules = material.GetModulesForPass(passIndex);
+
         List<ShaderModule> vertModules = [];
         List<ShaderModule> fragModules = [];
 
-        foreach (var mod in material.Modules)
+        foreach (var mod in passModules)
         {
             if (mod.IsVertexModifier) vertModules.Add(mod);
             if (mod.IsFragmentModifier) fragModules.Add(mod);
@@ -157,7 +159,7 @@ public sealed class SlangMaterialCompiler
         return result;
     }
 
-    private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> modules, List<ShaderModule> vertModules,
+    private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> allModules, List<ShaderModule> vertModules,
         List<ShaderModule> fragModules, string vertChain, string fragChain, MaterialDomain domain)
     {
         var sb = new StringBuilder();
@@ -165,15 +167,15 @@ public sealed class SlangMaterialCompiler
         sb.AppendLine("import MaterialInterfaces;");
         sb.AppendLine($"import {master};");
 
-        foreach (var mod in modules)
+        foreach (var mod in allModules)
         {
             sb.AppendLine($"import {mod.SlangModuleName};");
         }
 
         var moduleIndexMap = new Dictionary<ShaderModule, int>();
-        for (int i = 0; i < modules.Count; i++)
+        for (int i = 0; i < allModules.Count; i++)
         {
-            moduleIndexMap[modules[i]] = i;
+            moduleIndexMap[allModules[i]] = i;
         }
 
         sb.AppendLine("struct MaterialParamsUBO");
@@ -183,11 +185,11 @@ public sealed class SlangMaterialCompiler
             sb.AppendLine("    UniformBuffer baseUbo;");
         }
 
-        for (int i = 0; i < modules.Count; i++)
+        for (int i = 0; i < allModules.Count; i++)
         {
-            if (modules[i].SizeInBytes > 0)
+            if (allModules[i].SizeInBytes > 0)
             {
-                sb.AppendLine($"    {modules[i].SlangParamsName} modParams_{i};");
+                sb.AppendLine($"    {allModules[i].SlangParamsName} modParams_{i};");
             }
         }
 

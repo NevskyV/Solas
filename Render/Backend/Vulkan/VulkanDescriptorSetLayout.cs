@@ -1,4 +1,4 @@
-﻿using Silk.NET.Vulkan;
+using Silk.NET.Vulkan;
 
 namespace Solas.Render.Vulkan;
 
@@ -24,7 +24,16 @@ internal unsafe class VulkanDescriptorSetLayout : VulkanInjectable
             PImmutableSamplers = null
         };
 
-        DescriptorSetLayoutBinding[] bindings = [uboLayoutBinding, samplerLayoutBinding];
+        DescriptorSetLayoutBinding sceneSamplerLayoutBinding = new()
+        {
+            Binding = 2,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.FragmentBit,
+            PImmutableSamplers = null
+        };
+
+        DescriptorSetLayoutBinding[] bindings = [uboLayoutBinding, samplerLayoutBinding, sceneSamplerLayoutBinding];
 
         fixed (DescriptorSetLayoutBinding* pBindings = bindings)
         {

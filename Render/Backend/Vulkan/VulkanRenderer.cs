@@ -22,8 +22,8 @@ internal class VulkanRenderer : IRenderer
 
     private readonly ConcurrentQueue<Action> _pendingActions = new();
 
-    private Material? _lastScreenMaterial = null;
-    private ImageView _lastBoundView = default;
+    private Material? _lastScreenMaterial;
+    private ImageView _lastBoundView;
 
     private void UpdateScreenMaterialResources()
     {
@@ -44,11 +44,12 @@ internal class VulkanRenderer : IRenderer
         _lastScreenMaterial = screenMat;
         _lastBoundView = view;
 
-        if (screenMat != null)
+        _uniformBuffers.CreateForScreen(screenMat);
+        _descriptorSets.CreateForScreen(screenMat, view, _context.ScreenSampler, _context.ScreenUniformBuffers);
+        _context.ScreenPipelines = new VulkanMaterialPipeline[screenMat.PassCount];
+        for (int p = 0; p < screenMat.PassCount; p++)
         {
-            _uniformBuffers.CreateForScreen(screenMat);
-            _descriptorSets.CreateForScreen(screenMat, view, _context.ScreenSampler, _context.ScreenUniformBuffers);
-            _context.ScreenPipeline = _pipelineFactory.GetOrCreatePipeline(screenMat);
+            _context.ScreenPipelines[p] = _pipelineFactory.GetOrCreatePipeline(screenMat, p);
         }
     }
 

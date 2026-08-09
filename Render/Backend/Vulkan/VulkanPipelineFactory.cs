@@ -10,37 +10,47 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
 {
     private readonly Dictionary<string, VulkanMaterialPipeline> _pipelineCache = new();
 
-    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material, MaterialPass pass)
+    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material, int passIndex = 0)
+    {
+        MaterialPass pass;
+        if (material != null && material.Passes.Count > passIndex)
+        {
+            pass = material.Passes[passIndex];
+        }
+        else
+        {
+            pass = new MaterialPass { CullMode = CullMode.Back, DepthWrite = true };
+        }
+
+        return GetOrCreatePipeline(material, pass, passIndex);
+    }
+
+    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material, MaterialPass pass, int passIndex = 0)
     {
         var baseHash = material?.GetPipelineHash() ?? "Default";
-        var hash = $"{baseHash}_Cull_{pass.CullMode}_Depth_{pass.DepthWrite}";
+        var hash = $"{baseHash}_Pass_{passIndex}_Cull_{pass.CullMode}_Depth_{pass.DepthWrite}";
 
         if (_pipelineCache.TryGetValue(hash, out var cachedPipeline))
         {
             return cachedPipeline;
         }
 
-        var pipeline = CreatePipelineForMaterial(material, hash, pass.CullMode, pass.DepthWrite);
+        var pipeline = CreatePipelineForMaterial(material, passIndex, hash, pass.CullMode, pass.DepthWrite);
         _pipelineCache[hash] = pipeline;
         return pipeline;
     }
 
-    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material)
-    {
-        return GetOrCreatePipeline(material, new MaterialPass { CullMode = CullMode.Back, DepthWrite = true });
-    }
-
-    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, string hash, CullMode cullMode,
+    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, int passIndex, string hash, CullMode cullMode,
         bool depthWrite)
     {
         byte[] spirvCode;
         if (material != null)
         {
-            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(material);
+            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(material, passIndex);
         }
         else
         {
-            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(new Material(MaterialDomain.ThreeD));
+            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(new Material(MaterialDomain.ThreeD), 0);
         }
 
         var shaderModule = ShaderModule.Create(Ctx, spirvCode);
@@ -108,14 +118,41 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 ScissorCount = 1
             };
 
+            bool isFront = cullMode == CullMode.Front;
+            bool enableStencil = !isScreen && material is { Passes.Count: > 1 };
+
+            StencilOpState stencilOp = isFront
+                ? new StencilOpState
+                {
+                    FailOp = StencilOp.Keep,
+                    PassOp = StencilOp.Keep,
+                    DepthFailOp = StencilOp.Keep,
+                    CompareOp = CompareOp.NotEqual,
+                    CompareMask = 0xFF,
+                    WriteMask = 0x00,
+                    Reference = 1
+                }
+                : new StencilOpState
+                {
+                    FailOp = StencilOp.Keep,
+                    PassOp = StencilOp.Replace,
+                    DepthFailOp = StencilOp.Replace,
+                    CompareOp = CompareOp.Always,
+                    CompareMask = 0xFF,
+                    WriteMask = 0xFF,
+                    Reference = 1
+                };
+
             PipelineDepthStencilStateCreateInfo depthStencil = new()
             {
                 SType = StructureType.PipelineDepthStencilStateCreateInfo,
                 DepthTestEnable = !isScreen,
-                DepthWriteEnable = isScreen ? false : depthWrite,
+                DepthWriteEnable = !isScreen && depthWrite,
                 DepthCompareOp = CompareOp.Less,
                 DepthBoundsTestEnable = false,
-                StencilTestEnable = false
+                StencilTestEnable = enableStencil,
+                Front = stencilOp,
+                Back = stencilOp
             };
 
             PipelineRasterizationStateCreateInfo rasterizer = new()
@@ -188,6 +225,7 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 ColorAttachmentCount = 1,
                 PColorAttachmentFormats = &colorFormat,
                 DepthAttachmentFormat = isScreen ? Format.Undefined : Ctx.DepthFormat,
+                StencilAttachmentFormat = isScreen ? Format.Undefined : Ctx.DepthFormat,
                 PNext = null
             };
 

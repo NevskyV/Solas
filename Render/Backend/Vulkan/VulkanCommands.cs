@@ -80,7 +80,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             ImageAspectFlags.ColorBit
         );
 
-        if (isScaling && isMsaa)
+        if (isMsaa && (isScaling || hasScreenMaterial))
         {
             TransitionImageLayout(
                 Ctx.ResolveImage,
@@ -110,12 +110,12 @@ internal unsafe class VulkanCommands : VulkanInjectable
         TransitionImageLayout(
             Ctx.DepthImage,
             ImageLayout.Undefined,
-            ImageLayout.DepthAttachmentOptimal,
+            ImageLayout.DepthStencilAttachmentOptimal,
             AccessFlags2.DepthStencilAttachmentWriteBit,
             AccessFlags2.DepthStencilAttachmentWriteBit,
             PipelineStageFlags2.EarlyFragmentTestsBit | PipelineStageFlags2.LateFragmentTestsBit,
             PipelineStageFlags2.EarlyFragmentTestsBit | PipelineStageFlags2.LateFragmentTestsBit,
-            ImageAspectFlags.DepthBit
+            ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit
         );
 
         var camColor = Ctx.CameraData.BackgroundColor;
@@ -158,7 +158,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         {
             SType = StructureType.RenderingAttachmentInfo,
             ImageView = Ctx.DepthImageView,
-            ImageLayout = ImageLayout.DepthAttachmentOptimal,
+            ImageLayout = ImageLayout.DepthStencilAttachmentOptimal,
             LoadOp = AttachmentLoadOp.Clear,
             StoreOp = AttachmentStoreOp.DontCare,
             ClearValue = clearDepth,
@@ -171,7 +171,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
             LayerCount = 1,
             ColorAttachmentCount = 1,
             PColorAttachments = &attachmentInfo,
-            PDepthAttachment = &depthAttachmentInfo
+            PDepthAttachment = &depthAttachmentInfo,
+            PStencilAttachment = &depthAttachmentInfo
         };
 
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
@@ -258,7 +259,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 VulkanMaterialPipeline materialPipeline;
                 if (material != null && passes != null && passes.Count > 0)
                 {
-                    materialPipeline = Ctx.PipelineFactory.GetOrCreatePipeline(material, passes[passIdx]);
+                    materialPipeline = Ctx.PipelineFactory.GetOrCreatePipeline(material, passes[passIdx], passIdx);
                 }
                 else
                 {
@@ -338,71 +339,126 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 ImageAspectFlags.ColorBit
             );
 
-            var screenAttachmentInfo = new RenderingAttachmentInfo
+            int passCount = Ctx.CameraData.ScreenMaterial!.PassCount;
+
+            for (int p = 0; p < passCount; p++)
             {
-                SType = StructureType.RenderingAttachmentInfo,
-                ImageView = Ctx.SwapChainImageViews![imageIndex],
-                ImageLayout = ImageLayout.ColorAttachmentOptimal,
-                LoadOp = AttachmentLoadOp.Clear,
-                StoreOp = AttachmentStoreOp.Store,
-                ClearValue = clearColor,
-            };
+                bool isFinalPass = p == passCount - 1;
+                ImageView targetView;
+                Extent2D targetExtent;
+                Image? targetImage = null;
 
-            var screenRenderingInfo = new RenderingInfo
-            {
-                SType = StructureType.RenderingInfo,
-                RenderArea = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent),
-                LayerCount = 1,
-                ColorAttachmentCount = 1,
-                PColorAttachments = &screenAttachmentInfo
-            };
+                if (isFinalPass)
+                {
+                    targetView = Ctx.SwapChainImageViews![imageIndex];
+                    targetExtent = Ctx.SwapChainExtent;
+                }
+                else
+                {
+                    if (p % 2 == 0)
+                    {
+                        targetImage = Ctx.ScreenPingImage;
+                        targetView = Ctx.ScreenPingImageView;
+                    }
+                    else
+                    {
+                        targetImage = Ctx.ScreenPongImage;
+                        targetView = Ctx.ScreenPongImageView;
+                    }
 
-            Ctx.Vk.CmdBeginRendering(cmdBuffer, &screenRenderingInfo);
+                    targetExtent = Ctx.RenderExtent;
 
-            var screenViewport = new Viewport(0.0f, 0.0f, Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height, 0.0f,
-                1.0f);
-            Ctx.Vk.CmdSetViewport(cmdBuffer, 0, 1, &screenViewport);
+                    TransitionImageLayout(
+                        targetImage.Value,
+                        ImageLayout.Undefined,
+                        ImageLayout.ColorAttachmentOptimal,
+                        AccessFlags2.None,
+                        AccessFlags2.ColorAttachmentWriteBit,
+                        PipelineStageFlags2.ColorAttachmentOutputBit,
+                        PipelineStageFlags2.ColorAttachmentOutputBit,
+                        ImageAspectFlags.ColorBit
+                    );
+                }
 
-            var screenScissor = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent);
-            Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &screenScissor);
+                var screenAttachmentInfo = new RenderingAttachmentInfo
+                {
+                    SType = StructureType.RenderingAttachmentInfo,
+                    ImageView = targetView,
+                    ImageLayout = ImageLayout.ColorAttachmentOptimal,
+                    LoadOp = AttachmentLoadOp.Clear,
+                    StoreOp = AttachmentStoreOp.Store,
+                    ClearValue = clearColor,
+                };
 
-            var materialPipeline = Ctx.ScreenPipeline;
-            Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, materialPipeline.Pipeline);
+                var screenRenderingInfo = new RenderingInfo
+                {
+                    SType = StructureType.RenderingInfo,
+                    RenderArea = new Rect2D(new Offset2D(0, 0), targetExtent),
+                    LayerCount = 1,
+                    ColorAttachmentCount = 1,
+                    PColorAttachments = &screenAttachmentInfo
+                };
 
-            uint[] pushData = [0u, 0u];
-            fixed (uint* pPushData = pushData)
-            {
-                Ctx.Vk.CmdPushConstants(
-                    cmdBuffer,
-                    materialPipeline.Layout,
-                    ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
-                    0,
-                    sizeof(uint) * 2,
-                    pPushData
-                );
+                Ctx.Vk.CmdBeginRendering(cmdBuffer, &screenRenderingInfo);
+
+                var screenViewport = new Viewport(0.0f, 0.0f, targetExtent.Width, targetExtent.Height, 0.0f, 1.0f);
+                Ctx.Vk.CmdSetViewport(cmdBuffer, 0, 1, &screenViewport);
+
+                var screenScissor = new Rect2D(new Offset2D(0, 0), targetExtent);
+                Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &screenScissor);
+
+                var materialPipeline = Ctx.ScreenPipelines[p];
+                Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, materialPipeline.Pipeline);
+
+                uint[] pushData = [0u, 0u];
+                fixed (uint* pPushData = pushData)
+                {
+                    Ctx.Vk.CmdPushConstants(
+                        cmdBuffer,
+                        materialPipeline.Layout,
+                        ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+                        0,
+                        sizeof(uint) * 2,
+                        pPushData
+                    );
+                }
+
+                DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
+                DescriptorSet screenMaterialSet1 = Ctx.ScreenDescriptorSets[p][Ctx.FrameIndex];
+                DescriptorSet[] descriptorSets = [lightingSet0, screenMaterialSet1];
+
+                fixed (DescriptorSet* pDescriptorSets = descriptorSets)
+                {
+                    Ctx.Vk.CmdBindDescriptorSets(
+                        cmdBuffer,
+                        PipelineBindPoint.Graphics,
+                        materialPipeline.Layout,
+                        0,
+                        (uint)descriptorSets.Length,
+                        pDescriptorSets,
+                        0,
+                        null
+                    );
+                }
+
+                Ctx.Vk.CmdDraw(cmdBuffer, 3, 1, 0, 0);
+
+                Ctx.Vk.CmdEndRendering(cmdBuffer);
+
+                if (!isFinalPass && targetImage.HasValue)
+                {
+                    TransitionImageLayout(
+                        targetImage.Value,
+                        ImageLayout.ColorAttachmentOptimal,
+                        ImageLayout.ShaderReadOnlyOptimal,
+                        AccessFlags2.ColorAttachmentWriteBit,
+                        AccessFlags2.ShaderReadBit,
+                        PipelineStageFlags2.ColorAttachmentOutputBit,
+                        PipelineStageFlags2.FragmentShaderBit,
+                        ImageAspectFlags.ColorBit
+                    );
+                }
             }
-
-            DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
-            DescriptorSet screenMaterialSet1 = Ctx.ScreenDescriptorSets[Ctx.FrameIndex];
-            DescriptorSet[] descriptorSets = [lightingSet0, screenMaterialSet1];
-
-            fixed (DescriptorSet* pDescriptorSets = descriptorSets)
-            {
-                Ctx.Vk.CmdBindDescriptorSets(
-                    cmdBuffer,
-                    PipelineBindPoint.Graphics,
-                    materialPipeline.Layout,
-                    0,
-                    (uint)descriptorSets.Length,
-                    pDescriptorSets,
-                    0,
-                    null
-                );
-            }
-
-            Ctx.Vk.CmdDraw(cmdBuffer, 3, 1, 0, 0);
-
-            Ctx.Vk.CmdEndRendering(cmdBuffer);
 
             TransitionImageLayout(
                 srcImage,

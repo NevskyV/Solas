@@ -7,9 +7,21 @@ public sealed class Material(MaterialDomain domain) : Asset
     public readonly MaterialDomain Domain = domain;
     private readonly List<ShaderModule> _modules = [];
     private readonly List<MaterialPass> _passes = [];
+    private readonly List<List<ShaderModule>> _passModules = [];
 
     public IReadOnlyList<ShaderModule> Modules => _modules;
     public IReadOnlyList<MaterialPass> Passes => _passes;
+    public int PassCount => _passes.Count > 0 ? _passes.Count : 1;
+
+    public IReadOnlyList<ShaderModule> GetModulesForPass(int passIndex)
+    {
+        if (passIndex >= 0 && passIndex < _passModules.Count)
+        {
+            return _passModules[passIndex];
+        }
+
+        return _modules;
+    }
 
     public void AddModule(ShaderModule module)
     {
@@ -33,13 +45,22 @@ public sealed class Material(MaterialDomain domain) : Asset
     private void RebuildPasses()
     {
         _passes.Clear();
+        _passModules.Clear();
+
+        if (_modules.Count == 0) return;
+
+        List<ShaderModule>? currentGroup = null;
         MaterialPass? currentPass = null;
 
-        foreach (var module in _modules)
+        for (int i = 0; i < _modules.Count; i++)
         {
-            if (currentPass == null ||
-                module.RequiresSeparatePass ||
-                currentPass.Value.CullMode != module.RequiredCullMode)
+            var module = _modules[i];
+            bool startNewPass = currentPass == null ||
+                                module.RequiresSeparatePass ||
+                                (i > 0 && _modules[i - 1].RequiresSeparatePass) ||
+                                currentPass.Value.CullMode != module.RequiredCullMode;
+
+            if (startNewPass)
             {
                 currentPass = new MaterialPass
                 {
@@ -47,7 +68,11 @@ public sealed class Material(MaterialDomain domain) : Asset
                     DepthWrite = module.RequiredDepthWrite
                 };
                 _passes.Add(currentPass.Value);
+                currentGroup = [];
+                _passModules.Add(currentGroup);
             }
+
+            currentGroup!.Add(module);
         }
     }
 

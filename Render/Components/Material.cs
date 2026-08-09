@@ -1,29 +1,54 @@
-﻿using Solas.Assets;
+using Solas.Assets;
 
 namespace Solas.Render.Components;
 
-public sealed class Material(Dimensions dimensions) : Asset
+public sealed class Material(MaterialDomain domain) : Asset
 {
-    public readonly Dimensions Dimensions = dimensions;
+    public readonly MaterialDomain Domain = domain;
     private readonly List<ShaderModule> _modules = [];
+    private readonly List<MaterialPass> _passes = [];
 
     public IReadOnlyList<ShaderModule> Modules => _modules;
+    public IReadOnlyList<MaterialPass> Passes => _passes;
 
     public void AddModule(ShaderModule module)
     {
-        if (module.Domain != ShaderDomain.Universal && (int)module.Domain != (int)Dimensions)
+        if (module.Domain != ShaderDomain.Universal && (int)module.Domain != (int)Domain)
         {
             throw new InvalidOperationException(
-                $"Cannot add module '{module.GetType().Name}' ({module.Domain}) to material with dimensions '{Dimensions}'."
+                $"Cannot add module '{module.GetType().Name}' ({module.Domain}) to material with dimensions '{Domain}'."
             );
         }
 
         _modules.Add(module);
+        RebuildPasses();
     }
 
     public void RemoveModule(ShaderModule module)
     {
         _modules.Remove(module);
+        RebuildPasses();
+    }
+
+    private void RebuildPasses()
+    {
+        _passes.Clear();
+        MaterialPass? currentPass = null;
+
+        foreach (var module in _modules)
+        {
+            if (currentPass == null ||
+                module.RequiresSeparatePass ||
+                currentPass.Value.CullMode != module.RequiredCullMode)
+            {
+                currentPass = new MaterialPass
+                {
+                    CullMode = module.RequiredCullMode,
+                    DepthWrite = module.RequiredDepthWrite
+                };
+                _passes.Add(currentPass.Value);
+            }
+        }
     }
 
     public unsafe byte[] BuildCombinedUboData()
@@ -52,7 +77,7 @@ public sealed class Material(Dimensions dimensions) : Asset
 
     public string GetPipelineHash()
     {
-        var hash = Dimensions.ToString();
+        var hash = Domain.ToString();
 
         foreach (var module in _modules)
         {

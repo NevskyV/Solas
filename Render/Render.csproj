@@ -35,13 +35,12 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AdditionalFiles Include="StandardShaders\Modules\*.slang"/>
-        <None Include="StandardShaders\**\*.*" Exclude="StandardShaders\Embedded\**\*.*">
+        <AdditionalFiles Include="StandardShaders\**\*.*" Exclude="StandardShaders\Embedded\**\*.*">
             <Pack>true</Pack>
             <PackagePath>contentFiles/any/any/StandardShaders\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
+        </AdditionalFiles>
         <EmbeddedResource Include="StandardShaders\Embedded\*.spv"/>
     </ItemGroup>
 

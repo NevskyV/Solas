@@ -22,8 +22,6 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(slangFiles.Collect(), static (spc, slangFiles) =>
         {
-            var generatedClassNames = new List<string>();
-
             foreach (var slangFile in slangFiles)
             {
                 var defaultModuleName = GetFileNameWithoutExtension(slangFile.Path);
@@ -33,12 +31,8 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
                 {
                     var generatedCode = GenerateCSharpModuleClass(module);
                     spc.AddSource($"{module.ClassName}.g.cs", SourceText.From(generatedCode, Encoding.UTF8));
-                    generatedClassNames.Add(module.ClassName);
                 }
             }
-
-            var registryCode = GenerateRegistryClass(generatedClassNames);
-            spc.AddSource("SlangModulesRegistry.g.cs", SourceText.From(registryCode, Encoding.UTF8));
         });
     }
 
@@ -58,26 +52,71 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
         var moduleMatch = Regex.Match(content, @"module\s+([A-Za-z0-9_]+);");
         var slangModuleName = moduleMatch.Success ? moduleMatch.Groups[1].Value : defaultModuleName;
 
-        var modifierMatches = Regex.Matches(content, @"(?:\[\s*(Domain2D|Domain3D|DomainUniversal)\s*\][\s\r\n]*)?(?:public\s+|private\s+|internal\s+)?struct\s+([A-Za-z0-9_]+)(?:\s*:\s*(IFragmentModifier|IVertexModifier|[A-Za-z0-9_]+))?");
+        var modifierMatches = Regex.Matches(content,
+            @"((?:\[[^\]]*\][\s\r\n]*)*)(?:public\s+|private\s+|internal\s+)?struct\s+([A-Za-z0-9_]+)(?:\s*:\s*([A-Za-z0-9_,\s]+))?\s*\{");
 
         foreach (Match match in modifierMatches)
         {
-            var domainAttr = match.Groups[1].Value;
+            var attributesStr = match.Groups[1].Value;
             var structName = match.Groups[2].Value;
-            var modifierType = match.Groups[3].Value;
+            var interfacesStr = match.Groups[3].Value;
 
-            if (structName.EndsWith("Params") || structName.EndsWith("Attribute") || structName.StartsWith("VS") || structName.StartsWith("Chain") || structName.Equals("UniformBuffer"))
+            if (!structName.EndsWith("Modifier"))
             {
                 continue;
             }
 
-            var domain = domainAttr switch
+            var domain = "Universal";
+            if (attributesStr.Contains("Domain2D")) domain = "TwoD";
+            else if (attributesStr.Contains("Domain3D")) domain = "ThreeD";
+            else if (attributesStr.Contains("DomainUniversal")) domain = "Universal";
+            else if (attributesStr.Contains("DomainScreen")) domain = "Screen";
+
+            bool isVertexModifier = !string.IsNullOrEmpty(interfacesStr) && interfacesStr.Contains("IVertexModifier");
+            bool isFragmentModifier =
+                !string.IsNullOrEmpty(interfacesStr) && interfacesStr.Contains("IFragmentModifier");
+            if (!isVertexModifier && !isFragmentModifier)
             {
-                "Domain2D" => "TwoD",
-                "Domain3D" => "ThreeD",
-                "DomainUniversal" => "Universal",
-                _ => "Universal"
-            };
+                isFragmentModifier = true;
+            }
+
+            string requiredCullMode = "CullMode.Back";
+            bool requiredDepthWrite = true;
+            bool requiresSeparatePass = false;
+
+            if (attributesStr.Contains("PassState"))
+            {
+                var cullMatch = Regex.Match(attributesStr, @"cullMode\s*:\s*""([^""]+)""");
+                var depthMatch = Regex.Match(attributesStr, @"depthWrite\s*:\s*(true|false)");
+                var separateMatch = Regex.Match(attributesStr, @"separatePass\s*:\s*(true|false)");
+
+                if (cullMatch.Success)
+                {
+                    requiredCullMode = $"CullMode.{cullMatch.Groups[1].Value}";
+                }
+
+                if (depthMatch.Success)
+                {
+                    requiredDepthWrite = bool.Parse(depthMatch.Groups[1].Value);
+                }
+
+                if (separateMatch.Success)
+                {
+                    requiresSeparatePass = bool.Parse(separateMatch.Groups[1].Value);
+                }
+
+                if (!cullMatch.Success && !depthMatch.Success && !separateMatch.Success)
+                {
+                    var positionalMatch = Regex.Match(attributesStr,
+                        @"PassState\s*\(\s*""([^""]+)""\s*,\s*(true|false)\s*,\s*(true|false)\s*\)");
+                    if (positionalMatch.Success)
+                    {
+                        requiredCullMode = $"CullMode.{positionalMatch.Groups[1].Value}";
+                        requiredDepthWrite = bool.Parse(positionalMatch.Groups[2].Value);
+                        requiresSeparatePass = bool.Parse(positionalMatch.Groups[3].Value);
+                    }
+                }
+            }
 
             var fields = ExtractStructFields(content, structName);
 
@@ -85,10 +124,14 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
             {
                 SlangModuleName = slangModuleName,
                 ModifierStructName = structName,
-                ClassName = structName.EndsWith("Modifier") ? structName.Substring(0, structName.Length - "Modifier".Length) + "Module" : (structName.EndsWith("Module") ? structName : structName + "Module"),
-                GpuStructName = structName.EndsWith("Modifier") ? structName.Substring(0, structName.Length - "Modifier".Length) + "ParamsGpu" : structName + "GpuData",
+                ClassName = structName.Substring(0, structName.Length - "Modifier".Length) + "Module",
+                GpuStructName = structName.Substring(0, structName.Length - "Modifier".Length) + "ParamsGpu",
                 Domain = domain,
-                ModifierType = modifierType,
+                IsVertexModifier = isVertexModifier,
+                IsFragmentModifier = isFragmentModifier,
+                RequiredCullMode = requiredCullMode,
+                RequiredDepthWrite = requiredDepthWrite,
+                RequiresSeparatePass = requiresSeparatePass,
                 Fields = fields
             });
         }
@@ -100,10 +143,11 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
     {
         var fields = new List<SlangFieldInfo>();
 
-        var baseName = structName.EndsWith("Modifier") ? structName.Substring(0, structName.Length - "Modifier".Length) : structName;
+        var baseName = structName.Substring(0, structName.Length - "Modifier".Length);
         var paramsStructName = baseName + "Params";
 
-        var paramsMatch = Regex.Match(content, @"(?:public\s+|private\s+|internal\s+)?struct\s+" + paramsStructName + @"\s*\{([^}]+)\}");
+        var paramsMatch = Regex.Match(content,
+            @"(?:public\s+|private\s+|internal\s+)?struct\s+" + paramsStructName + @"\s*\{([^}]+)\}");
         if (paramsMatch.Success)
         {
             var paramsContent = paramsMatch.Groups[1].Value;
@@ -138,11 +182,13 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
                 var type = match.Groups[1].Value;
                 var name = match.Groups[2].Value;
 
-                if (name.Equals("pad", StringComparison.OrdinalIgnoreCase) || type.Equals("ModifyColor") || type.Equals("ModifyVertex")) continue;
+                if (name.Equals("pad", StringComparison.OrdinalIgnoreCase) || type.Equals("ModifyColor") ||
+                    type.Equals("ModifyVertex")) continue;
 
                 list.Add(new SlangFieldInfo { SlangType = type, Name = name });
             }
         }
+
         return list;
     }
 
@@ -212,8 +258,11 @@ public unsafe class {module.ClassName} : ShaderModule
     public override string SlangModuleName => ""{module.SlangModuleName}"";
     public override string SlangModifierName => ""{module.ModifierStructName}"";
     public override string SlangParamsName => ""{paramsName}"";
-    public override bool IsVertexModifier => { (module.ModifierType == "IVertexModifier").ToString().ToLower() };
-    public override bool IsFragmentModifier => { (module.ModifierType != "IVertexModifier").ToString().ToLower() };
+    public override bool IsVertexModifier => {module.IsVertexModifier.ToString().ToLower()};
+    public override bool IsFragmentModifier => {module.IsFragmentModifier.ToString().ToLower()};
+    public override CullMode RequiredCullMode => {module.RequiredCullMode};
+    public override bool RequiredDepthWrite => {module.RequiredDepthWrite.ToString().ToLower()};
+    public override bool RequiresSeparatePass => {module.RequiresSeparatePass.ToString().ToLower()};
     public override int SizeInBytes => sizeof({module.GpuStructName});
 
 {propertiesBuilder.ToString().TrimEnd()}
@@ -226,23 +275,6 @@ public unsafe class {module.ClassName} : ShaderModule
 ";
     }
 
-    private static string GenerateRegistryClass(List<string> classNames)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("namespace Solas.Render.Materials.Generated;");
-        sb.AppendLine();
-        sb.AppendLine("public static class SlangModulesRegistry");
-        sb.AppendLine("{");
-        sb.AppendLine("    public static readonly string[] GeneratedModules = new string[]");
-        sb.AppendLine("    {");
-        foreach (var name in classNames)
-        {
-            sb.AppendLine($"        \"{name}\",");
-        }
-        sb.AppendLine("    };");
-        sb.AppendLine("}");
-        return sb.ToString();
-    }
 
     private static string MapSlangTypeToCSharp(string slangType) => slangType switch
     {
@@ -289,7 +321,11 @@ public unsafe class {module.ClassName} : ShaderModule
         public string ClassName { get; set; } = string.Empty;
         public string GpuStructName { get; set; } = string.Empty;
         public string Domain { get; set; } = string.Empty;
-        public string ModifierType { get; set; } = string.Empty;
+        public bool IsVertexModifier { get; set; }
+        public bool IsFragmentModifier { get; set; }
+        public string RequiredCullMode { get; set; } = "CullMode.Back";
+        public bool RequiredDepthWrite { get; set; }
+        public bool RequiresSeparatePass { get; set; }
         public List<SlangFieldInfo> Fields { get; set; } = new();
     }
 

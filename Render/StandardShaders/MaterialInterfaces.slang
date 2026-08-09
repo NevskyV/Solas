@@ -1,11 +1,28 @@
 module MaterialInterfaces;
 
+[[vk::push_constant]]
+public cbuffer PassConstant
+{
+    public uint cullMode;
+    public uint depthWrite;
+};
+
 [__AttributeUsage(_AttributeTargets.Struct)]
 public struct Domain2DAttribute {};
 [__AttributeUsage(_AttributeTargets.Struct)]
 public struct Domain3DAttribute {};
 [__AttributeUsage(_AttributeTargets.Struct)]
 public struct DomainUniversalAttribute {};
+[__AttributeUsage(_AttributeTargets.Struct)]
+public struct DomainScreenAttribute {};
+
+[__AttributeUsage(_AttributeTargets.Struct)]
+public struct PassStateAttribute
+{
+    public string cullMode;
+    public bool depthWrite;
+    public bool separatePass;
+};
 
 public interface IVertexModifier
 {

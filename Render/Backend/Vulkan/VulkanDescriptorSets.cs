@@ -115,4 +115,88 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
 
         data.DescriptorSets = null!;
     }
+
+    internal void CreateForScreen(Material screenMat, ImageView inputView, Sampler sampler,
+        Silk.NET.Vulkan.Buffer[] uniformBuffers)
+    {
+        var layouts = new DescriptorSetLayout[Ctx.Settings.MaxFramesInFlight];
+        Array.Fill(layouts, Ctx.DescriptorSetLayout);
+
+        fixed (DescriptorSetLayout* pLayouts = layouts)
+        {
+            DescriptorSetAllocateInfo allocInfo = new()
+            {
+                SType = StructureType.DescriptorSetAllocateInfo,
+                DescriptorPool = Ctx.DescriptorPool,
+                DescriptorSetCount = Ctx.Settings.MaxFramesInFlight,
+                PSetLayouts = pLayouts,
+            };
+
+            Ctx.ScreenDescriptorSets = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
+            fixed (DescriptorSet* descriptorSetsPtr = Ctx.ScreenDescriptorSets)
+            {
+                if (Ctx.Vk!.AllocateDescriptorSets(Ctx.Device, &allocInfo, descriptorSetsPtr) != Result.Success)
+                {
+                    throw new Exception("failed to allocate screen descriptor sets!");
+                }
+            }
+        }
+
+        var extraMaterialSize = (ulong)(screenMat.BuildCombinedUboData().Length);
+
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
+        {
+            DescriptorBufferInfo bufferInfo = new()
+            {
+                Buffer = uniformBuffers[i],
+                Offset = 0,
+                Range = extraMaterialSize > 0 ? extraMaterialSize : 16
+            };
+
+            DescriptorImageInfo imageInfo = new()
+            {
+                Sampler = sampler,
+                ImageView = inputView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+            };
+
+            WriteDescriptorSet[] descriptorWrite =
+            [
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.ScreenDescriptorSets[i],
+                    DstBinding = 0,
+                    DstArrayElement = 0,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.UniformBuffer,
+                    PBufferInfo = &bufferInfo,
+                },
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.ScreenDescriptorSets[i],
+                    DstBinding = 1,
+                    DstArrayElement = 0,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.CombinedImageSampler,
+                    PImageInfo = &imageInfo,
+                }
+            ];
+
+            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
+        }
+    }
+
+    internal void FreeForScreen()
+    {
+        if (Ctx.ScreenDescriptorSets == null || Ctx.ScreenDescriptorSets.Length == 0) return;
+
+        fixed (DescriptorSet* pDescriptorSets = Ctx.ScreenDescriptorSets)
+        {
+            Ctx.Vk!.FreeDescriptorSets(Ctx.Device, Ctx.DescriptorPool, Ctx.Settings.MaxFramesInFlight, pDescriptorSets);
+        }
+
+        Ctx.ScreenDescriptorSets = [];
+    }
 }

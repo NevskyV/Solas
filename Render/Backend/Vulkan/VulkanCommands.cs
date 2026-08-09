@@ -62,6 +62,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             throw new Exception("Failed to begin command buffer");
         }
 
+        bool hasScreenMaterial = Ctx.CameraData.ScreenMaterial != null;
         bool isScaling = Ctx.RenderExtent.Width != Ctx.SwapChainExtent.Width ||
                          Ctx.RenderExtent.Height != Ctx.SwapChainExtent.Height;
         bool isMsaa = Ctx.MsaaSamples != SampleCountFlags.Count1Bit;
@@ -96,11 +97,13 @@ internal unsafe class VulkanCommands : VulkanInjectable
         TransitionImageLayout(
             Ctx.SwapChainImages![imageIndex],
             ImageLayout.Undefined,
-            isScaling ? ImageLayout.TransferDstOptimal : ImageLayout.ColorAttachmentOptimal,
+            (isScaling && !hasScreenMaterial) ? ImageLayout.TransferDstOptimal : ImageLayout.ColorAttachmentOptimal,
             AccessFlags2.None,
-            isScaling ? AccessFlags2.TransferWriteBit : AccessFlags2.ColorAttachmentWriteBit,
+            (isScaling && !hasScreenMaterial) ? AccessFlags2.TransferWriteBit : AccessFlags2.ColorAttachmentWriteBit,
             PipelineStageFlags2.ColorAttachmentOutputBit,
-            isScaling ? PipelineStageFlags2.TransferBit : PipelineStageFlags2.ColorAttachmentOutputBit,
+            (isScaling && !hasScreenMaterial)
+                ? PipelineStageFlags2.TransferBit
+                : PipelineStageFlags2.ColorAttachmentOutputBit,
             ImageAspectFlags.ColorBit
         );
 
@@ -123,7 +126,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
         ImageView resolveTargetView = default;
         if (isMsaa)
         {
-            if (isScaling)
+            if (isScaling || hasScreenMaterial)
             {
                 resolveTargetView = Ctx.ResolveImageView;
                 srcBlitImage = Ctx.ResolveImage;
@@ -246,36 +249,149 @@ internal unsafe class VulkanCommands : VulkanInjectable
         {
             if (renderObject.GpuMesh == null || renderObject.GpuTexture == null) continue;
 
-            var pipeline = renderObject.MaterialPipeline.Pipeline;
-            var layout = renderObject.MaterialPipeline.Layout;
+            var material = renderObject.Material;
+            var passes = material?.Passes;
+            int passCount = passes != null && passes.Count > 0 ? passes.Count : 1;
 
-            if (pipeline.Handle != lastPipeline.Handle)
+            for (int passIdx = 0; passIdx < passCount; passIdx++)
             {
-                Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, pipeline);
-                lastPipeline = pipeline;
+                VulkanMaterialPipeline materialPipeline;
+                if (material != null && passes != null && passes.Count > 0)
+                {
+                    materialPipeline = Ctx.PipelineFactory.GetOrCreatePipeline(material, passes[passIdx]);
+                }
+                else
+                {
+                    materialPipeline = renderObject.MaterialPipeline;
+                }
+
+                var pipeline = materialPipeline.Pipeline;
+                var layout = materialPipeline.Layout;
+
+                if (pipeline.Handle != lastPipeline.Handle)
+                {
+                    Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, pipeline);
+                    lastPipeline = pipeline;
+                }
+
+                uint[] pushData = passes != null
+                    ? [(uint)passes[passIdx].CullMode, passes[passIdx].DepthWrite ? 1u : 0u]
+                    : [(uint)CullMode.Back, 1u];
+                fixed (uint* pPushData = pushData)
+                {
+                    Ctx.Vk.CmdPushConstants(
+                        cmdBuffer,
+                        layout,
+                        ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+                        0,
+                        sizeof(uint) * 2,
+                        pPushData
+                    );
+                }
+
+                var gpuMesh = renderObject.GpuMesh;
+
+                if (gpuMesh.VertexBuffer.Handle != lastVertexBuffer.Handle)
+                {
+                    ulong offset = 0;
+                    Ctx.Vk.CmdBindVertexBuffers(cmdBuffer, 0, 1, in gpuMesh.VertexBuffer, in offset);
+                    Ctx.Vk.CmdBindIndexBuffer(cmdBuffer, gpuMesh.IndexBuffer, 0, IndexType.Uint32);
+                    lastVertexBuffer = gpuMesh.VertexBuffer;
+                }
+
+                DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
+                DescriptorSet objectMaterialSet1 = renderObject.DescriptorSets[Ctx.FrameIndex];
+
+                DescriptorSet[] descriptorSets = [lightingSet0, objectMaterialSet1];
+
+                fixed (DescriptorSet* pDescriptorSets = descriptorSets)
+                {
+                    Ctx.Vk.CmdBindDescriptorSets(
+                        cmdBuffer,
+                        PipelineBindPoint.Graphics,
+                        layout,
+                        0,
+                        (uint)descriptorSets.Length,
+                        pDescriptorSets,
+                        0,
+                        null
+                    );
+                }
+
+                Ctx.Vk.CmdDrawIndexed(cmdBuffer, gpuMesh.IndexCount, 1, 0, 0, 0);
             }
+        }
 
-            var gpuMesh = renderObject.GpuMesh;
+        Ctx.Vk.CmdEndRendering(cmdBuffer);
 
-            if (gpuMesh.VertexBuffer.Handle != lastVertexBuffer.Handle)
+        if (hasScreenMaterial)
+        {
+            Image srcImage = isMsaa ? Ctx.ResolveImage : Ctx.ColorImage;
+            TransitionImageLayout(
+                srcImage,
+                ImageLayout.ColorAttachmentOptimal,
+                ImageLayout.ShaderReadOnlyOptimal,
+                AccessFlags2.ColorAttachmentWriteBit,
+                AccessFlags2.ShaderReadBit,
+                PipelineStageFlags2.ColorAttachmentOutputBit,
+                PipelineStageFlags2.FragmentShaderBit,
+                ImageAspectFlags.ColorBit
+            );
+
+            var screenAttachmentInfo = new RenderingAttachmentInfo
             {
-                ulong offset = 0;
-                Ctx.Vk.CmdBindVertexBuffers(cmdBuffer, 0, 1, in gpuMesh.VertexBuffer, in offset);
-                Ctx.Vk.CmdBindIndexBuffer(cmdBuffer, gpuMesh.IndexBuffer, 0, IndexType.Uint32);
-                lastVertexBuffer = gpuMesh.VertexBuffer;
+                SType = StructureType.RenderingAttachmentInfo,
+                ImageView = Ctx.SwapChainImageViews![imageIndex],
+                ImageLayout = ImageLayout.ColorAttachmentOptimal,
+                LoadOp = AttachmentLoadOp.Clear,
+                StoreOp = AttachmentStoreOp.Store,
+                ClearValue = clearColor,
+            };
+
+            var screenRenderingInfo = new RenderingInfo
+            {
+                SType = StructureType.RenderingInfo,
+                RenderArea = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent),
+                LayerCount = 1,
+                ColorAttachmentCount = 1,
+                PColorAttachments = &screenAttachmentInfo
+            };
+
+            Ctx.Vk.CmdBeginRendering(cmdBuffer, &screenRenderingInfo);
+
+            var screenViewport = new Viewport(0.0f, 0.0f, Ctx.SwapChainExtent.Width, Ctx.SwapChainExtent.Height, 0.0f,
+                1.0f);
+            Ctx.Vk.CmdSetViewport(cmdBuffer, 0, 1, &screenViewport);
+
+            var screenScissor = new Rect2D(new Offset2D(0, 0), Ctx.SwapChainExtent);
+            Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &screenScissor);
+
+            var materialPipeline = Ctx.ScreenPipeline;
+            Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, materialPipeline.Pipeline);
+
+            uint[] pushData = [0u, 0u];
+            fixed (uint* pPushData = pushData)
+            {
+                Ctx.Vk.CmdPushConstants(
+                    cmdBuffer,
+                    materialPipeline.Layout,
+                    ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+                    0,
+                    sizeof(uint) * 2,
+                    pPushData
+                );
             }
 
             DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
-            DescriptorSet objectMaterialSet1 = renderObject.DescriptorSets[Ctx.FrameIndex];
-
-            DescriptorSet[] descriptorSets = [lightingSet0, objectMaterialSet1];
+            DescriptorSet screenMaterialSet1 = Ctx.ScreenDescriptorSets[Ctx.FrameIndex];
+            DescriptorSet[] descriptorSets = [lightingSet0, screenMaterialSet1];
 
             fixed (DescriptorSet* pDescriptorSets = descriptorSets)
             {
                 Ctx.Vk.CmdBindDescriptorSets(
                     cmdBuffer,
                     PipelineBindPoint.Graphics,
-                    layout,
+                    materialPipeline.Layout,
                     0,
                     (uint)descriptorSets.Length,
                     pDescriptorSets,
@@ -284,12 +400,23 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 );
             }
 
-            Ctx.Vk.CmdDrawIndexed(cmdBuffer, gpuMesh.IndexCount, 1, 0, 0, 0);
+            Ctx.Vk.CmdDraw(cmdBuffer, 3, 1, 0, 0);
+
+            Ctx.Vk.CmdEndRendering(cmdBuffer);
+
+            TransitionImageLayout(
+                srcImage,
+                ImageLayout.ShaderReadOnlyOptimal,
+                ImageLayout.ColorAttachmentOptimal,
+                AccessFlags2.ShaderReadBit,
+                AccessFlags2.None,
+                PipelineStageFlags2.FragmentShaderBit,
+                PipelineStageFlags2.BottomOfPipeBit,
+                ImageAspectFlags.ColorBit
+            );
         }
 
-        Ctx.Vk.CmdEndRendering(cmdBuffer);
-
-        if (isScaling)
+        if (isScaling && !hasScreenMaterial)
         {
             TransitionImageLayout(
                 srcBlitImage,

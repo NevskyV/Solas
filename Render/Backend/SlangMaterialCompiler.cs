@@ -33,9 +33,12 @@ public sealed class SlangMaterialCompiler
     {
         var components = new List<IComponentType>();
 
-        var baseModules = material.Dimensions == Dimensions.TwoD
-            ? new[] { "MaterialInterfaces", "Material2D" }
-            : new[] { "LightData", "Lighting", "MaterialInterfaces", "Material3D" };
+        var baseModules = material.Domain switch
+        {
+            MaterialDomain.TwoD => new[] { "MaterialInterfaces", "Material2D" },
+            MaterialDomain.Screen => new[] { "MaterialInterfaces", "MaterialScreen" },
+            _ => new[] { "LightData", "Lighting", "MaterialInterfaces", "Material3D" }
+        };
 
         foreach (var baseModName in baseModules)
         {
@@ -62,14 +65,21 @@ public sealed class SlangMaterialCompiler
 
         string vertChain = BuildVertexGenericChain(vertModules);
         string fragChain = BuildFragmentGenericChain(fragModules);
-        string masterModule = material.Dimensions == Dimensions.TwoD ? "Material2D" : "Material3D";
+        string masterModule = material.Domain switch
+        {
+            MaterialDomain.TwoD => "Material2D",
+            MaterialDomain.Screen => "MaterialScreen",
+            _ => "Material3D"
+        };
         string bootstrapperCode =
-            BuildBootstrapper(masterModule, material.Modules, vertModules, fragModules, vertChain, fragChain);
+            BuildBootstrapper(masterModule, material.Modules, vertModules, fragModules, vertChain, fragChain,
+                material.Domain);
 
         var blob = Slang.CreateBlob(Encoding.UTF8.GetBytes(bootstrapperCode));
 
+        string uniqueName = $"RuntimeLinker_{Guid.NewGuid():N}";
         var customLinkerMod =
-            _session.LoadModuleFromSource("RuntimeLinker", "RuntimeLinker.slang", blob, out var diag1);
+            _session.LoadModuleFromSource(uniqueName, $"{uniqueName}.slang", blob, out var diag1);
         CheckDiagnostics(diag1);
 
         if (customLinkerMod == null)
@@ -92,7 +102,7 @@ public sealed class SlangMaterialCompiler
             throw new Exception("Slang GetTargetCode returned null.");
 
         int size = (int)spirvBlob.GetBufferSize();
-        byte[] result = new ReadOnlySpan<byte>((void*)spirvBlob.GetBufferPointer(), size).ToArray();
+        byte[] result = new ReadOnlySpan<byte>(spirvBlob.GetBufferPointer(), size).ToArray();
 
         return result;
     }
@@ -104,7 +114,7 @@ public sealed class SlangMaterialCompiler
             int size = (int)diagnosticsBlob.GetBufferSize();
             if (size > 0)
             {
-                var span = new ReadOnlySpan<byte>((void*)diagnosticsBlob.GetBufferPointer(), size);
+                var span = new ReadOnlySpan<byte>(diagnosticsBlob.GetBufferPointer(), size);
                 string message = Encoding.UTF8.GetString(span);
 
                 if (message.Contains("error"))
@@ -148,7 +158,7 @@ public sealed class SlangMaterialCompiler
     }
 
     private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> modules, List<ShaderModule> vertModules,
-        List<ShaderModule> fragModules, string vertChain, string fragChain)
+        List<ShaderModule> fragModules, string vertChain, string fragChain, MaterialDomain domain)
     {
         var sb = new StringBuilder();
 
@@ -168,7 +178,11 @@ public sealed class SlangMaterialCompiler
 
         sb.AppendLine("struct MaterialParamsUBO");
         sb.AppendLine("{");
-        sb.AppendLine("    UniformBuffer baseUbo;");
+        if (domain != MaterialDomain.Screen)
+        {
+            sb.AppendLine("    UniformBuffer baseUbo;");
+        }
+
         for (int i = 0; i < modules.Count; i++)
         {
             if (modules[i].SizeInBytes > 0)
@@ -183,29 +197,40 @@ public sealed class SlangMaterialCompiler
         sb.AppendLine();
 
         sb.AppendLine("[shader(\"vertex\")]");
-        sb.AppendLine("public VSOutput vertexMain(VSInput input)");
-        sb.AppendLine("{");
-        if (vertModules.Count == 0)
+        if (domain == MaterialDomain.Screen)
         {
-            sb.AppendLine("    ChainEndVertex vertChainInstance = {};");
+            sb.AppendLine("public VSOutput vertexMain(uint vertexID : SV_VertexID)");
+            sb.AppendLine("{");
+            sb.AppendLine("    return screenVertMain(vertexID);");
+            sb.AppendLine("}");
         }
         else
         {
-            sb.AppendLine($"    {vertChain} vertChainInstance;");
-            for (int k = 0; k < vertModules.Count; k++)
+            sb.AppendLine("public VSOutput vertexMain(VSInput input)");
+            sb.AppendLine("{");
+            if (vertModules.Count == 0)
             {
-                var mod = vertModules[k];
-                if (mod.SizeInBytes > 0)
+                sb.AppendLine("    ChainEndVertex vertChainInstance = {};");
+            }
+            else
+            {
+                sb.AppendLine($"    {vertChain} vertChainInstance;");
+                for (int k = 0; k < vertModules.Count; k++)
                 {
-                    int origIdx = moduleIndexMap[mod];
-                    string access = GetChainAccessPath(k);
-                    sb.AppendLine($"    vertChainInstance.{access}.params = matUbo.modParams_{origIdx};");
+                    var mod = vertModules[k];
+                    if (mod.SizeInBytes > 0)
+                    {
+                        int origIdx = moduleIndexMap[mod];
+                        string access = GetChainAccessPath(k);
+                        sb.AppendLine($"    vertChainInstance.{access}.params = matUbo.modParams_{origIdx};");
+                    }
                 }
             }
+
+            sb.AppendLine($"    return vertMain<{vertChain}>(input, vertChainInstance);");
+            sb.AppendLine("}");
         }
 
-        sb.AppendLine($"    return vertMain<{vertChain}>(input, vertChainInstance);");
-        sb.AppendLine("}");
         sb.AppendLine();
 
         sb.AppendLine("[shader(\"fragment\")]");
@@ -230,7 +255,15 @@ public sealed class SlangMaterialCompiler
             }
         }
 
-        sb.AppendLine($"    return fragMain<{fragChain}>(input, fragChainInstance);");
+        if (domain == MaterialDomain.Screen)
+        {
+            sb.AppendLine($"    return screenFragMain<{fragChain}>(input, fragChainInstance);");
+        }
+        else
+        {
+            sb.AppendLine($"    return fragMain<{fragChain}>(input, fragChainInstance);");
+        }
+
         sb.AppendLine("}");
 
         return sb.ToString();

@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
@@ -86,6 +86,12 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal List<VulkanRenderData> RenderData = [];
     internal VulkanResourceManager ResourceManager;
 
+    internal Sampler ScreenSampler;
+    internal Buffer[] ScreenUniformBuffers = [];
+    internal DeviceMemory[] ScreenUniformBuffersMemory = [];
+    internal DescriptorSet[] ScreenDescriptorSets = [];
+    internal VulkanMaterialPipeline ScreenPipeline;
+
     internal Buffer[] ShaderStorageBuffers;
     internal DeviceMemory[] ShaderStorageBuffersMemory;
     internal Pipeline ComputePipeline;
@@ -94,6 +100,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal DescriptorSetLayout ComputeDescriptorSetLayout;
 
     internal VulkanLightingResources LightingResources;
+    internal VulkanPipelineFactory PipelineFactory;
     internal Buffer[] LightBuffers = [];
     internal DeviceMemory[] LightBuffersMemory = [];
     internal void*[] LightBuffersMappedPointers = [];

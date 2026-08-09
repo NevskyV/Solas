@@ -110,4 +110,52 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
             Ctx.Vk!.UnmapMemory(Ctx.Device, renderer.UniformBuffersMemory[currentImage]);
         }
     }
+
+    internal void CreateForScreen(Material screenMat)
+    {
+        Ctx.ScreenUniformBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.ScreenUniformBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+
+        var extraMaterialSize = (ulong)(screenMat.BuildCombinedUboData().Length);
+        var bufferSize = extraMaterialSize > 0 ? extraMaterialSize : 16;
+
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
+        {
+            var (buffer, bufferMem) = Buffer.Create(Ctx, bufferSize, BufferUsageFlags.UniformBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            Ctx.ScreenUniformBuffers[i] = buffer;
+            Ctx.ScreenUniformBuffersMemory[i] = bufferMem;
+        }
+    }
+
+    internal void DestroyForScreen()
+    {
+        if (Ctx.ScreenUniformBuffers == null || Ctx.ScreenUniformBuffers.Length == 0) return;
+
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
+        {
+            Ctx.Vk!.DestroyBuffer(Ctx.Device, Ctx.ScreenUniformBuffers[i], null);
+            Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.ScreenUniformBuffersMemory[i], null);
+        }
+
+        Ctx.ScreenUniformBuffers = [];
+        Ctx.ScreenUniformBuffersMemory = [];
+    }
+
+    internal void UpdateScreen(uint currentImage, Material screenMat)
+    {
+        var extraBytes = screenMat.BuildCombinedUboData();
+        if (extraBytes.Length == 0) return;
+
+        void* data;
+        Ctx.Vk!.MapMemory(Ctx.Device, Ctx.ScreenUniformBuffersMemory[currentImage], 0, (ulong)extraBytes.Length, 0,
+            &data);
+
+        fixed (byte* srcPtr = extraBytes)
+        {
+            System.Buffer.MemoryCopy(srcPtr, data, extraBytes.Length, extraBytes.Length);
+        }
+
+        Ctx.Vk!.UnmapMemory(Ctx.Device, Ctx.ScreenUniformBuffersMemory[currentImage]);
+    }
 }

@@ -22,6 +22,36 @@ internal class VulkanRenderer : IRenderer
 
     private readonly ConcurrentQueue<Action> _pendingActions = new();
 
+    private Material? _lastScreenMaterial = null;
+    private ImageView _lastBoundView = default;
+
+    private void UpdateScreenMaterialResources()
+    {
+        var screenMat = _context.CameraData.ScreenMaterial;
+        var isMsaa = _context.MsaaSamples != SampleCountFlags.Count1Bit;
+        var view = isMsaa ? _context.ResolveImageView : _context.ColorImageView;
+
+        if (screenMat == _lastScreenMaterial && view.Handle == _lastBoundView.Handle) return;
+
+        _context.Vk!.DeviceWaitIdle(_context.Device);
+
+        if (_lastScreenMaterial != null)
+        {
+            _descriptorSets.FreeForScreen();
+            _uniformBuffers.DestroyForScreen();
+        }
+
+        _lastScreenMaterial = screenMat;
+        _lastBoundView = view;
+
+        if (screenMat != null)
+        {
+            _uniformBuffers.CreateForScreen(screenMat);
+            _descriptorSets.CreateForScreen(screenMat, view, _context.ScreenSampler, _context.ScreenUniformBuffers);
+            _context.ScreenPipeline = _pipelineFactory.GetOrCreatePipeline(screenMat);
+        }
+    }
+
     private readonly VulkanDebug _debug = new();
     private readonly VulkanSurface _surface = new();
     private readonly VulkanPhysicalDevice _physicalDevice = new();
@@ -50,6 +80,7 @@ internal class VulkanRenderer : IRenderer
         _context.CameraData = cameraData;
         _context.ResourceManager = _resourceManager;
         _context.LightingResources = _lightingResources;
+        _context.PipelineFactory = _pipelineFactory;
 
         _context.Settings = Query.GetSettings<GraphicsSettings>();
 
@@ -265,6 +296,12 @@ internal class VulkanRenderer : IRenderer
     unsafe void IRenderer.DrawFrame()
     {
         ProcessPendingActions();
+        UpdateScreenMaterialResources();
+
+        if (_context.CameraData.ScreenMaterial != null)
+        {
+            _uniformBuffers.UpdateScreen(_context.FrameIndex, _context.CameraData.ScreenMaterial);
+        }
 
         if (_context.Vk!.WaitForFences(_context.Device, [_context.InFlightFences![_context.FrameIndex]], true,
                 ulong.MaxValue) != Result.Success)
@@ -354,6 +391,13 @@ internal class VulkanRenderer : IRenderer
         RenderLogicEventHandler.DisposeLogicEvent -= UnloadModel;
 
         _context.Vk!.DeviceWaitIdle(_context.Device);
+
+        if (_lastScreenMaterial != null)
+        {
+            _descriptorSets.FreeForScreen();
+            _uniformBuffers.DestroyForScreen();
+        }
+
         _pipelineFactory.Dispose();
         _swapChain.Dispose();
         _context.Dispose();

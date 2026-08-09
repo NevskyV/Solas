@@ -10,21 +10,28 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
 {
     private readonly Dictionary<string, VulkanMaterialPipeline> _pipelineCache = new();
 
-    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material)
+    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material, MaterialPass pass)
     {
-        var hash = material?.GetPipelineHash() ?? "Default";
+        var baseHash = material?.GetPipelineHash() ?? "Default";
+        var hash = $"{baseHash}_Cull_{pass.CullMode}_Depth_{pass.DepthWrite}";
 
         if (_pipelineCache.TryGetValue(hash, out var cachedPipeline))
         {
             return cachedPipeline;
         }
 
-        var pipeline = CreatePipelineForMaterial(material, hash);
+        var pipeline = CreatePipelineForMaterial(material, hash, pass.CullMode, pass.DepthWrite);
         _pipelineCache[hash] = pipeline;
         return pipeline;
     }
 
-    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, string hash)
+    internal VulkanMaterialPipeline GetOrCreatePipeline(Material? material)
+    {
+        return GetOrCreatePipeline(material, new MaterialPass { CullMode = CullMode.Back, DepthWrite = true });
+    }
+
+    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, string hash, CullMode cullMode,
+        bool depthWrite)
     {
         byte[] spirvCode;
         if (material != null)
@@ -33,7 +40,7 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
         }
         else
         {
-            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(new Material(Dimensions.ThreeD));
+            spirvCode = SlangMaterialCompiler.Instance.CompileToSpirv(new Material(MaterialDomain.ThreeD));
         }
 
         var shaderModule = ShaderModule.Create(Ctx, spirvCode);
@@ -70,13 +77,14 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
         fixed (VertexInputAttributeDescription* attributeDescriptionsPtr = attributeDescriptions)
         fixed (DescriptorSetLayout* pDescriptorSetLayout = setLayouts)
         {
+            var isScreen = material?.Domain == MaterialDomain.Screen;
             PipelineVertexInputStateCreateInfo vertexInputInfo = new()
             {
                 SType = StructureType.PipelineVertexInputStateCreateInfo,
-                VertexBindingDescriptionCount = 1,
-                PVertexBindingDescriptions = &bindingDescription,
-                VertexAttributeDescriptionCount = (uint)attributeDescriptions.Length,
-                PVertexAttributeDescriptions = attributeDescriptionsPtr
+                VertexBindingDescriptionCount = isScreen ? 0u : 1u,
+                PVertexBindingDescriptions = isScreen ? null : &bindingDescription,
+                VertexAttributeDescriptionCount = isScreen ? 0u : (uint)attributeDescriptions.Length,
+                PVertexAttributeDescriptions = isScreen ? null : attributeDescriptionsPtr
             };
 
             PipelineInputAssemblyStateCreateInfo inputAssembly = new()
@@ -103,8 +111,8 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
             PipelineDepthStencilStateCreateInfo depthStencil = new()
             {
                 SType = StructureType.PipelineDepthStencilStateCreateInfo,
-                DepthTestEnable = true,
-                DepthWriteEnable = true,
+                DepthTestEnable = !isScreen,
+                DepthWriteEnable = isScreen ? false : depthWrite,
                 DepthCompareOp = CompareOp.Less,
                 DepthBoundsTestEnable = false,
                 StencilTestEnable = false
@@ -115,9 +123,9 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 SType = StructureType.PipelineRasterizationStateCreateInfo,
                 DepthClampEnable = false,
                 RasterizerDiscardEnable = false,
-                PolygonMode = (PolygonMode)Ctx.Settings.PolygonMode,
+                PolygonMode = isScreen ? PolygonMode.Fill : (PolygonMode)Ctx.Settings.PolygonMode,
                 LineWidth = 1.0f,
-                CullMode = CullModeFlags.None,
+                CullMode = isScreen ? CullModeFlags.None : MapCullMode(cullMode),
                 FrontFace = FrontFace.CounterClockwise,
                 DepthBiasEnable = false,
             };
@@ -126,7 +134,7 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
             {
                 SType = StructureType.PipelineMultisampleStateCreateInfo,
                 SampleShadingEnable = false,
-                RasterizationSamples = Ctx.MsaaSamples,
+                RasterizationSamples = isScreen ? SampleCountFlags.Count1Bit : Ctx.MsaaSamples,
             };
 
             PipelineColorBlendAttachmentState colorBlendAttachment = new()
@@ -151,12 +159,20 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 PAttachments = &colorBlendAttachment,
             };
 
+            PushConstantRange pushConstantRange = new()
+            {
+                StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+                Offset = 0,
+                Size = sizeof(uint) * 2
+            };
+
             PipelineLayoutCreateInfo pipelineLayoutInfo = new()
             {
                 SType = StructureType.PipelineLayoutCreateInfo,
                 SetLayoutCount = (uint)setLayouts.Length,
                 PSetLayouts = pDescriptorSetLayout,
-                PushConstantRangeCount = 0,
+                PushConstantRangeCount = 1,
+                PPushConstantRanges = &pushConstantRange
             };
 
             if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, in pipelineLayoutInfo, null, out pipelineLayout) !=
@@ -171,7 +187,7 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 SType = StructureType.PipelineRenderingCreateInfo,
                 ColorAttachmentCount = 1,
                 PColorAttachmentFormats = &colorFormat,
-                DepthAttachmentFormat = Ctx.DepthFormat,
+                DepthAttachmentFormat = isScreen ? Format.Undefined : Ctx.DepthFormat,
                 PNext = null
             };
 
@@ -211,6 +227,15 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
             Hash = hash
         };
     }
+
+    private CullModeFlags MapCullMode(CullMode cullMode) => cullMode switch
+    {
+        CullMode.Back => CullModeFlags.BackBit,
+        CullMode.Front => CullModeFlags.FrontBit,
+        CullMode.Both => CullModeFlags.FrontAndBack,
+        CullMode.None => CullModeFlags.None,
+        _ => CullModeFlags.BackBit
+    };
 
     internal void Dispose()
     {

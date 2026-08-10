@@ -1,5 +1,13 @@
 namespace Solas.Render.Components;
 
+public struct ModuleTextureBinding
+{
+    public int BindingIndex;
+    public int SetIndex;
+    public string Name;
+    public Texture? Texture;
+}
+
 public abstract unsafe class ShaderModule
 {
     public abstract ShaderDomain Domain { get; }
@@ -19,6 +27,18 @@ public abstract unsafe class ShaderModule
     public virtual CullMode RequiredCullMode => CullMode.Back;
     public virtual bool RequiredDepthWrite => true;
     public virtual bool RequiresSeparatePass => false;
+
+    public event Action<ShaderModule, Texture?>? OnTextureUpdated;
+
+    protected void NotifyTextureUpdated(Texture? texture)
+    {
+        OnTextureUpdated?.Invoke(this, texture);
+    }
+
+    public virtual IEnumerable<ModuleTextureBinding> GetTextureBindings()
+    {
+        return [];
+    }
 
     public abstract void WriteToBuffer(void* destinationPointer);
 }

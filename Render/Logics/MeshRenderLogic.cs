@@ -1,4 +1,4 @@
-﻿using System.Numerics;
+using System.Numerics;
 using Solas.Attributes;
 using Solas.Components;
 using Solas.Interfaces;
@@ -21,17 +21,6 @@ public partial class MeshRenderLogic : Logic, IInitializable
         }
     }
 
-    [Inject]
-    public Texture? Texture
-    {
-        get;
-        set
-        {
-            field = value;
-            RenderLogicEventHandler.OnTextureUpdate(this, field);
-        }
-    }
-    
     [Inject]
     public Material? Material
     {

@@ -116,8 +116,8 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         Ctx.ScreenUniformBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.ScreenUniformBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
-        var extraMaterialSize = (ulong)(screenMat.BuildCombinedUboData().Length);
-        var bufferSize = extraMaterialSize > 0 ? extraMaterialSize : 16;
+        var extraMaterialSize = (ulong)(screenMat.BuildScreenUboData(256).Length);
+        var bufferSize = extraMaterialSize > 0 ? extraMaterialSize : 256;
 
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
@@ -144,7 +144,7 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
     internal void UpdateScreen(uint currentImage, Material screenMat)
     {
-        var extraBytes = screenMat.BuildCombinedUboData();
+        var extraBytes = screenMat.BuildScreenUboData(256);
         if (extraBytes.Length == 0) return;
 
         void* data;

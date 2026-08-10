@@ -15,25 +15,21 @@ internal unsafe class VulkanDescriptorSetLayout : VulkanInjectable
             PImmutableSamplers = null
         };
 
-        DescriptorSetLayoutBinding samplerLayoutBinding = new()
-        {
-            Binding = 1,
-            DescriptorType = DescriptorType.CombinedImageSampler,
-            DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.FragmentBit,
-            PImmutableSamplers = null
-        };
+        var bindingsList = new List<DescriptorSetLayoutBinding> { uboLayoutBinding };
 
-        DescriptorSetLayoutBinding sceneSamplerLayoutBinding = new()
+        for (uint b = 1; b <= 8; b++)
         {
-            Binding = 2,
-            DescriptorType = DescriptorType.CombinedImageSampler,
-            DescriptorCount = 1,
-            StageFlags = ShaderStageFlags.FragmentBit,
-            PImmutableSamplers = null
-        };
+            bindingsList.Add(new DescriptorSetLayoutBinding
+            {
+                Binding = b,
+                DescriptorType = DescriptorType.CombinedImageSampler,
+                DescriptorCount = 1,
+                StageFlags = ShaderStageFlags.FragmentBit,
+                PImmutableSamplers = null
+            });
+        }
 
-        DescriptorSetLayoutBinding[] bindings = [uboLayoutBinding, samplerLayoutBinding, sceneSamplerLayoutBinding];
+        DescriptorSetLayoutBinding[] bindings = [.. bindingsList];
 
         fixed (DescriptorSetLayoutBinding* pBindings = bindings)
         {

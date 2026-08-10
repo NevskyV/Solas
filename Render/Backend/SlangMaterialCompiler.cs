@@ -74,7 +74,8 @@ public sealed class SlangMaterialCompiler
             _ => "Material3D"
         };
         string bootstrapperCode =
-            BuildBootstrapper(masterModule, material.Modules, vertModules, fragModules, vertChain, fragChain,
+            BuildBootstrapper(masterModule, material.Modules, passModules, vertModules, fragModules, vertChain,
+                fragChain,
                 material.Domain);
 
         var blob = Slang.CreateBlob(Encoding.UTF8.GetBytes(bootstrapperCode));
@@ -159,8 +160,10 @@ public sealed class SlangMaterialCompiler
         return result;
     }
 
-    private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> allModules, List<ShaderModule> vertModules,
-        List<ShaderModule> fragModules, string vertChain, string fragChain, MaterialDomain domain)
+    private string BuildBootstrapper(string master, IReadOnlyList<ShaderModule> allModules,
+        IReadOnlyList<ShaderModule> passModules,
+        List<ShaderModule> vertModules, List<ShaderModule> fragModules, string vertChain, string fragChain,
+        MaterialDomain domain)
     {
         var sb = new StringBuilder();
 
@@ -185,11 +188,13 @@ public sealed class SlangMaterialCompiler
             sb.AppendLine("    UniformBuffer baseUbo;");
         }
 
-        for (int i = 0; i < allModules.Count; i++)
+        var activeModules = domain == MaterialDomain.Screen ? passModules : allModules;
+
+        for (int i = 0; i < activeModules.Count; i++)
         {
-            if (allModules[i].SizeInBytes > 0)
+            if (activeModules[i].SizeInBytes > 0)
             {
-                sb.AppendLine($"    {allModules[i].SlangParamsName} modParams_{i};");
+                sb.AppendLine($"    {activeModules[i].SlangParamsName} modParams_{i};");
             }
         }
 
@@ -222,9 +227,9 @@ public sealed class SlangMaterialCompiler
                     var mod = vertModules[k];
                     if (mod.SizeInBytes > 0)
                     {
-                        int origIdx = moduleIndexMap[mod];
+                        int targetIdx = domain == MaterialDomain.Screen ? k : moduleIndexMap[mod];
                         string access = GetChainAccessPath(k);
-                        sb.AppendLine($"    vertChainInstance.{access}.params = matUbo.modParams_{origIdx};");
+                        sb.AppendLine($"    vertChainInstance.{access}.params = matUbo.modParams_{targetIdx};");
                     }
                 }
             }
@@ -250,9 +255,9 @@ public sealed class SlangMaterialCompiler
                 var mod = fragModules[k];
                 if (mod.SizeInBytes > 0)
                 {
-                    int origIdx = moduleIndexMap[mod];
+                    int targetIdx = domain == MaterialDomain.Screen ? k : moduleIndexMap[mod];
                     string access = GetChainAccessPath(k);
-                    sb.AppendLine($"    fragChainInstance.{access}.params = matUbo.modParams_{origIdx};");
+                    sb.AppendLine($"    fragChainInstance.{access}.params = matUbo.modParams_{targetIdx};");
                 }
             }
         }

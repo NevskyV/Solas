@@ -248,7 +248,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         foreach (var renderObject in Ctx.RenderData)
         {
-            if (renderObject.GpuMesh == null || renderObject.GpuTexture == null) continue;
+            if (renderObject.GpuMesh == null) continue;
 
             var material = renderObject.Material;
             var passes = material?.Passes;

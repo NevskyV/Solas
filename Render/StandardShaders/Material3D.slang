@@ -20,7 +20,6 @@ public struct UniformBuffer
 };
 
 [[vk::binding(0, 1)]] public ConstantBuffer<UniformBuffer> ubo;
-[[vk::binding(1, 1)]] public Sampler2D texture;
 
 public struct VSOutput
 {
@@ -49,8 +48,8 @@ public VSOutput vertMain<TVertChain : IVertexChain>(VSInput input, TVertChain ve
 [shader("fragment")]
 public float4 fragMain<TFragChain : IFragmentChain>(VSOutput vertIn, TFragChain fragChain) : SV_Target
 {
-    float4 texColor = texture.Sample(vertIn.fragTexCoord);
+    float4 initialColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
     float3 N = normalize(vertIn.worldNormal);
 
-    return fragChain.ProcessChain(texColor, vertIn.fragTexCoord, vertIn.worldPos, N);
+    return fragChain.ProcessChain(initialColor, vertIn.fragTexCoord, vertIn.worldPos, N);
 }

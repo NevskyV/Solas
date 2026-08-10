@@ -1,4 +1,4 @@
-﻿using Solas.Render.Components;
+using Solas.Render.Components;
 using Solas.Render.Vulkan.Components;
 
 namespace Solas.Render.Vulkan;
@@ -10,6 +10,17 @@ internal class VulkanResourceManager : VulkanInjectable, IDisposable
 
     private readonly Dictionary<Guid, TextureGpu> _textures = new();
     private readonly Dictionary<Guid, int> _textureRefCount = new();
+
+    private TextureGpu? _defaultTexture;
+
+    internal TextureGpu AcquireDefaultTexture()
+    {
+        if (_defaultTexture != null) return _defaultTexture;
+
+        var defaultAsset = new Texture(1, 1, [255, 255, 255, 255]);
+        _defaultTexture = VulkanTextureLoader.Upload(Ctx, defaultAsset);
+        return _defaultTexture;
+    }
 
     internal MeshGpu AcquireMesh(Mesh meshAsset)
     {
@@ -73,6 +84,9 @@ internal class VulkanResourceManager : VulkanInjectable, IDisposable
 
     public void Dispose()
     {
+        _defaultTexture?.Dispose();
+        _defaultTexture = null;
+
         foreach (var mesh in _meshes.Values)
         {
             mesh.Dispose();

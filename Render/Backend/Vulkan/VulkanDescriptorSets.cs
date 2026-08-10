@@ -1,6 +1,7 @@
 using System;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
 
 namespace Solas.Render.Vulkan;
@@ -32,7 +33,13 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             }
         }
 
+        UpdateTextureBinding(data);
+    }
+
+    internal void UpdateTextureBinding(VulkanRenderData data)
+    {
         var extraMaterialSize = (ulong)(data.Material?.BuildCombinedUboData().Length ?? 0);
+        data.AcquireGpuTextures(Ctx.ResourceManager);
 
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
@@ -43,14 +50,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 Range = (ulong)sizeof(UniformBufferObject) + extraMaterialSize
             };
 
-            DescriptorImageInfo imageInfo = new()
-            {
-                Sampler = data.GpuTexture!.Sampler,
-                ImageView = data.GpuTexture.ImageView,
-                ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
-            };
-
-            WriteDescriptorSet[] descriptorWrite =
+            List<WriteDescriptorSet> writes =
             [
                 new()
                 {
@@ -61,75 +61,58 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                     DescriptorCount = 1,
                     DescriptorType = DescriptorType.UniformBuffer,
                     PBufferInfo = &bufferInfo,
-                },
-                new()
-                {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = data.DescriptorSets[i],
-                    DstBinding = 1,
-                    DstArrayElement = 0,
-                    DescriptorCount = 1,
-                    DescriptorType = DescriptorType.CombinedImageSampler,
-                    PImageInfo = &imageInfo,
-                },
-                new()
-                {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = data.DescriptorSets[i],
-                    DstBinding = 2,
-                    DstArrayElement = 0,
-                    DescriptorCount = 1,
-                    DescriptorType = DescriptorType.CombinedImageSampler,
-                    PImageInfo = &imageInfo,
                 }
             ];
 
-            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
-        }
-    }
+            List<DescriptorImageInfo> imageInfos = new();
 
-    internal void UpdateTextureBinding(VulkanRenderData data)
-    {
-        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
-        {
-            DescriptorImageInfo imageInfo = new()
+            for (uint b = 1; b <= 8; b++)
             {
-                Sampler = data.GpuTexture!.Sampler,
-                ImageView = data.GpuTexture.ImageView,
-                ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
-            };
-
-            WriteDescriptorSet[] descriptorWrite =
-            [
-                new()
+                TextureGpu gpuTex;
+                if (data.BoundGpuTextures.TryGetValue((int)b, out var customTex) && customTex != null)
                 {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = data.DescriptorSets[i],
-                    DstBinding = 1,
-                    DstArrayElement = 0,
-                    DescriptorCount = 1,
-                    DescriptorType = DescriptorType.CombinedImageSampler,
-                    PImageInfo = &imageInfo,
-                },
-                new()
-                {
-                    SType = StructureType.WriteDescriptorSet,
-                    DstSet = data.DescriptorSets[i],
-                    DstBinding = 2,
-                    DstArrayElement = 0,
-                    DescriptorCount = 1,
-                    DescriptorType = DescriptorType.CombinedImageSampler,
-                    PImageInfo = &imageInfo,
+                    gpuTex = customTex;
                 }
-            ];
+                else
+                {
+                    gpuTex = Ctx.ResourceManager.AcquireDefaultTexture();
+                }
 
-            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
+                var imgInfo = new DescriptorImageInfo
+                {
+                    Sampler = gpuTex.Sampler,
+                    ImageView = gpuTex.ImageView,
+                    ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
+                };
+                imageInfos.Add(imgInfo);
+            }
+
+            DescriptorImageInfo[] imgInfosArray = [.. imageInfos];
+            fixed (DescriptorImageInfo* pImgInfos = imgInfosArray)
+            {
+                for (uint b = 1; b <= 8; b++)
+                {
+                    writes.Add(new WriteDescriptorSet
+                    {
+                        SType = StructureType.WriteDescriptorSet,
+                        DstSet = data.DescriptorSets[i],
+                        DstBinding = b,
+                        DstArrayElement = 0,
+                        DescriptorCount = 1,
+                        DescriptorType = DescriptorType.CombinedImageSampler,
+                        PImageInfo = &pImgInfos[b - 1],
+                    });
+                }
+
+                WriteDescriptorSet[] writesArray = [.. writes];
+                Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, writesArray, []);
+            }
         }
     }
 
     internal void FreeForObject(VulkanRenderData data)
     {
-        if (data.DescriptorSets.Length == 0) return;
+        if (data.DescriptorSets == null || data.DescriptorSets.Length == 0) return;
 
         fixed (DescriptorSet* pDescriptorSets = data.DescriptorSets)
         {
@@ -145,10 +128,15 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
         int passCount = screenMat.PassCount;
         Ctx.ScreenDescriptorSets = new DescriptorSet[passCount][];
 
-        var extraMaterialSize = (ulong)(screenMat.BuildCombinedUboData().Length);
+        const uint alignment = 256;
+        uint passOffset = 0;
 
         for (int p = 0; p < passCount; p++)
         {
+            uint passSize = (uint)screenMat.BuildPassUboData(p).Length;
+            uint paddedPassSize = (passSize + alignment - 1) & ~(alignment - 1);
+            if (paddedPassSize == 0) paddedPassSize = alignment;
+
             Ctx.ScreenDescriptorSets[p] = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
 
             var layouts = new DescriptorSetLayout[Ctx.Settings.MaxFramesInFlight];
@@ -192,8 +180,8 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 DescriptorBufferInfo bufferInfo = new()
                 {
                     Buffer = uniformBuffers[i],
-                    Offset = 0,
-                    Range = extraMaterialSize > 0 ? extraMaterialSize : 16
+                    Offset = passOffset,
+                    Range = paddedPassSize
                 };
 
                 DescriptorImageInfo imageInfo = new()
@@ -210,7 +198,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                     ImageLayout = ImageLayout.ShaderReadOnlyOptimal,
                 };
 
-                WriteDescriptorSet[] descriptorWrite =
+                List<WriteDescriptorSet> writes =
                 [
                     new()
                     {
@@ -221,31 +209,39 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                         DescriptorCount = 1,
                         DescriptorType = DescriptorType.UniformBuffer,
                         PBufferInfo = &bufferInfo,
-                    },
-                    new()
-                    {
-                        SType = StructureType.WriteDescriptorSet,
-                        DstSet = Ctx.ScreenDescriptorSets[p][i],
-                        DstBinding = 1,
-                        DstArrayElement = 0,
-                        DescriptorCount = 1,
-                        DescriptorType = DescriptorType.CombinedImageSampler,
-                        PImageInfo = &imageInfo,
-                    },
-                    new()
-                    {
-                        SType = StructureType.WriteDescriptorSet,
-                        DstSet = Ctx.ScreenDescriptorSets[p][i],
-                        DstBinding = 2,
-                        DstArrayElement = 0,
-                        DescriptorCount = 1,
-                        DescriptorType = DescriptorType.CombinedImageSampler,
-                        PImageInfo = &sceneImageInfo,
                     }
                 ];
 
-                Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, descriptorWrite, []);
+                List<DescriptorImageInfo> imageInfos = new();
+                for (uint b = 1; b <= 8; b++)
+                {
+                    var imgInfo = (b == 2) ? sceneImageInfo : imageInfo;
+                    imageInfos.Add(imgInfo);
+                }
+
+                DescriptorImageInfo[] imgInfosArray = [.. imageInfos];
+                fixed (DescriptorImageInfo* pImgInfos = imgInfosArray)
+                {
+                    for (uint b = 1; b <= 8; b++)
+                    {
+                        writes.Add(new WriteDescriptorSet
+                        {
+                            SType = StructureType.WriteDescriptorSet,
+                            DstSet = Ctx.ScreenDescriptorSets[p][i],
+                            DstBinding = b,
+                            DstArrayElement = 0,
+                            DescriptorCount = 1,
+                            DescriptorType = DescriptorType.CombinedImageSampler,
+                            PImageInfo = &pImgInfos[b - 1],
+                        });
+                    }
+
+                    WriteDescriptorSet[] writesArray = [.. writes];
+                    Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, writesArray, []);
+                }
             }
+
+            passOffset += paddedPassSize;
         }
     }
 
@@ -259,7 +255,8 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             {
                 fixed (DescriptorSet* pDescriptorSets = Ctx.ScreenDescriptorSets[p])
                 {
-                    Ctx.Vk!.FreeDescriptorSets(Ctx.Device, Ctx.DescriptorPool, Ctx.Settings.MaxFramesInFlight, pDescriptorSets);
+                    Ctx.Vk!.FreeDescriptorSets(Ctx.Device, Ctx.DescriptorPool, Ctx.Settings.MaxFramesInFlight,
+                        pDescriptorSets);
                 }
             }
         }

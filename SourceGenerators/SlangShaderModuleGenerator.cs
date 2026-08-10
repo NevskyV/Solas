@@ -52,6 +52,8 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
         var moduleMatch = Regex.Match(content, @"module\s+([A-Za-z0-9_]+);");
         var slangModuleName = moduleMatch.Success ? moduleMatch.Groups[1].Value : defaultModuleName;
 
+        var textures = ExtractTextures(content);
+
         var modifierMatches = Regex.Matches(content,
             @"((?:\[[^\]]*\][\s\r\n]*)*)(?:public\s+|private\s+|internal\s+)?struct\s+([A-Za-z0-9_]+)(?:\s*:\s*([A-Za-z0-9_,\s]+))?\s*\{");
 
@@ -132,11 +134,37 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
                 RequiredCullMode = requiredCullMode,
                 RequiredDepthWrite = requiredDepthWrite,
                 RequiresSeparatePass = requiresSeparatePass,
-                Fields = fields
+                Fields = fields,
+                Textures = textures
             });
         }
 
         return result;
+    }
+
+    private static List<SlangTextureInfo> ExtractTextures(string content)
+    {
+        var list = new List<SlangTextureInfo>();
+        var matches = Regex.Matches(content,
+            @"\[\[vk::binding\(\s*(\d+)(?:\s*,\s*(\d+))?\s*\)\]\]\s*(?:public\s+|private\s+|internal\s+)?(?:Sampler2D|Texture2D)\s+([A-Za-z0-9_]+)\s*;");
+
+        foreach (Match match in matches)
+        {
+            int bindingIndex = int.Parse(match.Groups[1].Value);
+            int setIndex = match.Groups[2].Success ? int.Parse(match.Groups[2].Value) : 1;
+            string name = match.Groups[3].Value;
+            string propName = CapitalizeFirstLetter(name);
+
+            list.Add(new SlangTextureInfo
+            {
+                BindingIndex = bindingIndex,
+                SetIndex = setIndex,
+                Name = name,
+                PropertyName = propName
+            });
+        }
+
+        return list;
     }
 
     private static List<SlangFieldInfo> ExtractStructFields(string content, string structName)
@@ -196,6 +224,7 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
     {
         var structFieldsBuilder = new StringBuilder();
         var propertiesBuilder = new StringBuilder();
+        var textureBindingsBuilder = new StringBuilder();
 
         var currentOffset = 0;
 
@@ -223,6 +252,33 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
             propertiesBuilder.AppendLine();
         }
 
+        foreach (var tex in module.Textures)
+        {
+            var fieldName = $"_{char.ToLowerInvariant(tex.PropertyName[0])}{tex.PropertyName.Substring(1)}";
+            propertiesBuilder.AppendLine($"    private Texture? {fieldName};");
+            propertiesBuilder.AppendLine($"    public Texture? {tex.PropertyName}");
+            propertiesBuilder.AppendLine("    {");
+            propertiesBuilder.AppendLine($"        get => {fieldName};");
+            propertiesBuilder.AppendLine("        set");
+            propertiesBuilder.AppendLine("        {");
+            propertiesBuilder.AppendLine($"            if ({fieldName} != value)");
+            propertiesBuilder.AppendLine("            {");
+            propertiesBuilder.AppendLine($"                {fieldName} = value;");
+            propertiesBuilder.AppendLine("                NotifyTextureUpdated(value);");
+            propertiesBuilder.AppendLine("            }");
+            propertiesBuilder.AppendLine("        }");
+            propertiesBuilder.AppendLine("    }");
+            propertiesBuilder.AppendLine();
+
+            textureBindingsBuilder.AppendLine(
+                $"        yield return new ModuleTextureBinding {{ BindingIndex = {tex.BindingIndex}, SetIndex = {tex.SetIndex}, Name = \"{tex.Name}\", Texture = {tex.PropertyName} }};");
+        }
+
+        if (module.Textures.Count == 0)
+        {
+            textureBindingsBuilder.AppendLine("        yield break;");
+        }
+
         var totalPadding = (16 - (currentOffset % 16)) % 16;
         if (totalPadding > 0)
         {
@@ -239,6 +295,7 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
         return $@"namespace Solas.Render.Materials.Generated;
 
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Solas.Render;
@@ -267,6 +324,11 @@ public unsafe class {module.ClassName} : ShaderModule
 
 {propertiesBuilder.ToString().TrimEnd()}
 
+    public override IEnumerable<ModuleTextureBinding> GetTextureBindings()
+    {{
+{textureBindingsBuilder.ToString().TrimEnd()}
+    }}
+
     public override void WriteToBuffer(void* destinationPointer)
     {{
         *({module.GpuStructName}*)destinationPointer = Data;
@@ -274,7 +336,6 @@ public unsafe class {module.ClassName} : ShaderModule
 }}
 ";
     }
-
 
     private static string MapSlangTypeToCSharp(string slangType) => slangType switch
     {
@@ -327,11 +388,20 @@ public unsafe class {module.ClassName} : ShaderModule
         public bool RequiredDepthWrite { get; set; }
         public bool RequiresSeparatePass { get; set; }
         public List<SlangFieldInfo> Fields { get; set; } = new();
+        public List<SlangTextureInfo> Textures { get; set; } = new();
     }
 
     private class SlangFieldInfo
     {
         public string SlangType { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+    }
+
+    private class SlangTextureInfo
+    {
+        public int BindingIndex { get; set; }
+        public int SetIndex { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string PropertyName { get; set; } = string.Empty;
     }
 }

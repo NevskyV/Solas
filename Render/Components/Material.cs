@@ -9,6 +9,8 @@ public sealed class Material(MaterialDomain domain) : Asset
     private readonly List<MaterialPass> _passes = [];
     private readonly List<List<ShaderModule>> _passModules = [];
 
+    public event Action<Material, ShaderModule, Texture?>? OnTextureUpdated;
+
     public IReadOnlyList<ShaderModule> Modules => _modules;
     public IReadOnlyList<MaterialPass> Passes => _passes;
     public int PassCount => _passes.Count > 0 ? _passes.Count : 1;
@@ -33,13 +35,31 @@ public sealed class Material(MaterialDomain domain) : Asset
         }
 
         _modules.Add(module);
+        module.OnTextureUpdated += HandleModuleTextureUpdated;
         RebuildPasses();
     }
 
     public void RemoveModule(ShaderModule module)
     {
+        module.OnTextureUpdated -= HandleModuleTextureUpdated;
         _modules.Remove(module);
         RebuildPasses();
+    }
+
+    private void HandleModuleTextureUpdated(ShaderModule module, Texture? texture)
+    {
+        OnTextureUpdated?.Invoke(this, module, texture);
+    }
+
+    public IEnumerable<ModuleTextureBinding> GetAllTextureBindings()
+    {
+        foreach (var module in _modules)
+        {
+            foreach (var binding in module.GetTextureBindings())
+            {
+                yield return binding;
+            }
+        }
     }
 
     private void RebuildPasses()
@@ -94,6 +114,69 @@ public sealed class Material(MaterialDomain domain) : Asset
             {
                 module.WriteToBuffer(currentPtr);
                 currentPtr += module.SizeInBytes;
+            }
+        }
+
+        return buffer;
+    }
+
+    public unsafe byte[] BuildPassUboData(int passIndex)
+    {
+        var modules = GetModulesForPass(passIndex);
+        int totalSize = 0;
+
+        foreach (var module in modules)
+        {
+            totalSize += module.SizeInBytes;
+        }
+
+        byte[] buffer = new byte[totalSize];
+
+        fixed (byte* ptr = buffer)
+        {
+            byte* currentPtr = ptr;
+            foreach (var module in modules)
+            {
+                module.WriteToBuffer(currentPtr);
+                currentPtr += module.SizeInBytes;
+            }
+        }
+
+        return buffer;
+    }
+
+    public unsafe byte[] BuildScreenUboData(int passAlignment = 256)
+    {
+        int totalSize = 0;
+        int passCount = PassCount;
+
+        for (int p = 0; p < passCount; p++)
+        {
+            int passSize = BuildPassUboData(p).Length;
+            int paddedPassSize = (passSize + passAlignment - 1) & ~(passAlignment - 1);
+            if (paddedPassSize == 0) paddedPassSize = passAlignment;
+            totalSize += paddedPassSize;
+        }
+
+        byte[] buffer = new byte[totalSize];
+
+        fixed (byte* ptr = buffer)
+        {
+            byte* currentPtr = ptr;
+            for (int p = 0; p < passCount; p++)
+            {
+                var passBytes = BuildPassUboData(p);
+                if (passBytes.Length > 0)
+                {
+                    fixed (byte* srcPtr = passBytes)
+                    {
+                        System.Buffer.MemoryCopy(srcPtr, currentPtr, passBytes.Length, passBytes.Length);
+                    }
+                }
+
+                int paddedPassSize = (passBytes.Length + passAlignment - 1) & ~(passAlignment - 1);
+                if (paddedPassSize == 0) paddedPassSize = passAlignment;
+                currentPtr += paddedPassSize;
             }
         }
 

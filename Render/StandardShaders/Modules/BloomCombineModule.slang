@@ -19,7 +19,9 @@ public struct BloomCombineModifier : IFragmentModifier
         float intensity = params.bloomIntensity > 0.0001f ? params.bloomIntensity : 1.0f;
         float4 sceneColor = sceneTexture.Sample(uv);
 
-        float3 finalColor = sceneColor.rgb + inColor.rgb * intensity;
+        float3 bloomGlow = inColor.rgb * intensity;
+
+        float3 finalColor = sceneColor.rgb + bloomGlow - (sceneColor.rgb * bloomGlow * 0.15f);
 
         return float4(finalColor, sceneColor.a);
     }

@@ -1,4 +1,4 @@
-﻿using Solas.Render.Components;
+using Solas.Render.Components;
 using Solas.Render.Logics;
 
 namespace Solas.Render;
@@ -9,7 +9,6 @@ internal static class RenderLogicEventHandler
     internal static Action<MeshRenderLogic> CreateLogicEvent = delegate { };
     internal static Action<MeshRenderLogic> DisposeLogicEvent = delegate { };
     internal static Action<MeshRenderLogic, Mesh> MeshUpdateEvent = delegate { };
-    internal static Action<MeshRenderLogic, Texture> TextureUpdateEvent = delegate { };
     internal static Action<MeshRenderLogic, Material> MaterialUpdateEvent = delegate { };
     private static bool _haveBorrowed;
 
@@ -24,12 +23,7 @@ internal static class RenderLogicEventHandler
     {
         MeshUpdateEvent.Invoke(logic, mesh);
     }
-    
-    internal static void OnTextureUpdate(MeshRenderLogic logic, Texture texture)
-    {
-        TextureUpdateEvent.Invoke(logic, texture);
-    }
-    
+
     internal static void OnMaterialUpdate(MeshRenderLogic logic, Material material)
     {
         MaterialUpdateEvent.Invoke(logic, material);

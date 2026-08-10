@@ -19,10 +19,10 @@ public struct BloomExtractModifier : IFragmentModifier
 
     private float3 ExtractBright(float3 color, float thresh, float knee)
     {
-        float luminance = dot(color, float3(0.2126f, 0.7152f, 0.0722f));
-        float soft = clamp(luminance - thresh + knee, 0.0f, 2.0f * knee);
+        float luma = dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+        float soft = clamp(luma - thresh + knee, 0.0f, 2.0f * knee);
         soft = (soft * soft) / (4.0f * knee + 0.00001f);
-        float weight = max(luminance - thresh, soft) / max(luminance, 0.00001f);
+        float weight = max(luma - thresh, soft) / max(luma, 0.00001f);
         return color * max(weight, 0.0f);
     }
 
@@ -35,18 +35,26 @@ public struct BloomExtractModifier : IFragmentModifier
 
         float2 texel = float2(1.0f / 1920.0f, 1.0f / 1080.0f) * radius;
 
-        float3 brightSum = ExtractBright(inColor.rgb, thresh, knee) * 0.227027f;
+        float3 A = ExtractBright(texture.Sample(uv + float2(-2.0f, 2.0f) * texel).rgb, thresh, knee);
+        float3 B = ExtractBright(texture.Sample(uv + float2(0.0f, 2.0f) * texel).rgb, thresh, knee);
+        float3 C = ExtractBright(texture.Sample(uv + float2(2.0f, 2.0f) * texel).rgb, thresh, knee);
+        float3 D = ExtractBright(texture.Sample(uv + float2(-2.0f, 0.0f) * texel).rgb, thresh, knee);
+        float3 E = ExtractBright(texture.Sample(uv).rgb, thresh, knee);
+        float3 F = ExtractBright(texture.Sample(uv + float2(2.0f, 0.0f) * texel).rgb, thresh, knee);
+        float3 G = ExtractBright(texture.Sample(uv + float2(-2.0f, -2.0f) * texel).rgb, thresh, knee);
+        float3 H = ExtractBright(texture.Sample(uv + float2(0.0f, -2.0f) * texel).rgb, thresh, knee);
+        float3 I = ExtractBright(texture.Sample(uv + float2(2.0f, -2.0f) * texel).rgb, thresh, knee);
 
-        brightSum += ExtractBright(texture.Sample(uv + float2(texel.x * 1.384615f, 0.0f)).rgb, thresh, knee) * 0.316216f;
-        brightSum += ExtractBright(texture.Sample(uv - float2(texel.x * 1.384615f, 0.0f)).rgb, thresh, knee) * 0.316216f;
-        brightSum += ExtractBright(texture.Sample(uv + float2(0.0f, texel.y * 1.384615f)).rgb, thresh, knee) * 0.316216f;
-        brightSum += ExtractBright(texture.Sample(uv - float2(0.0f, texel.y * 1.384615f)).rgb, thresh, knee) * 0.316216f;
+        float3 J = ExtractBright(texture.Sample(uv + float2(-1.0f, 1.0f) * texel).rgb, thresh, knee);
+        float3 K = ExtractBright(texture.Sample(uv + float2(1.0f, 1.0f) * texel).rgb, thresh, knee);
+        float3 L = ExtractBright(texture.Sample(uv + float2(-1.0f, -1.0f) * texel).rgb, thresh, knee);
+        float3 M = ExtractBright(texture.Sample(uv + float2(1.0f, -1.0f) * texel).rgb, thresh, knee);
 
-        brightSum += ExtractBright(texture.Sample(uv + float2(texel.x * 2.5f, texel.y * 2.5f)).rgb, thresh, knee) * 0.070270f;
-        brightSum += ExtractBright(texture.Sample(uv - float2(texel.x * 2.5f, texel.y * 2.5f)).rgb, thresh, knee) * 0.070270f;
-        brightSum += ExtractBright(texture.Sample(uv + float2(-texel.x * 2.5f, texel.y * 2.5f)).rgb, thresh, knee) * 0.070270f;
-        brightSum += ExtractBright(texture.Sample(uv + float2(texel.x * 2.5f, -texel.y * 2.5f)).rgb, thresh, knee) * 0.070270f;
+        float3 sampleSum = (A + C + G + I) * 0.03125f;
+        sampleSum += (B + D + F + H) * 0.0625f;
+        sampleSum += E * 0.125f;
+        sampleSum += (J + K + L + M) * 0.125f;
 
-        return float4(brightSum * intensity, inColor.a);
+        return float4(sampleSum * intensity, inColor.a);
     }
 };

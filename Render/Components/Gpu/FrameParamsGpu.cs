@@ -1,17 +1,18 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Solas.Render.Components;
 
-[StructLayout(LayoutKind.Sequential, Size = 160)]
+[StructLayout(LayoutKind.Sequential, Size = 192)]
 internal struct FrameParamsGpu
 {
     internal Matrix4x4 ViewMatrix;
     internal Matrix4x4 InvProjectionMatrix;
-    internal Vector2 ScreenResolution;
-    internal Vector2 TileCount;
+    internal Vector4 ScreenResolution;
+    internal Vector4 TileCount;
     internal uint TotalLightCount;
-    private float _pad0;
-    private float _pad1;
-    private float _pad2;
+    internal float NearClip;
+    internal float FarClip;
+    internal uint IsOrthographic;
+    private Vector4 _pad;
 }

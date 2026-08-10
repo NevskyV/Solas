@@ -54,26 +54,47 @@ public struct Lit3DModifier : IFragmentModifier
         float3 viewPos = mul(ubo.view, float4(worldPos, 1.0f)).xyz;
         float3 viewDir = normalize(mul(transpose((float3x3)ubo.view), -viewPos));
 
-        uint2 tileCount = uint2((uint)ubo.tileCount.x, (uint)ubo.tileCount.y);
-        float3 litRgb = EvaluateForwardPlusPBRLighting(worldPos, N, viewDir, inColor.rgb, roughnessVal, metallicVal, ambientVal, tileCount, ubo.tileSize, ubo.view, ubo.proj);
+        uint3 tileCount = uint3((uint)ubo.tileCount.x, (uint)ubo.tileCount.y, (uint)ubo.tileCount.z);
+        float3 litRgb = EvaluateClusteredPBRLighting(worldPos, N, viewDir, inColor.rgb, roughnessVal, metallicVal, ambientVal, tileCount, ubo.tileSize, ubo.nearClip, ubo.farClip, ubo.isOrthographic, ubo.view, ubo.proj);
 
         return float4(litRgb, inColor.a);
     }
     
-    public float3 EvaluateForwardPlusPBRLighting(float3 worldPos, float3 normal, float3 viewDir, float3 albedo, float roughness, float metallic, float ambientIntensity, uint2 tileCount, float tileSize, float4x4 viewMat, float4x4 projMat)
+    public float3 EvaluateClusteredPBRLighting(float3 worldPos, float3 normal, float3 viewDir, float3 albedo, float roughness, float metallic, float ambientIntensity, uint3 tileCount, float tileSize, float nearClip, float farClip, uint isOrthographic, float4x4 viewMat, float4x4 projMat)
     {
         float3 N = normalize(normal);
         float3 V = normalize(viewDir);
         float3 F0 = lerp(float3(0.04f), albedo, metallic);
     
-        float4 clipPos = mul(projMat, mul(viewMat, float4(worldPos, 1.0f)));
+        float4 viewPos4 = mul(viewMat, float4(worldPos, 1.0f));
+        float4 clipPos = mul(projMat, viewPos4);
         float2 ndc = clipPos.xy / max(abs(clipPos.w), 0.0001f);
         float2 uvScreen = clamp(ndc * 0.5f + 0.5f, 0.0f, 0.999f);
     
-        uint2 tileID = uint2(uvScreen * float2(tileCount));
-        uint tileIndex = tileID.x + tileID.y * tileCount.x;
+        uint2 tileID = uint2(uvScreen * float2(tileCount.xy));
+
+        uint sliceZ = 0;
+        if (tileCount.z > 1u)
+        {
+            float depth = -viewPos4.z;
+            if (isOrthographic != 0u)
+            {
+                float factor = saturate((depth - nearClip) / max(farClip - nearClip, 0.001f));
+                sliceZ = uint(clamp(factor * float(tileCount.z), 0.0f, float(tileCount.z - 1u)));
+            }
+            else
+            {
+                float logNear = max(nearClip, 0.001f);
+                float logFar = max(farClip, logNear + 0.001f);
+                float depthClamped = clamp(depth, logNear, logFar);
+                float factor = log(depthClamped / logNear) / log(logFar / logNear);
+                sliceZ = uint(clamp(factor * float(tileCount.z), 0.0f, float(tileCount.z - 1u)));
+            }
+        }
+
+        uint clusterIndex = tileID.x + tileID.y * tileCount.x + sliceZ * tileCount.x * tileCount.y;
     
-        TileGrid tile = g_TileGrid[tileIndex];
+        TileGrid tile = g_TileGrid[clusterIndex];
         float3 Lo = float3(0.0f);
     
         uint count = min(tile.lightCount, 64u);

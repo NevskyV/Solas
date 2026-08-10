@@ -1,4 +1,5 @@
-﻿using Solas.Attributes;
+using System.Numerics;
+using Solas.Attributes;
 using Solas.Components;
 
 namespace Solas.Render.Settings;
@@ -21,7 +22,7 @@ public class GraphicsSettings : IData
     public ushort Msaa = 2;
     public float AnisotropyLevel = 16.0f;
     public bool SupportsHdr = false;
-    public ushort TileSize = 16;
+    public Vector3 TileSize = new(16, 16, 16);
 
     #endregion
 

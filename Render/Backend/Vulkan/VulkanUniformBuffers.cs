@@ -76,8 +76,14 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
         Ctx.CameraProjectionMatrix.M22 *= -1;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
+        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+
+        bool isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
 
         foreach (var renderer in Ctx.RenderData)
         {
@@ -86,8 +92,11 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
                 Model = Matrix4x4.Transpose(renderer.Logic.GetModelMatrix()),
                 View = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
                 Proj = Matrix4x4.Transpose(Ctx.CameraProjectionMatrix),
-                TileCount = new Vector2(tileCountX, tileCountY),
-                TileSize = Ctx.Settings.TileSize
+                TileCount = new Vector4(tileCountX, tileCountY, tileCountZ, 0),
+                TileSize = tileSizeX,
+                NearClip = Ctx.CameraData.NearClipPlane,
+                FarClip = Ctx.CameraData.FarClipPlane,
+                IsOrthographic = isOrtho ? 1u : 0u
             };
 
             var extraBytes = renderer.Material?.BuildCombinedUboData() ?? [];

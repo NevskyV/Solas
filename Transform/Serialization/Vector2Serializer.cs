@@ -7,8 +7,8 @@ public class Vector2Serializer : ICustomSerializer<Vector2>
 {
     public void Write(Vector2 value, FileStream stream, Serializer serializer, string name)
     {
-        serializer.Write(value.X, stream);
-        serializer.Write(value.Y, stream);
+        serializer.Write(value.X, stream, name + "_X");
+        serializer.Write(value.Y, stream, name + "_Y");
     }
 
     public Vector2 Read(FileStream stream)

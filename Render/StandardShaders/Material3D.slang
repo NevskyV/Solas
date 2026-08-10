@@ -15,8 +15,11 @@ public struct UniformBuffer
     public float4x4 model;
     public float4x4 view;
     public float4x4 proj;
-    public float2 tileCount;
-    public float1 tileSize;
+    public float4 tileCount;
+    public float tileSize;
+    public float nearClip;
+    public float farClip;
+    public uint isOrthographic;
 };
 
 [[vk::binding(0, 1)]] public ConstantBuffer<UniformBuffer> ubo;

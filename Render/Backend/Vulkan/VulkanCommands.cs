@@ -181,8 +181,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
         uint zeroCounter = 0;
         System.Buffer.MemoryCopy(&zeroCounter, Ctx.GlobalIndexCounterMappedPointers[frameIdx], 4, 4);
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
+        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+
+        bool isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
 
         Matrix4x4.Invert(Ctx.CameraProjectionMatrix, out Matrix4x4 invProj);
 
@@ -192,9 +198,12 @@ internal unsafe class VulkanCommands : VulkanInjectable
         {
             ViewMatrix = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
             InvProjectionMatrix = Matrix4x4.Transpose(invProj),
-            ScreenResolution = new Vector2(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height),
-            TileCount = new Vector2(tileCountX, tileCountY),
-            TotalLightCount = (uint)activeLights.Length
+            ScreenResolution = new Vector4(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, 0, 0),
+            TileCount = new Vector4(tileCountX, tileCountY, tileCountZ, 0),
+            TotalLightCount = (uint)activeLights.Length,
+            NearClip = Ctx.CameraData.NearClipPlane,
+            FarClip = Ctx.CameraData.FarClipPlane,
+            IsOrthographic = isOrtho ? 1u : 0u
         };
 
         System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
@@ -215,7 +224,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 (uint)computeSets.Length, pComputeSets, 0, null);
         }
 
-        Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, 1);
+        Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, tileCountZ);
 
         MemoryBarrier2 memoryBarrier = new()
         {

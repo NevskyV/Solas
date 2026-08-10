@@ -1,15 +1,17 @@
-﻿using System.Numerics;
+using System.Numerics;
 using System.Runtime.InteropServices;
 
 namespace Solas.Render.Components;
 
-[StructLayout(LayoutKind.Sequential)]
+[StructLayout(LayoutKind.Sequential, Size = 224)]
 public struct UniformBufferObject
 {
     public Matrix4x4 Model;
     public Matrix4x4 View;
     public Matrix4x4 Proj;
-    public Vector2 TileCount;
+    public Vector4 TileCount;
     public float TileSize;
-    private float _pad;
+    public float NearClip;
+    public float FarClip;
+    public uint IsOrthographic;
 }

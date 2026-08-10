@@ -1,4 +1,4 @@
-﻿using Silk.NET.Vulkan;
+using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
@@ -9,16 +9,20 @@ namespace Solas.Render.Vulkan;
 internal unsafe class VulkanLightingResources : VulkanInjectable
 {
     private const uint MaxLights = 1024;
-    private const uint MaxTileIndices = 1024 * 256;
+    private const uint MaxTileIndices = 1024 * 1024;
 
     internal void Create()
     {
         uint lightsSize = (uint)(sizeof(LightGpu) * MaxLights);
         uint indicesSize = sizeof(uint) * MaxTileIndices;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
-        uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY);
+        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
 
         uint counterSize = sizeof(uint);
         uint frameParamsSize = (uint)sizeof(FrameParamsGpu);
@@ -98,9 +102,13 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
             }
         }
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / (float)Ctx.Settings.TileSize);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / (float)Ctx.Settings.TileSize);
-        uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY);
+        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+
+        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
 
         for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {

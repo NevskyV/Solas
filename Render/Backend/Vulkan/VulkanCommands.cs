@@ -275,7 +275,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
                     lastPipeline = pipeline;
                 }
 
-                uint[] pushData = passes != null
+                uint[] pushData = passes is { Count: > 0 }
                     ? [(uint)passes[passIdx].CullMode, passes[passIdx].DepthWrite ? 1u : 0u]
                     : [(uint)CullMode.Back, 1u];
                 fixed (uint* pPushData = pushData)

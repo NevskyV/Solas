@@ -20,7 +20,7 @@ cbuffer FrameParams
     float4x4 ViewMatrix;
     float4x4 InvProjectionMatrix;
     float4 ScreenResolution;
-    float4 TileCount;
+    float4 TileCount; // x: TilesX, y: TilesY, z: SlicesZ
     uint TotalLightCount;
     float NearClip;
     float FarClip;
@@ -31,11 +31,14 @@ groupshared uint s_TileLightCount;
 groupshared uint s_TileLightIndexOffset;
 groupshared uint s_TileLightList[128];
 
+groupshared float3 s_ClusterMin;
+groupshared float3 s_ClusterMax;
+
 float3 UnprojectNDC(float2 ndc)
 {
     float4 clip = float4(ndc.x, ndc.y, 1.0f, 1.0f);
     float4 view = mul(InvProjectionMatrix, clip);
-    return normalize(view.xyz / view.w);
+    return view.xyz / view.w;
 }
 
 [shader("compute")]
@@ -45,92 +48,86 @@ void computeMain(
     uint3 groupID : SV_GroupID,
     uint localIndex : SV_GroupIndex)
 {
+    uint3 clusterID = groupID;
+
     if (localIndex == 0)
     {
         s_TileLightCount = 0;
+
+        float2 minNDC = (float2(clusterID.xy) / TileCount.xy) * 2.0f - 1.0f;
+        float2 maxNDC = (float2(clusterID.xy + 1) / TileCount.xy) * 2.0f - 1.0f;
+
+        float nearZ, farZ;
+        if (TileCount.z <= 1.0f)
+        {
+            nearZ = NearClip;
+            farZ = FarClip;
+        }
+        else
+        {
+            float sliceNear = (float)clusterID.z / TileCount.z;
+            float sliceFar = (float)(clusterID.z + 1) / TileCount.z;
+
+            if (IsOrthographic != 0)
+            {
+                nearZ = NearClip + sliceNear * (FarClip - NearClip);
+                farZ = NearClip + sliceFar * (FarClip - NearClip);
+            }
+            else
+            {
+                nearZ = NearClip * pow(FarClip / NearClip, sliceNear);
+                farZ = NearClip * pow(FarClip / NearClip, sliceFar);
+            }
+        }
+
+        float3 p0 = UnprojectNDC(minNDC);
+        float3 p1 = UnprojectNDC(float2(maxNDC.x, minNDC.y));
+        float3 p2 = UnprojectNDC(float2(minNDC.x, maxNDC.y));
+        float3 p3 = UnprojectNDC(maxNDC);
+
+        float3 corners[8];
+        corners[0] = p0 * (nearZ / p0.z);
+        corners[1] = p1 * (nearZ / p1.z);
+        corners[2] = p2 * (nearZ / p2.z);
+        corners[3] = p3 * (nearZ / p3.z);
+        corners[4] = p0 * (farZ / p0.z);
+        corners[5] = p1 * (farZ / p1.z);
+        corners[6] = p2 * (farZ / p2.z);
+        corners[7] = p3 * (farZ / p3.z);
+
+        float3 bMin = corners[0];
+        float3 bMax = corners[0];
+        for (int i = 1; i < 8; i++)
+        {
+            bMin = min(bMin, corners[i]);
+            bMax = max(bMax, corners[i]);
+        }
+
+        s_ClusterMin = bMin;
+        s_ClusterMax = bMax;
     }
+
     GroupMemoryBarrierWithGroupSync();
 
-    uint3 clusterID = groupID.xyz;
-
-    float2 pxMin = (float2(clusterID.xy) / TileCount.xy) * 2.0f - 1.0f;
-    float2 pxMax = (float2(clusterID.xy + uint2(1, 1)) / TileCount.xy) * 2.0f - 1.0f;
-
-    float3 v00 = UnprojectNDC(float2(pxMin.x, pxMin.y));
-    float3 v10 = UnprojectNDC(float2(pxMax.x, pxMin.y));
-    float3 v01 = UnprojectNDC(float2(pxMin.x, pxMax.y));
-    float3 v11 = UnprojectNDC(float2(pxMax.x, pxMax.y));
-
-    Plane frustumPlanes[4];
-    frustumPlanes[0].normal = normalize(cross(v01, v00));
-    frustumPlanes[1].normal = normalize(cross(v10, v11));
-    frustumPlanes[2].normal = normalize(cross(v00, v10));
-    frustumPlanes[3].normal = normalize(cross(v11, v01));
-
-    float minDepth;
-    float maxDepth;
-
-    if (TileCount.z <= 1.0f)
-    {
-        minDepth = NearClip;
-        maxDepth = FarClip;
-    }
-    else
-    {
-        float zSlice = float(clusterID.z);
-        float numSlices = TileCount.z;
-
-        if (IsOrthographic != 0u)
-        {
-            minDepth = NearClip + (FarClip - NearClip) * (zSlice / numSlices);
-            maxDepth = NearClip + (FarClip - NearClip) * ((zSlice + 1.0f) / numSlices);
-        }
-        else
-        {
-            minDepth = NearClip * pow(max(FarClip / max(NearClip, 0.001f), 1.001f), zSlice / numSlices);
-            maxDepth = NearClip * pow(max(FarClip / max(NearClip, 0.001f), 1.001f), (zSlice + 1.0f) / numSlices);
-        }
-    }
-
-    uint lightCountLimit = min(TotalLightCount, 1024u);
-
-    for (uint lightIdx = localIndex; lightIdx < lightCountLimit; lightIdx += 64)
+    for (uint lightIdx = localIndex; lightIdx < TotalLightCount; lightIdx += 64)
     {
         Light light = g_Lights[lightIdx];
-        
-        bool inFrustum = false;
-        uint lightType = light.GetLightType();
 
-        if (lightType == 2)
+        if (light.GetLightType() == 2)
         {
-            inFrustum = true;
-        }
-        else
-        {
-            float4 viewPos = mul(ViewMatrix, float4(light.GetPosition(), 1.0f));
-            float radius = light.GetRadius();
-
-            inFrustum = true;
-            for (int p = 0; p < 4; p++)
+            uint slot;
+            InterlockedAdd(s_TileLightCount, 1, slot);
+            if (slot < 128)
             {
-                if (!SphereVsPlane(viewPos.xyz, radius, frustumPlanes[p]))
-                {
-                    inFrustum = false;
-                    break;
-                }
+                s_TileLightList[slot] = lightIdx;
             }
-
-            if (inFrustum)
-            {
-                float lightDepth = -viewPos.z;
-                if ((lightDepth + radius < minDepth) || (lightDepth - radius > maxDepth))
-                {
-                    inFrustum = false;
-                }
-            }
+            continue;
         }
 
-        if (inFrustum)
+        float4 lightViewPos = mul(ViewMatrix, float4(light.GetPosition(), 1.0f));
+        float radius = light.GetRadius();
+
+        if (SphereVsAABB(lightViewPos.xyz, radius, s_ClusterMin, s_ClusterMax))
         {
             uint slot;
             InterlockedAdd(s_TileLightCount, 1, slot);
@@ -140,6 +137,7 @@ void computeMain(
             }
         }
     }
+
     GroupMemoryBarrierWithGroupSync();
 
     if (localIndex == 0)
@@ -150,9 +148,10 @@ void computeMain(
         g_TileGrid[clusterFlatIndex].lightOffset = s_TileLightIndexOffset;
         g_TileGrid[clusterFlatIndex].lightCount = s_TileLightCount;
     }
+
     GroupMemoryBarrierWithGroupSync();
 
-    for (uint i = localIndex; i < s_TileLightCount; i += 64)
+    for (uint i = localIndex; i < s_TileLightCount && i < 128; i += 64)
     {
         g_GlobalLightIndices[s_TileLightIndexOffset + i] = s_TileLightList[i];
     }

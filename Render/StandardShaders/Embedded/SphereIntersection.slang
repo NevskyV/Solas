@@ -1,11 +1,8 @@
 ﻿module SphereIntersection;
 
-public struct Plane
+public bool SphereVsAABB(float3 sphereCenter, float radius, float3 boxMin, float3 boxMax)
 {
-    public float3 normal;
-};
-
-public bool SphereVsPlane(float3 center, float radius, Plane plane)
-{
-    return dot(plane.normal, center) >= -radius;
+    float3 closestPoint = clamp(sphereCenter, boxMin, boxMax);
+    float3 d = sphereCenter - closestPoint;
+    return dot(d, d) <= (radius * radius);
 }

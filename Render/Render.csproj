@@ -35,7 +35,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <AdditionalFiles Include="StandardShaders\**\*.*" Exclude="StandardShaders\Embedded\**\*.*">
+        <AdditionalFiles Include="StandardShaders\**\*.*" Exclude="StandardShaders\Embedded\*.*">
             <Pack>true</Pack>
             <PackagePath>contentFiles/any/any/StandardShaders\%(RecursiveDir)%(Filename)%(Extension)</PackagePath>
             <PackageCopyToOutput>true</PackageCopyToOutput>

@@ -20,6 +20,8 @@ public struct UniformBuffer
     public float nearClip;
     public float farClip;
     public uint isOrthographic;
+    public uint totalLightCount;
+    public uint directionalLightCount;
 };
 
 [[vk::binding(0, 1)]] public ConstantBuffer<UniformBuffer> ubo;
@@ -30,6 +32,7 @@ public struct VSOutput
     float3 worldPos : TEXCOORD1;
     float3 worldNormal : NORMAL;
     float2 fragTexCoord : TEXCOORD0;
+    nointerpolation float4 clipPos : TEXCOORD2;
 };
 
 [shader("vertex")]
@@ -42,7 +45,9 @@ public VSOutput vertMain<TVertChain : IVertexChain>(VSInput input, TVertChain ve
 
     float3x3 normalMatrix = (float3x3)ubo.model;
     output.worldNormal = normalize(mul(normalMatrix, input.inNormal));
-    output.pos = mul(ubo.proj, mul(ubo.view, worldPos4));
+    float4 clip = mul(ubo.proj, mul(ubo.view, worldPos4));
+    output.pos = clip;
+    output.clipPos = clip;
     output.fragTexCoord = input.inTexCoord;
 
     return output;

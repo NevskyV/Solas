@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
@@ -49,10 +49,11 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
             Layout = Ctx.LightCullingPipelineLayout
         };
 
-        if (Ctx.Vk!.CreateComputePipelines(Ctx.Device, default, 1, &pipelineInfo, null, out Ctx.LightCullingPipeline) !=
-            Result.Success)
+        Result res =
+            Ctx.Vk!.CreateComputePipelines(Ctx.Device, default, 1, &pipelineInfo, null, out Ctx.LightCullingPipeline);
+        if (res != Result.Success)
         {
-            throw new Exception("failed to create compute pipeline!");
+            throw new Exception($"failed to create compute pipeline! Result = {res}");
         }
 
         Ctx.Vk!.DestroyShaderModule(Ctx.Device, shaderModule, null);

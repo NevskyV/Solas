@@ -318,9 +318,8 @@ internal class VulkanRenderer : IRenderer
 
         _context.Vk!.ResetCommandBuffer(_context.CommandBuffers![_context.FrameIndex],
             CommandBufferResetFlags.ReleaseResourcesBit);
-        _commands.RecordCommandBuffer(imageIndex);
-
         _uniformBuffers.Update(_context.FrameIndex);
+        _commands.RecordCommandBuffer(imageIndex);
 
         PipelineStageFlags waitDestinationStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
         fixed (Semaphore* pPresentCompleteSemaphore = &_context.PresentCompleteSemaphores![_context.FrameIndex])

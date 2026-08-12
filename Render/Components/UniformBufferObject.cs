@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Solas.Render.Components;
 
-[StructLayout(LayoutKind.Sequential, Size = 224)]
+[StructLayout(LayoutKind.Sequential, Size = 240)]
 public struct UniformBufferObject
 {
     public Matrix4x4 Model;
@@ -14,4 +14,7 @@ public struct UniformBufferObject
     public float NearClip;
     public float FarClip;
     public uint IsOrthographic;
+    public uint TotalLightCount;
+    public uint DirectionalLightCount;
+    private Vector2 _pad;
 }

@@ -9,7 +9,7 @@ namespace Solas.Render.Vulkan;
 internal unsafe class VulkanLightingResources : VulkanInjectable
 {
     private const uint MaxLights = 1024;
-    private const uint MaxTileIndices = 1024 * 1024;
+    private const uint MaxTileIndices = 4 * 1024 * 1024;
 
     internal void Create()
     {

@@ -1,7 +1,6 @@
 module LightCulling;
 
 import LightData;
-import SphereIntersection;
 
 public struct TileGrid
 {
@@ -14,145 +13,139 @@ public struct TileGrid
 [[vk::binding(2, 0)]] RWStructuredBuffer<TileGrid> g_TileGrid;
 [[vk::binding(3, 0)]] RWStructuredBuffer<uint> g_GlobalIndexCounter;
 
-[[vk::binding(0, 1)]]
-cbuffer FrameParams
+struct FrameParamsData
 {
-    float4x4 ViewMatrix;
-    float4x4 InvProjectionMatrix;
+    float4 CameraPosition;
+    float4 CameraRight;
+    float4 CameraUp;
+    float4 CameraForward;
     float4 ScreenResolution;
-    float4 TileCount; // x: TilesX, y: TilesY, z: SlicesZ
+    float4 TileCount;
     uint TotalLightCount;
+    uint DirectionalLightCount;
     float NearClip;
     float FarClip;
     uint IsOrthographic;
+    float TanHalfFovX;
+    float TanHalfFovY;
+    float _pad;
 };
 
-groupshared uint s_TileLightCount;
-groupshared uint s_TileLightIndexOffset;
-groupshared uint s_TileLightList[128];
-
-groupshared float3 s_ClusterMin;
-groupshared float3 s_ClusterMax;
-
-float3 UnprojectNDC(float2 ndc)
-{
-    float4 clip = float4(ndc.x, ndc.y, 1.0f, 1.0f);
-    float4 view = mul(InvProjectionMatrix, clip);
-    return view.xyz / view.w;
-}
+[[vk::binding(0, 1)]] ConstantBuffer<FrameParamsData> FrameParams;
 
 [shader("compute")]
-[numthreads(64, 1, 1)]
-void computeMain(
-    uint3 threadID : SV_DispatchThreadID,
-    uint3 groupID : SV_GroupID,
-    uint localIndex : SV_GroupIndex)
+[numthreads(1, 1, 1)]
+void computeMain(uint3 groupID : SV_GroupID)
 {
-    uint3 clusterID = groupID;
+    uint3 clusterID = groupID.xyz;
+    uint tileCountX = (uint)FrameParams.TileCount.x;
+    uint tileCountY = (uint)FrameParams.TileCount.y;
+    uint tileCountZ = (uint)FrameParams.TileCount.z;
 
-    if (localIndex == 0)
+    uint clusterFlatIndex = clusterID.x + clusterID.y * tileCountX + clusterID.z * tileCountX * tileCountY;
+
+    if (FrameParams.TotalLightCount == 0u)
     {
-        s_TileLightCount = 0;
+        g_TileGrid[clusterFlatIndex].lightOffset = 0u;
+        g_TileGrid[clusterFlatIndex].lightCount = 0u;
+        return;
+    }
 
-        float2 minNDC = (float2(clusterID.xy) / TileCount.xy) * 2.0f - 1.0f;
-        float2 maxNDC = (float2(clusterID.xy + 1) / TileCount.xy) * 2.0f - 1.0f;
+    float nClip = max(FrameParams.NearClip, 0.001f);
+    float fClip = max(FrameParams.FarClip, nClip + 0.001f);
 
-        float nearZ, farZ;
-        if (TileCount.z <= 1.0f)
+    float clusterMinZ;
+    float clusterMaxZ;
+
+    if (tileCountZ <= 1u)
+    {
+        clusterMinZ = nClip;
+        clusterMaxZ = fClip;
+    }
+    else
+    {
+        float sliceNear = float(clusterID.z) / float(tileCountZ);
+        float sliceFar  = float(clusterID.z + 1u) / float(tileCountZ);
+
+        if (FrameParams.IsOrthographic != 0u)
         {
-            nearZ = NearClip;
-            farZ = FarClip;
+            clusterMinZ = nClip + sliceNear * (fClip - nClip);
+            clusterMaxZ = nClip + sliceFar  * (fClip - nClip);
         }
         else
         {
-            float sliceNear = (float)clusterID.z / TileCount.z;
-            float sliceFar = (float)(clusterID.z + 1) / TileCount.z;
-
-            if (IsOrthographic != 0)
-            {
-                nearZ = NearClip + sliceNear * (FarClip - NearClip);
-                farZ = NearClip + sliceFar * (FarClip - NearClip);
-            }
-            else
-            {
-                nearZ = NearClip * pow(FarClip / NearClip, sliceNear);
-                farZ = NearClip * pow(FarClip / NearClip, sliceFar);
-            }
+            float ratio = fClip / nClip;
+            clusterMinZ = nClip * pow(ratio, sliceNear);
+            clusterMaxZ = nClip * pow(ratio, sliceFar);
         }
-
-        float3 p0 = UnprojectNDC(minNDC);
-        float3 p1 = UnprojectNDC(float2(maxNDC.x, minNDC.y));
-        float3 p2 = UnprojectNDC(float2(minNDC.x, maxNDC.y));
-        float3 p3 = UnprojectNDC(maxNDC);
-
-        float3 corners[8];
-        corners[0] = p0 * (nearZ / p0.z);
-        corners[1] = p1 * (nearZ / p1.z);
-        corners[2] = p2 * (nearZ / p2.z);
-        corners[3] = p3 * (nearZ / p3.z);
-        corners[4] = p0 * (farZ / p0.z);
-        corners[5] = p1 * (farZ / p1.z);
-        corners[6] = p2 * (farZ / p2.z);
-        corners[7] = p3 * (farZ / p3.z);
-
-        float3 bMin = corners[0];
-        float3 bMax = corners[0];
-        for (int i = 1; i < 8; i++)
-        {
-            bMin = min(bMin, corners[i]);
-            bMax = max(bMax, corners[i]);
-        }
-
-        s_ClusterMin = bMin;
-        s_ClusterMax = bMax;
     }
 
-    GroupMemoryBarrierWithGroupSync();
+    float minX_NDC = (float(clusterID.x) / float(tileCountX)) * 2.0f - 1.0f;
+    float maxX_NDC = (float(clusterID.x + 1u) / float(tileCountX)) * 2.0f - 1.0f;
 
-    for (uint lightIdx = localIndex; lightIdx < TotalLightCount; lightIdx += 64)
+    float minY_NDC = (float(clusterID.y) / float(tileCountY)) * 2.0f - 1.0f;
+    float maxY_NDC = (float(clusterID.y + 1u) / float(tileCountY)) * 2.0f - 1.0f;
+
+    uint localLightIndices[128];
+    uint localCount = 0u;
+
+    for (uint lightIndex = FrameParams.DirectionalLightCount; lightIndex < FrameParams.TotalLightCount; ++lightIndex)
     {
-        Light light = g_Lights[lightIdx];
+        if (localCount >= 128u)
+            break;
 
-        if (light.GetLightType() == 2)
-        {
-            uint slot;
-            InterlockedAdd(s_TileLightCount, 1, slot);
-            if (slot < 128)
-            {
-                s_TileLightList[slot] = lightIdx;
-            }
-            continue;
-        }
-
-        float4 lightViewPos = mul(ViewMatrix, float4(light.GetPosition(), 1.0f));
+        Light light = g_Lights[lightIndex];
+        float3 lightWorldPos = light.GetPosition();
         float radius = light.GetRadius();
 
-        if (SphereVsAABB(lightViewPos.xyz, radius, s_ClusterMin, s_ClusterMax))
+        float3 dir = lightWorldPos - FrameParams.CameraPosition.xyz;
+        float viewX = dot(dir, FrameParams.CameraRight.xyz);
+        float viewY = dot(dir, FrameParams.CameraUp.xyz);
+        float viewZ = dot(dir, FrameParams.CameraForward.xyz);
+
+        if (viewZ + radius < clusterMinZ || viewZ - radius > clusterMaxZ)
+            continue;
+
+        float z = clamp(viewZ, clusterMinZ, clusterMaxZ);
+
+        float tileMinX = minX_NDC * z * FrameParams.TanHalfFovX;
+        float tileMaxX = maxX_NDC * z * FrameParams.TanHalfFovX;
+
+        float tileMinY = minY_NDC * z * FrameParams.TanHalfFovY;
+        float tileMaxY = maxY_NDC * z * FrameParams.TanHalfFovY;
+
+        float closestX = clamp(viewX, min(tileMinX, tileMaxX), max(tileMinX, tileMaxX));
+        float closestY = clamp(viewY, min(tileMinY, tileMaxY), max(tileMinY, tileMaxY));
+
+        float dx = viewX - closestX;
+        float dy = viewY - closestY;
+        float dz = viewZ - z;
+
+        float distSq = dx * dx + dy * dy + dz * dz;
+
+        if (distSq <= (radius * radius))
         {
-            uint slot;
-            InterlockedAdd(s_TileLightCount, 1, slot);
-            if (slot < 128)
-            {
-                s_TileLightList[slot] = lightIdx;
-            }
+            localLightIndices[localCount] = lightIndex;
+            localCount++;
         }
     }
 
-    GroupMemoryBarrierWithGroupSync();
-
-    if (localIndex == 0)
+    if (localCount > 0u)
     {
-        InterlockedAdd(g_GlobalIndexCounter[0], s_TileLightCount, s_TileLightIndexOffset);
+        uint baseOffset = 0u;
+        InterlockedAdd(g_GlobalIndexCounter[0], localCount, baseOffset);
 
-        uint clusterFlatIndex = clusterID.x + clusterID.y * (uint)TileCount.x + clusterID.z * (uint)TileCount.x * (uint)TileCount.y;
-        g_TileGrid[clusterFlatIndex].lightOffset = s_TileLightIndexOffset;
-        g_TileGrid[clusterFlatIndex].lightCount = s_TileLightCount;
+        for (uint k = 0u; k < localCount; ++k)
+        {
+            g_GlobalLightIndices[baseOffset + k] = localLightIndices[k];
+        }
+
+        g_TileGrid[clusterFlatIndex].lightOffset = baseOffset;
+        g_TileGrid[clusterFlatIndex].lightCount = localCount;
     }
-
-    GroupMemoryBarrierWithGroupSync();
-
-    for (uint i = localIndex; i < s_TileLightCount && i < 128; i += 64)
+    else
     {
-        g_GlobalLightIndices[s_TileLightIndexOffset + i] = s_TileLightList[i];
+        g_TileGrid[clusterFlatIndex].lightOffset = 0u;
+        g_TileGrid[clusterFlatIndex].lightCount = 0u;
     }
 }

@@ -52,9 +52,10 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         Vector3 forward = Vector3.Transform(-Vector3.UnitZ, cameraQuat);
         Vector3 up = Vector3.Transform(Vector3.UnitY, cameraQuat);
 
+        Ctx.CameraViewMatrix = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
+
         float aspectRatio = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
 
-        Ctx.CameraViewMatrix = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
         if (Ctx.CameraData.Type == CameraType.Perspective)
         {
             Ctx.CameraProjectionMatrix = Matrix4x4.CreatePerspectiveFieldOfView(
@@ -87,6 +88,8 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
         foreach (var renderer in Ctx.RenderData)
         {
+            var activeLights = LightDataEventHandler.GetGpuLights(out uint directionalCount);
+
             var ubo = new UniformBufferObject()
             {
                 Model = Matrix4x4.Transpose(renderer.Logic.GetModelMatrix()),
@@ -96,7 +99,9 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
                 TileSize = tileSizeX,
                 NearClip = Ctx.CameraData.NearClipPlane,
                 FarClip = Ctx.CameraData.FarClipPlane,
-                IsOrthographic = isOrtho ? 1u : 0u
+                IsOrthographic = isOrtho ? 1u : 0u,
+                TotalLightCount = (uint)activeLights.Length,
+                DirectionalLightCount = directionalCount
             };
 
             var extraBytes = renderer.Material?.BuildCombinedUboData() ?? [];

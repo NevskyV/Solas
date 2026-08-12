@@ -3,6 +3,7 @@ using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Components;
+using Solas.Transform.MathExtensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
 namespace Solas.Render.Vulkan;
@@ -190,24 +191,42 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         bool isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
 
-        Matrix4x4.Invert(Ctx.CameraProjectionMatrix, out Matrix4x4 invProj);
+        float aspectRatioCompute = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
+        float tanHalfFovY = MathF.Tan(Ctx.CameraData.FieldOfView * MathF.PI / 180f * 0.5f);
+        float tanHalfFovX = tanHalfFovY * aspectRatioCompute;
+        float orthoHalfW = Ctx.CameraData.Size * aspectRatioCompute * 0.5f;
+        float orthoHalfH = Ctx.CameraData.Size * 0.5f;
 
-        var activeLights = LightDataEventHandler.GpuLights;
+        var activeLights = LightDataEventHandler.GetGpuLights(out uint directionalCount);
+
+        Vector3 camPos = Ctx.CameraTransform.Position.Value;
+        Vector3 camRot = Ctx.CameraTransform.Rotation.Value;
+        Quaternion camQuat = camRot.ToQuaternion();
+        Vector3 camForward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, camQuat));
+        Vector3 camUp = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, camQuat));
+        Vector3 camRight = Vector3.Normalize(Vector3.Cross(camForward, camUp));
 
         FrameParamsGpu frameParams = new()
         {
-            ViewMatrix = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
-            InvProjectionMatrix = Matrix4x4.Transpose(invProj),
+            CameraPosition = new Vector4(camPos, 1.0f),
+            CameraRight = new Vector4(camRight, 0.0f),
+            CameraUp = new Vector4(camUp, 0.0f),
+            CameraForward = new Vector4(camForward, 0.0f),
             ScreenResolution = new Vector4(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, 0, 0),
             TileCount = new Vector4(tileCountX, tileCountY, tileCountZ, 0),
             TotalLightCount = (uint)activeLights.Length,
+            DirectionalLightCount = directionalCount,
             NearClip = Ctx.CameraData.NearClipPlane,
             FarClip = Ctx.CameraData.FarClipPlane,
-            IsOrthographic = isOrtho ? 1u : 0u
+            IsOrthographic = isOrtho ? 1u : 0u,
+            TanHalfFovX = isOrtho ? orthoHalfW : tanHalfFovX,
+            TanHalfFovY = isOrtho ? orthoHalfH : tanHalfFovY
         };
+
 
         System.Buffer.MemoryCopy(&frameParams, Ctx.FrameParamsMappedPointers[frameIdx], sizeof(FrameParamsGpu),
             sizeof(FrameParamsGpu));
+
 
         fixed (LightGpu* pLights = activeLights)
         {
@@ -215,8 +234,32 @@ internal unsafe class VulkanCommands : VulkanInjectable
             System.Buffer.MemoryCopy(pLights, Ctx.LightBuffersMappedPointers[frameIdx], lightsSize, lightsSize);
         }
 
-        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipeline);
+        Ctx.Vk!.CmdFillBuffer(cmdBuffer, Ctx.GlobalIndexCounterBuffers[frameIdx], 0, sizeof(uint), 0);
 
+        var bufferBarrier = new BufferMemoryBarrier2
+        {
+            SType = StructureType.BufferMemoryBarrier2,
+            SrcStageMask = PipelineStageFlags2.TransferBit,
+            SrcAccessMask = AccessFlags2.TransferWriteBit,
+            DstStageMask = PipelineStageFlags2.ComputeShaderBit,
+            DstAccessMask = AccessFlags2.ShaderReadBit | AccessFlags2.ShaderWriteBit,
+            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+            Buffer = Ctx.GlobalIndexCounterBuffers[frameIdx],
+            Offset = 0,
+            Size = sizeof(uint)
+        };
+
+        DependencyInfo dependencyInfo = new()
+        {
+            SType = StructureType.DependencyInfo,
+            BufferMemoryBarrierCount = 1,
+            PBufferMemoryBarriers = &bufferBarrier
+        };
+
+        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+
+        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipeline);
         DescriptorSet[] computeSets = [Ctx.LightingGlobalSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
         fixed (DescriptorSet* pComputeSets = computeSets)
         {
@@ -226,7 +269,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, tileCountZ);
 
-        MemoryBarrier2 memoryBarrier = new()
+        var computeToFragBarrier = new MemoryBarrier2
         {
             SType = StructureType.MemoryBarrier2,
             SrcStageMask = PipelineStageFlags2.ComputeShaderBit,
@@ -235,14 +278,14 @@ internal unsafe class VulkanCommands : VulkanInjectable
             DstAccessMask = AccessFlags2.ShaderReadBit
         };
 
-        DependencyInfo dependencyInfo = new()
+        var computeToFragDependency = new DependencyInfo
         {
             SType = StructureType.DependencyInfo,
             MemoryBarrierCount = 1,
-            PMemoryBarriers = &memoryBarrier
+            PMemoryBarriers = &computeToFragBarrier
         };
 
-        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &computeToFragDependency);
 
         Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
 

@@ -32,7 +32,7 @@ public class SceneCameraLogic : Logic, IInitializable
 
         _currentFov = _cameraData.FieldOfView;
 
-        for (int i = 0; i < InputContext.Mice.Count; i++)
+        for (var i = 0; i < InputContext.Mice.Count; i++)
         {
             InputContext.Mice[i].MouseDown += OnMouseDown;
             InputContext.Mice[i].MouseUp += OnMouseUp;
@@ -45,14 +45,14 @@ public class SceneCameraLogic : Logic, IInitializable
     {
         if (_cameraData.Type == CameraType.Perspective)
         {
-            float value = _cameraData.FieldOfView;
+            var value = _cameraData.FieldOfView;
 
             value -= scrollWheel.Y * _zoomSensitivity;
             _cameraData.FieldOfView = Math.Clamp(value, 1.0f, 120.0f);
         }
         else
         {
-            float value = _cameraData.Size;
+            var value = _cameraData.Size;
 
             value -= scrollWheel.Y * _zoomSensitivity;
             _cameraData.Size = Math.Clamp(value, 1.0f, 120.0f);
@@ -65,14 +65,14 @@ public class SceneCameraLogic : Logic, IInitializable
 
         var keyboard = InputContext.Keyboards[0];
 
-        Quaternion rotation = _transformData.Rotation.Value.ToQuaternion();
+        var rotation = _transformData.Rotation.Value.ToQuaternion();
 
-        Vector3 forward = Vector3.Transform(-Vector3.UnitZ, rotation);
-        Vector3 right = Vector3.Transform(Vector3.UnitX, rotation);
-        Vector3 up = Vector3.UnitY;
+        var forward = Vector3.Transform(-Vector3.UnitZ, rotation);
+        var right = Vector3.Transform(Vector3.UnitX, rotation);
+        var up = Vector3.UnitY;
 
-        float speed = (float)(_moveSpeed * (keyboard.IsKeyPressed(Key.ShiftLeft) ? 2.5f : 1.0f) * Time.DeltaTime);
-        Vector3 pos = _transformData.Position.Value;
+        var speed = (float)(_moveSpeed * (keyboard.IsKeyPressed(Key.ShiftLeft) ? 2.5f : 1.0f) * Time.DeltaTime);
+        var pos = _transformData.Position.Value;
 
         if (keyboard.IsKeyPressed(Key.W)) pos += forward * speed;
         if (keyboard.IsKeyPressed(Key.S)) pos -= forward * speed;
@@ -107,11 +107,11 @@ public class SceneCameraLogic : Logic, IInitializable
     {
         if (!_isRotating) return;
 
-        float deltaX = (currentPosition.X - _lastMousePosition.X) * _mouseSensitivity;
-        float deltaY = (currentPosition.Y - _lastMousePosition.Y) * _mouseSensitivity;
+        var deltaX = (currentPosition.X - _lastMousePosition.X) * _mouseSensitivity;
+        var deltaY = (currentPosition.Y - _lastMousePosition.Y) * _mouseSensitivity;
         _lastMousePosition = currentPosition;
 
-        Vector3 euler = _transformData.Rotation.Value;
+        var euler = _transformData.Rotation.Value;
 
         euler.Y -= deltaX;
         euler.X -= deltaY;

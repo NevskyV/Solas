@@ -74,7 +74,7 @@ public class RenderLogic : Logic
         }
 
         if (!File.Exists(fullPath)) return null;
-        byte[] rawBytes = File.ReadAllBytes(fullPath);
+        var rawBytes = File.ReadAllBytes(fullPath);
 
         return new RawImage(256, 256, rawBytes);
     }

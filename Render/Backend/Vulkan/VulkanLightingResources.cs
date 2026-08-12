@@ -1,6 +1,5 @@
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
-using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -13,19 +12,19 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
     internal void Create()
     {
-        uint lightsSize = (uint)(sizeof(LightGpu) * MaxLights);
-        uint indicesSize = sizeof(uint) * MaxTileIndices;
+        var lightsSize = (uint)(sizeof(LightGpu) * MaxLights);
+        var indicesSize = sizeof(uint) * MaxTileIndices;
 
-        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
-        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+        var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        var tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
-        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
-        uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
+        var tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        var gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
 
         uint counterSize = sizeof(uint);
-        uint frameParamsSize = (uint)sizeof(FrameParamsGpu);
+        var frameParamsSize = (uint)sizeof(FrameParamsGpu);
 
         Ctx.LightBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.LightBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
@@ -45,7 +44,18 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
         Ctx.FrameParamsBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
         Ctx.FrameParamsMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
 
-        for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
+        Ctx.IndirectDrawBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.IndirectDrawBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.IndirectDrawMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
+
+        Ctx.ObjectDataBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.ObjectDataBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.ObjectDataMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
+
+        var indirectSize = (uint)(sizeof(DrawIndexedIndirectCommand) * 4096);
+        var objectDataSize = (uint)(sizeof(ObjectDataGpu) * 4096);
+
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             var (lightBuf, lightMem) = Buffer.Create(Ctx, lightsSize, BufferUsageFlags.StorageBufferBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
@@ -56,12 +66,12 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
             Ctx.LightBuffersMappedPointers[i] = pLight;
 
             var (indicesBuf, indicesMem) = Buffer.Create(Ctx, indicesSize, BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.DeviceLocalBit);
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
             Ctx.GlobalLightIndicesBuffers[i] = indicesBuf;
             Ctx.GlobalLightIndicesBuffersMemory[i] = indicesMem;
 
             var (gridBuf, gridMem) = Buffer.Create(Ctx, gridSize, BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.DeviceLocalBit);
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
             Ctx.TileGridBuffers[i] = gridBuf;
             Ctx.TileGridBuffersMemory[i] = gridMem;
 
@@ -80,6 +90,23 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
             void* pFrame;
             Ctx.Vk!.MapMemory(Ctx.Device, frameMem, 0, frameParamsSize, 0, &pFrame);
             Ctx.FrameParamsMappedPointers[i] = pFrame;
+
+            var (indirectBuf, indirectMem) = Buffer.Create(Ctx, indirectSize,
+                BufferUsageFlags.IndirectBufferBit | BufferUsageFlags.StorageBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            Ctx.IndirectDrawBuffers[i] = indirectBuf;
+            Ctx.IndirectDrawBuffersMemory[i] = indirectMem;
+            void* pIndirect;
+            Ctx.Vk!.MapMemory(Ctx.Device, indirectMem, 0, indirectSize, 0, &pIndirect);
+            Ctx.IndirectDrawMappedPointers[i] = pIndirect;
+
+            var (objectBuf, objectMem) = Buffer.Create(Ctx, objectDataSize, BufferUsageFlags.StorageBufferBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            Ctx.ObjectDataBuffers[i] = objectBuf;
+            Ctx.ObjectDataBuffersMemory[i] = objectMem;
+            void* pObject;
+            Ctx.Vk!.MapMemory(Ctx.Device, objectMem, 0, objectDataSize, 0, &pObject);
+            Ctx.ObjectDataMappedPointers[i] = pObject;
         }
     }
 
@@ -87,7 +114,7 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
     {
         Ctx.Vk!.DeviceWaitIdle(Ctx.Device);
 
-        for (int i = 0; i < Ctx.TileGridBuffers.Length; i++)
+        for (var i = 0; i < Ctx.TileGridBuffers.Length; i++)
         {
             if (Ctx.TileGridBuffers[i].Handle != 0)
             {
@@ -102,15 +129,15 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
             }
         }
 
-        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
-        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+        var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        var tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
-        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
-        uint gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
+        var tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        var gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
 
-        for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
             var (gridBuf, gridMem) = Buffer.Create(
                 Ctx,

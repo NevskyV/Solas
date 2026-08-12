@@ -15,6 +15,7 @@ public struct TileGrid
 
 struct FrameParamsData
 {
+    float4x4 LightViewProj;
     float4 CameraPosition;
     float4 CameraRight;
     float4 CameraUp;

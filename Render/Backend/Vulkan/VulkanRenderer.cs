@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Silk.NET.Core;
@@ -44,12 +43,15 @@ internal class VulkanRenderer : IRenderer
         _lastScreenMaterial = screenMat;
         _lastBoundView = view;
 
-        _uniformBuffers.CreateForScreen(screenMat);
-        _descriptorSets.CreateForScreen(screenMat, view, _context.ScreenSampler, _context.ScreenUniformBuffers);
-        _context.ScreenPipelines = new VulkanMaterialPipeline[screenMat.PassCount];
-        for (int p = 0; p < screenMat.PassCount; p++)
+        if (screenMat != null)
         {
-            _context.ScreenPipelines[p] = _pipelineFactory.GetOrCreatePipeline(screenMat, p);
+            _uniformBuffers.CreateForScreen(screenMat);
+            _descriptorSets.CreateForScreen(screenMat, view, _context.ScreenSampler, _context.ScreenUniformBuffers);
+            _context.ScreenPipelines = new VulkanMaterialPipeline[screenMat.PassCount];
+            for (var p = 0; p < screenMat.PassCount; p++)
+            {
+                _context.ScreenPipelines[p] = _pipelineFactory.GetOrCreatePipeline(screenMat, p);
+            }
         }
     }
 
@@ -144,7 +146,7 @@ internal class VulkanRenderer : IRenderer
                 MaterialPipeline = _pipelineFactory.GetOrCreatePipeline(logic.Material)
             };
 
-            logic.Material.OnTextureUpdated += (mat, mod, tex) =>
+            logic.Material.OnTextureUpdated += (_, _, _) =>
             {
                 _pendingActions.Enqueue(() =>
                 {
@@ -290,9 +292,7 @@ internal class VulkanRenderer : IRenderer
         UpdateScreenMaterialResources();
 
         if (_context.CameraData.ScreenMaterial != null)
-        {
             _uniformBuffers.UpdateScreen(_context.FrameIndex, _context.CameraData.ScreenMaterial);
-        }
 
         if (_context.Vk!.WaitForFences(_context.Device, [_context.InFlightFences![_context.FrameIndex]], true,
                 ulong.MaxValue) != Result.Success)
@@ -321,13 +321,13 @@ internal class VulkanRenderer : IRenderer
         _uniformBuffers.Update(_context.FrameIndex);
         _commands.RecordCommandBuffer(imageIndex);
 
-        PipelineStageFlags waitDestinationStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
+        var waitDestinationStageMask = PipelineStageFlags.ColorAttachmentOutputBit;
         fixed (Semaphore* pPresentCompleteSemaphore = &_context.PresentCompleteSemaphores![_context.FrameIndex])
         fixed (Semaphore* pRenderFinishedSemaphore = &_context.RenderFinishedSemaphores![imageIndex])
         fixed (SwapchainKHR* pSwapChain = &_context.SwapChain)
         fixed (CommandBuffer* pCommandBuffer = &_context.CommandBuffers![_context.FrameIndex])
         {
-            SubmitInfo submitInfo = new SubmitInfo
+            var submitInfo = new SubmitInfo
             {
                 SType = StructureType.SubmitInfo,
                 WaitSemaphoreCount = 1,
@@ -374,11 +374,6 @@ internal class VulkanRenderer : IRenderer
 
     public void Dispose()
     {
-        RenderLogicEventHandler.CreateLogicEvent -= LoadModel;
-        RenderLogicEventHandler.MeshUpdateEvent -= UpdateMesh;
-        RenderLogicEventHandler.MaterialUpdateEvent -= UpdateMaterial;
-        RenderLogicEventHandler.DisposeLogicEvent -= UnloadModel;
-
         _context.Vk!.DeviceWaitIdle(_context.Device);
 
         if (_lastScreenMaterial != null)

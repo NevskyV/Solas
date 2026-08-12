@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Solas.Render.Components;
 using Solas.Render.Data;
 
@@ -9,7 +7,7 @@ internal static class LightDataEventHandler
 {
     private static readonly List<LightData> _registeredLights = [];
     private static LightGpu[] _cachedGpuArray = Array.Empty<LightGpu>();
-    private static uint _cachedDirectionalCount = 0;
+    private static uint _cachedDirectionalCount;
     private static bool _isDirty = true;
 
     internal static ReadOnlySpan<LightGpu> GpuLights => GetGpuLights(out _);
@@ -48,6 +46,7 @@ internal static class LightDataEventHandler
 
     internal static ReadOnlySpan<LightGpu> GetGpuLights(out uint directionalCount)
     {
+        _isDirty = true;
         if (_isDirty)
         {
             UpdateGpuArray();
@@ -70,7 +69,7 @@ internal static class LightDataEventHandler
         var directionalList = new List<LightGpu>();
         var localList = new List<LightGpu>();
 
-        for (int i = 0; i < _registeredLights.Count; i++)
+        for (var i = 0; i < _registeredLights.Count; i++)
         {
             var lightGpu = _registeredLights[i].GenerateGpuData();
             if (lightGpu.PositionOrDirection.W == 2.0f)

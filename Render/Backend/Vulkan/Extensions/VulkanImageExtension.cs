@@ -11,7 +11,7 @@ internal static unsafe class VulkanImageExtension
             SampleCountFlags numSamples, Format format,
             ImageTiling tiling, ImageUsageFlags usage, MemoryPropertyFlags properties)
         {
-            ImageCreateInfo imageInfo = new ImageCreateInfo()
+            var imageInfo = new ImageCreateInfo()
             {
                 SType = StructureType.ImageCreateInfo,
                 ImageType = ImageType.Type2D,

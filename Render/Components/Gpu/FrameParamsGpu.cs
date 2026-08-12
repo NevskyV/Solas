@@ -3,9 +3,10 @@ using System.Runtime.InteropServices;
 
 namespace Solas.Render.Components;
 
-[StructLayout(LayoutKind.Sequential, Size = 128)]
+[StructLayout(LayoutKind.Sequential, Size = 192)]
 internal struct FrameParamsGpu
 {
+    internal Matrix4x4 LightViewProj;
     internal Vector4 CameraPosition;
     internal Vector4 CameraRight;
     internal Vector4 CameraUp;

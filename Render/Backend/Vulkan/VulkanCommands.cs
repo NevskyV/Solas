@@ -1,8 +1,7 @@
-using System;
 using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
-using Solas.Render.Vulkan.Components;
+using Solas.Transform;
 using Solas.Transform.MathExtensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 
@@ -63,10 +62,10 @@ internal unsafe class VulkanCommands : VulkanInjectable
             throw new Exception("Failed to begin command buffer");
         }
 
-        bool hasScreenMaterial = Ctx.CameraData.ScreenMaterial != null;
-        bool isScaling = Ctx.RenderExtent.Width != Ctx.SwapChainExtent.Width ||
-                         Ctx.RenderExtent.Height != Ctx.SwapChainExtent.Height;
-        bool isMsaa = Ctx.MsaaSamples != SampleCountFlags.Count1Bit;
+        var hasScreenMaterial = Ctx.CameraData.ScreenMaterial != null;
+        var isScaling = Ctx.RenderExtent.Width != Ctx.SwapChainExtent.Width ||
+                        Ctx.RenderExtent.Height != Ctx.SwapChainExtent.Height;
+        var isMsaa = Ctx.MsaaSamples != SampleCountFlags.Count1Bit;
 
         Image srcBlitImage = default;
 
@@ -120,9 +119,9 @@ internal unsafe class VulkanCommands : VulkanInjectable
         );
 
         var camColor = Ctx.CameraData.BackgroundColor;
-        ClearValue clearColor = new ClearValue()
+        var clearColor = new ClearValue()
             { Color = new ClearColorValue(camColor.X, camColor.Y, camColor.Z, 1.0f) };
-        ClearValue clearDepth = new ClearValue() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) };
+        var clearDepth = new ClearValue() { DepthStencil = new ClearDepthStencilValue(1.0f, 0) };
 
         ImageView resolveTargetView = default;
         if (isMsaa)
@@ -177,37 +176,69 @@ internal unsafe class VulkanCommands : VulkanInjectable
         };
 
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
-        uint frameIdx = Ctx.FrameIndex;
+        var frameIdx = Ctx.FrameIndex;
 
         uint zeroCounter = 0;
         System.Buffer.MemoryCopy(&zeroCounter, Ctx.GlobalIndexCounterMappedPointers[frameIdx], 4, 4);
 
-        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
-        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+        var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        var tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
-        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        var tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
 
-        bool isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
+        var isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
 
-        float aspectRatioCompute = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
-        float tanHalfFovY = MathF.Tan(Ctx.CameraData.FieldOfView * MathF.PI / 180f * 0.5f);
-        float tanHalfFovX = tanHalfFovY * aspectRatioCompute;
-        float orthoHalfW = Ctx.CameraData.Size * aspectRatioCompute * 0.5f;
-        float orthoHalfH = Ctx.CameraData.Size * 0.5f;
+        var aspectRatioCompute = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
+        var tanHalfFovY = MathF.Tan(Ctx.CameraData.FieldOfView * MathF.PI / 180f * 0.5f);
+        var tanHalfFovX = tanHalfFovY * aspectRatioCompute;
+        var orthoHalfW = Ctx.CameraData.Size * aspectRatioCompute * 0.5f;
+        var orthoHalfH = Ctx.CameraData.Size * 0.5f;
 
-        var activeLights = LightDataEventHandler.GetGpuLights(out uint directionalCount);
+        var activeLights = LightDataEventHandler.GetGpuLights(out var directionalCount);
 
-        Vector3 camPos = Ctx.CameraTransform.Position.Value;
-        Vector3 camRot = Ctx.CameraTransform.Rotation.Value;
-        Quaternion camQuat = camRot.ToQuaternion();
-        Vector3 camForward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, camQuat));
-        Vector3 camUp = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, camQuat));
-        Vector3 camRight = Vector3.Normalize(Vector3.Cross(camForward, camUp));
+        var camPos = Ctx.CameraTransform.Position.Value;
+        var camRot = Ctx.CameraTransform.Rotation.Value;
+        var camQuat = camRot.ToQuaternion();
+        var camForward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, camQuat));
+        var camUp = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, camQuat));
+        var camRight = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, camQuat));
+
+        var lightViewProj = Matrix4x4.Identity;
+        if (activeLights.Length > 0)
+        {
+            var mainLight = activeLights[0];
+            var lightPos = new Vector3(mainLight.PositionOrDirection.X, mainLight.PositionOrDirection.Y,
+                mainLight.PositionOrDirection.Z);
+            var lightDir = mainLight.PositionOrDirection.W == 2.0f
+                ? lightPos
+                : new Vector3(mainLight.Extra0.X, mainLight.Extra0.Y, mainLight.Extra0.Z);
+
+            lightDir = Vector3.Normalize(lightDir);
+            if (lightDir == Vector3.Zero) lightDir = -Vector3.UnitY;
+
+            var upVector = MathF.Abs(Vector3.Dot(lightDir, Vector3.UnitY)) > 0.9f ? Vector3.UnitZ : Vector3.UnitY;
+
+            if (mainLight.PositionOrDirection.W == 2.0f)
+            {
+                var focusPoint = Vector3.Zero;
+                lightPos = focusPoint - lightDir * 150.0f;
+                var lightView = Matrix4x4.CreateLookAt(lightPos, focusPoint, upVector);
+                var lightProj = CreateVulkanOrthographic(250.0f, 250.0f, 1.0f, 400.0f);
+                lightViewProj = Matrix4x4.Multiply(lightView, lightProj);
+            }
+            else
+            {
+                var lightView = Matrix4x4.CreateLookAt(lightPos, lightPos + lightDir, upVector);
+                var lightProj = CreateVulkanOrthographic(250.0f, 250.0f, 1.0f, 400.0f);
+                lightViewProj = Matrix4x4.Multiply(lightView, lightProj);
+            }
+        }
 
         FrameParamsGpu frameParams = new()
         {
+            LightViewProj = Matrix4x4.Transpose(lightViewProj),
             CameraPosition = new Vector4(camPos, 1.0f),
             CameraRight = new Vector4(camRight, 0.0f),
             CameraUp = new Vector4(camUp, 0.0f),
@@ -230,7 +261,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         fixed (LightGpu* pLights = activeLights)
         {
-            uint lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
+            var lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
             System.Buffer.MemoryCopy(pLights, Ctx.LightBuffersMappedPointers[frameIdx], lightsSize, lightsSize);
         }
 
@@ -269,13 +300,58 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, tileCountZ);
 
+        var objectCount = (uint)Math.Min(Ctx.RenderData.Count, 4096);
+        if (objectCount > 0)
+        {
+            var pObjectDataMap = (ObjectDataGpu*)Ctx.ObjectDataMappedPointers[frameIdx];
+            var pIndirectMap = (DrawIndexedIndirectCommand*)Ctx.IndirectDrawMappedPointers[frameIdx];
+            for (var i = 0; i < objectCount; i++)
+            {
+                var renderObj = Ctx.RenderData[i];
+                var modelMat = renderObj.Logic.GetModelMatrix();
+                var localCenter = renderObj.Logic.Mesh?.BoundingCenter ?? Vector3.Zero;
+                var localRadius = renderObj.Logic.Mesh?.BoundingRadius ?? 5.0f;
+
+                var worldCenter = Vector3.Transform(localCenter, modelMat);
+                var scale = renderObj.Logic.Entity.GetData<TransformData>()?.Scale.Value ?? Vector3.One;
+                var maxScale = MathF.Max(scale.X, MathF.Max(scale.Y, scale.Z));
+                var worldRadius = localRadius * maxScale;
+
+                pObjectDataMap[i] = new ObjectDataGpu
+                {
+                    WorldCenterAndRadius = new Vector4(worldCenter, worldRadius)
+                };
+
+                pIndirectMap[i] = new DrawIndexedIndirectCommand
+                {
+                    IndexCount = renderObj.GpuMesh?.IndexCount ?? 0,
+                    InstanceCount = 1,
+                    FirstIndex = 0,
+                    VertexOffset = 0,
+                    FirstInstance = 0
+                };
+            }
+
+            Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.GeometryCullingPipeline);
+            DescriptorSet[] geomSets = [Ctx.GeometryCullingSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
+            fixed (DescriptorSet* pGeomSets = geomSets)
+            {
+                Ctx.Vk!.CmdBindDescriptorSets(cmdBuffer, PipelineBindPoint.Compute, Ctx.GeometryCullingPipelineLayout,
+                    0,
+                    (uint)geomSets.Length, pGeomSets, 0, null);
+            }
+
+            var groupCountX = (objectCount + 63u) / 64u;
+            Ctx.Vk!.CmdDispatch(cmdBuffer, groupCountX, 1, 1);
+        }
+
         var computeToFragBarrier = new MemoryBarrier2
         {
             SType = StructureType.MemoryBarrier2,
             SrcStageMask = PipelineStageFlags2.ComputeShaderBit,
             SrcAccessMask = AccessFlags2.ShaderWriteBit,
-            DstStageMask = PipelineStageFlags2.FragmentShaderBit,
-            DstAccessMask = AccessFlags2.ShaderReadBit
+            DstStageMask = PipelineStageFlags2.FragmentShaderBit | PipelineStageFlags2.DrawIndirectBit,
+            DstAccessMask = AccessFlags2.ShaderReadBit | AccessFlags2.IndirectCommandReadBit
         };
 
         var computeToFragDependency = new DependencyInfo
@@ -304,9 +380,9 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
             var material = renderObject.Material;
             var passes = material?.Passes;
-            int passCount = passes != null && passes.Count > 0 ? passes.Count : 1;
+            var passCount = passes != null && passes.Count > 0 ? passes.Count : 1;
 
-            for (int passIdx = 0; passIdx < passCount; passIdx++)
+            for (var passIdx = 0; passIdx < passCount; passIdx++)
             {
                 VulkanMaterialPipeline materialPipeline;
                 if (material != null && passes != null && passes.Count > 0)
@@ -352,8 +428,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
                     lastVertexBuffer = gpuMesh.VertexBuffer;
                 }
 
-                DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
-                DescriptorSet objectMaterialSet1 = renderObject.DescriptorSets[Ctx.FrameIndex];
+                var lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
+                var objectMaterialSet1 = renderObject.DescriptorSets[Ctx.FrameIndex];
 
                 DescriptorSet[] descriptorSets = [lightingSet0, objectMaterialSet1];
 
@@ -371,7 +447,16 @@ internal unsafe class VulkanCommands : VulkanInjectable
                     );
                 }
 
-                Ctx.Vk.CmdDrawIndexed(cmdBuffer, gpuMesh.IndexCount, 1, 0, 0, 0);
+                var drawIdx = (uint)Ctx.RenderData.IndexOf(renderObject);
+                var indirectOffset = (ulong)(drawIdx * sizeof(DrawIndexedIndirectCommand));
+
+                Ctx.Vk.CmdDrawIndexedIndirect(
+                    cmdBuffer,
+                    Ctx.IndirectDrawBuffers[Ctx.FrameIndex],
+                    indirectOffset,
+                    1,
+                    (uint)sizeof(DrawIndexedIndirectCommand)
+                );
             }
         }
 
@@ -379,7 +464,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         if (hasScreenMaterial)
         {
-            Image srcImage = isMsaa ? Ctx.ResolveImage : Ctx.ColorImage;
+            var srcImage = isMsaa ? Ctx.ResolveImage : Ctx.ColorImage;
             TransitionImageLayout(
                 srcImage,
                 ImageLayout.ColorAttachmentOptimal,
@@ -391,11 +476,11 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 ImageAspectFlags.ColorBit
             );
 
-            int passCount = Ctx.CameraData.ScreenMaterial!.PassCount;
+            var passCount = Ctx.CameraData.ScreenMaterial!.PassCount;
 
-            for (int p = 0; p < passCount; p++)
+            for (var p = 0; p < passCount; p++)
             {
-                bool isFinalPass = p == passCount - 1;
+                var isFinalPass = p == passCount - 1;
                 ImageView targetView;
                 Extent2D targetExtent;
                 Image? targetImage = null;
@@ -475,8 +560,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
                     );
                 }
 
-                DescriptorSet lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
-                DescriptorSet screenMaterialSet1 = Ctx.ScreenDescriptorSets[p][Ctx.FrameIndex];
+                var lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
+                var screenMaterialSet1 = Ctx.ScreenDescriptorSets[p][Ctx.FrameIndex];
                 DescriptorSet[] descriptorSets = [lightingSet0, screenMaterialSet1];
 
                 fixed (DescriptorSet* pDescriptorSets = descriptorSets)
@@ -645,6 +730,17 @@ internal unsafe class VulkanCommands : VulkanInjectable
         };
 
         Ctx.Vk!.CmdPipelineBarrier2(Ctx.CommandBuffers![Ctx.FrameIndex], &dependencyInfo);
+    }
+
+
+    private static Matrix4x4 CreateVulkanOrthographic(float width, float height, float zNear, float zFar)
+    {
+        var m = Matrix4x4.Identity;
+        m.M11 = 2.0f / width;
+        m.M22 = -2.0f / height;
+        m.M33 = -1.0f / (zFar - zNear);
+        m.M43 = -zNear / (zFar - zNear);
+        return m;
     }
 
     #endregion

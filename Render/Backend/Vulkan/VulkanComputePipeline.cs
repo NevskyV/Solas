@@ -1,4 +1,3 @@
-using System.Reflection;
 using Silk.NET.Core.Native;
 using Silk.NET.Vulkan;
 
@@ -12,9 +11,9 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
         using var stream = assembly.GetManifestResourceStream("Solas.Render.StandardShaders.Embedded.LightCulling.spv")
                            ?? throw new FileNotFoundException("Light culling shader resource not found.");
 
-        byte[] computeCode = new byte[stream.Length];
+        var computeCode = new byte[stream.Length];
         stream.ReadExactly(computeCode);
-        ShaderModule shaderModule = CreateShaderModule(computeCode);
+        var shaderModule = CreateShaderModule(computeCode);
 
         DescriptorSetLayout[] setLayouts = [Ctx.LightingGlobalSet0Layout, Ctx.LightingFrameSet1Layout];
 
@@ -49,7 +48,7 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
             Layout = Ctx.LightCullingPipelineLayout
         };
 
-        Result res =
+        var res =
             Ctx.Vk!.CreateComputePipelines(Ctx.Device, default, 1, &pipelineInfo, null, out Ctx.LightCullingPipeline);
         if (res != Result.Success)
         {
@@ -58,6 +57,57 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
 
         Ctx.Vk!.DestroyShaderModule(Ctx.Device, shaderModule, null);
         SilkMarshal.Free((nint)stageInfo.PName);
+
+        using var geomStream =
+            assembly.GetManifestResourceStream("Solas.Render.StandardShaders.Embedded.GeometryCulling.spv")
+            ?? throw new FileNotFoundException("Geometry culling shader resource not found.");
+
+        var geomCode = new byte[geomStream.Length];
+        geomStream.ReadExactly(geomCode);
+        var geomShaderModule = CreateShaderModule(geomCode);
+
+        DescriptorSetLayout[] geomSetLayouts = [Ctx.GeometryCullingSet0Layout, Ctx.LightingFrameSet1Layout];
+
+        fixed (DescriptorSetLayout* pGeomSetLayouts = geomSetLayouts)
+        {
+            PipelineLayoutCreateInfo geomPipelineLayoutInfo = new()
+            {
+                SType = StructureType.PipelineLayoutCreateInfo,
+                SetLayoutCount = (uint)geomSetLayouts.Length,
+                PSetLayouts = pGeomSetLayouts
+            };
+
+            if (Ctx.Vk!.CreatePipelineLayout(Ctx.Device, &geomPipelineLayoutInfo, null,
+                    out Ctx.GeometryCullingPipelineLayout) != Result.Success)
+            {
+                throw new Exception("failed to create geometry culling pipeline layout!");
+            }
+        }
+
+        PipelineShaderStageCreateInfo geomStageInfo = new()
+        {
+            SType = StructureType.PipelineShaderStageCreateInfo,
+            Stage = ShaderStageFlags.ComputeBit,
+            Module = geomShaderModule,
+            PName = (byte*)SilkMarshal.StringToPtr("main")
+        };
+
+        ComputePipelineCreateInfo geomPipelineInfo = new()
+        {
+            SType = StructureType.ComputePipelineCreateInfo,
+            Stage = geomStageInfo,
+            Layout = Ctx.GeometryCullingPipelineLayout
+        };
+
+        var resGeom = Ctx.Vk!.CreateComputePipelines(Ctx.Device, default, 1, &geomPipelineInfo, null,
+            out Ctx.GeometryCullingPipeline);
+        if (resGeom != Result.Success)
+        {
+            throw new Exception($"failed to create geometry culling compute pipeline! Result = {resGeom}");
+        }
+
+        Ctx.Vk!.DestroyShaderModule(Ctx.Device, geomShaderModule, null);
+        SilkMarshal.Free((nint)geomStageInfo.PName);
     }
 
     private ShaderModule CreateShaderModule(byte[] code)
@@ -71,7 +121,7 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
                 PCode = (uint*)pCode
             };
 
-            if (Ctx.Vk!.CreateShaderModule(Ctx.Device, &createInfo, null, out ShaderModule shaderModule) !=
+            if (Ctx.Vk!.CreateShaderModule(Ctx.Device, &createInfo, null, out var shaderModule) !=
                 Result.Success)
             {
                 throw new Exception("failed to create shader module!");

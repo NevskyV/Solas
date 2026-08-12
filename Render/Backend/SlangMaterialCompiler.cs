@@ -13,12 +13,11 @@ public sealed class SlangMaterialCompiler
         ..Directory.GetDirectories(Query.GetPath("assets://"), "*", SearchOption.AllDirectories)
     ]);
 
-    private readonly IGlobalSession _globalSession;
     private readonly ISession _session;
 
-    public SlangMaterialCompiler(string[] shaderDirectories)
+    private SlangMaterialCompiler(string[] shaderDirectories)
     {
-        Slang.CreateGlobalSession(0, out _globalSession);
+        Slang.CreateGlobalSession(0, out var globalSession);
 
         var sessionDesc = new SessionDesc
         {
@@ -26,7 +25,7 @@ public sealed class SlangMaterialCompiler
             SearchPaths = shaderDirectories
         };
 
-        _globalSession.CreateSession(sessionDesc, out _session);
+        globalSession.CreateSession(sessionDesc, out _session);
     }
 
     public unsafe byte[] CompileToSpirv(Material material, int passIndex = 0)
@@ -65,22 +64,22 @@ public sealed class SlangMaterialCompiler
             if (mod.IsFragmentModifier) fragModules.Add(mod);
         }
 
-        string vertChain = BuildVertexGenericChain(vertModules);
-        string fragChain = BuildFragmentGenericChain(fragModules);
-        string masterModule = material.Domain switch
+        var vertChain = BuildVertexGenericChain(vertModules);
+        var fragChain = BuildFragmentGenericChain(fragModules);
+        var masterModule = material.Domain switch
         {
             MaterialDomain.TwoD => "Material2D",
             MaterialDomain.Screen => "MaterialScreen",
             _ => "Material3D"
         };
-        string bootstrapperCode =
+        var bootstrapperCode =
             BuildBootstrapper(masterModule, material.Modules, passModules, vertModules, fragModules, vertChain,
                 fragChain,
                 material.Domain);
 
         var blob = Slang.CreateBlob(Encoding.UTF8.GetBytes(bootstrapperCode));
 
-        string uniqueName = $"RuntimeLinker_{Guid.NewGuid():N}";
+        var uniqueName = $"RuntimeLinker_{Guid.NewGuid():N}";
         var customLinkerMod =
             _session.LoadModuleFromSource(uniqueName, $"{uniqueName}.slang", blob, out var diag1);
         CheckDiagnostics(diag1);
@@ -104,8 +103,8 @@ public sealed class SlangMaterialCompiler
         if (spirvBlob == null)
             throw new Exception("Slang GetTargetCode returned null.");
 
-        int size = (int)spirvBlob.GetBufferSize();
-        byte[] result = new ReadOnlySpan<byte>(spirvBlob.GetBufferPointer(), size).ToArray();
+        var size = (int)spirvBlob.GetBufferSize();
+        var result = new ReadOnlySpan<byte>(spirvBlob.GetBufferPointer(), size).ToArray();
 
         return result;
     }
@@ -114,11 +113,11 @@ public sealed class SlangMaterialCompiler
     {
         if (diagnosticsBlob != null)
         {
-            int size = (int)diagnosticsBlob.GetBufferSize();
+            var size = (int)diagnosticsBlob.GetBufferSize();
             if (size > 0)
             {
                 var span = new ReadOnlySpan<byte>(diagnosticsBlob.GetBufferPointer(), size);
-                string message = Encoding.UTF8.GetString(span);
+                var message = Encoding.UTF8.GetString(span);
 
                 if (message.Contains("error"))
                 {
@@ -135,8 +134,8 @@ public sealed class SlangMaterialCompiler
             return "ChainEndVertex";
         }
 
-        string result = "ChainEndVertex";
-        for (int i = modules.Count - 1; i >= 0; i--)
+        var result = "ChainEndVertex";
+        for (var i = modules.Count - 1; i >= 0; i--)
         {
             result = $"ChainNodeVertex<{modules[i].SlangModifierName}, {result}>";
         }
@@ -151,8 +150,8 @@ public sealed class SlangMaterialCompiler
             return "ChainEnd";
         }
 
-        string result = "ChainEnd";
-        for (int i = modules.Count - 1; i >= 0; i--)
+        var result = "ChainEnd";
+        for (var i = modules.Count - 1; i >= 0; i--)
         {
             result = $"ChainNode<{modules[i].SlangModifierName}, {result}>";
         }
@@ -176,7 +175,7 @@ public sealed class SlangMaterialCompiler
         }
 
         var moduleIndexMap = new Dictionary<ShaderModule, int>();
-        for (int i = 0; i < allModules.Count; i++)
+        for (var i = 0; i < allModules.Count; i++)
         {
             moduleIndexMap[allModules[i]] = i;
         }
@@ -190,7 +189,7 @@ public sealed class SlangMaterialCompiler
 
         var activeModules = domain == MaterialDomain.Screen ? passModules : allModules;
 
-        for (int i = 0; i < activeModules.Count; i++)
+        for (var i = 0; i < activeModules.Count; i++)
         {
             if (activeModules[i].SizeInBytes > 0)
             {
@@ -222,13 +221,13 @@ public sealed class SlangMaterialCompiler
             else
             {
                 sb.AppendLine($"    {vertChain} vertChainInstance;");
-                for (int k = 0; k < vertModules.Count; k++)
+                for (var k = 0; k < vertModules.Count; k++)
                 {
                     var mod = vertModules[k];
                     if (mod.SizeInBytes > 0)
                     {
-                        int targetIdx = domain == MaterialDomain.Screen ? k : moduleIndexMap[mod];
-                        string access = GetChainAccessPath(k);
+                        var targetIdx = moduleIndexMap[mod];
+                        var access = GetChainAccessPath(k);
                         sb.AppendLine($"    vertChainInstance.{access}.params = matUbo.modParams_{targetIdx};");
                     }
                 }
@@ -250,13 +249,13 @@ public sealed class SlangMaterialCompiler
         else
         {
             sb.AppendLine($"    {fragChain} fragChainInstance;");
-            for (int k = 0; k < fragModules.Count; k++)
+            for (var k = 0; k < fragModules.Count; k++)
             {
                 var mod = fragModules[k];
                 if (mod.SizeInBytes > 0)
                 {
-                    int targetIdx = domain == MaterialDomain.Screen ? k : moduleIndexMap[mod];
-                    string access = GetChainAccessPath(k);
+                    var targetIdx = domain == MaterialDomain.Screen ? k : moduleIndexMap[mod];
+                    var access = GetChainAccessPath(k);
                     sb.AppendLine($"    fragChainInstance.{access}.params = matUbo.modParams_{targetIdx};");
                 }
             }
@@ -280,7 +279,7 @@ public sealed class SlangMaterialCompiler
     {
         if (depth == 0) return "head";
         var sb = new StringBuilder();
-        for (int i = 0; i < depth; i++)
+        for (var i = 0; i < depth; i++)
         {
             sb.Append("tail.");
         }

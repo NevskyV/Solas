@@ -30,7 +30,7 @@ internal static unsafe class VulkanTextureLoader
             ImageUsageFlags.TransferSrcBit | ImageUsageFlags.TransferDstBit | ImageUsageFlags.SampledBit,
             MemoryPropertyFlags.DeviceLocalBit);
 
-        CommandBuffer cmd = Buffer.BeginSingleTimeCommands(ctx);
+        var cmd = Buffer.BeginSingleTimeCommands(ctx);
         TransitionLayout(ctx, cmd, image, ImageLayout.Undefined, ImageLayout.TransferDstOptimal, texture.MipLevels);
         CopyBufferToImage(ctx, cmd, stagingBuffer, image, texture.Width, texture.Height);
         GenerateMipMaps(ctx, cmd, image, Format.R8G8B8A8Srgb, (int)texture.Width, (int)texture.Height,
@@ -146,8 +146,8 @@ internal static unsafe class VulkanTextureLoader
                 { AspectMask = ImageAspectFlags.ColorBit, BaseArrayLayer = 0, LayerCount = 1, LevelCount = 1 }
         };
 
-        int mipWidth = width;
-        int mipHeight = height;
+        var mipWidth = width;
+        var mipHeight = height;
 
         for (uint i = 1; i < mipLevels; i++)
         {

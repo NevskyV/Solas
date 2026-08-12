@@ -38,7 +38,15 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
-        DescriptorSetLayoutBinding[] set0Bindings = [b0Lights, b1LightIndices, b2TileGrid, b3IndexCounter];
+        DescriptorSetLayoutBinding b4ShadowMap = new()
+        {
+            Binding = 4,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
+        };
+
+        DescriptorSetLayoutBinding[] set0Bindings = [b0Lights, b1LightIndices, b2TileGrid, b3IndexCounter, b4ShadowMap];
 
         fixed (DescriptorSetLayoutBinding* pBindings0 = set0Bindings)
         {
@@ -76,16 +84,50 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
         {
             throw new Exception("failed to create set 1 layout!");
         }
+
+        DescriptorSetLayoutBinding b0Objects = new()
+        {
+            Binding = 0,
+            DescriptorType = DescriptorType.StorageBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit
+        };
+
+        DescriptorSetLayoutBinding b1Indirect = new()
+        {
+            Binding = 1,
+            DescriptorType = DescriptorType.StorageBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit
+        };
+
+        DescriptorSetLayoutBinding[] geomBindings = [b0Objects, b1Indirect];
+        fixed (DescriptorSetLayoutBinding* pGeomBindings = geomBindings)
+        {
+            DescriptorSetLayoutCreateInfo createInfoGeom = new()
+            {
+                SType = StructureType.DescriptorSetLayoutCreateInfo,
+                BindingCount = (uint)geomBindings.Length,
+                PBindings = pGeomBindings
+            };
+
+            if (Ctx.Vk!.CreateDescriptorSetLayout(Ctx.Device, &createInfoGeom, null,
+                    out Ctx.GeometryCullingSet0Layout) != Result.Success)
+            {
+                throw new Exception("failed to create geom culling set 0 layout!");
+            }
+        }
     }
 
     internal void AllocateAndWriteSets()
     {
         Ctx.LightingGlobalSetsSet0 = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
         Ctx.LightingFrameSetsSet1 = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
+        Ctx.GeometryCullingSetsSet0 = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
 
-        for (int i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
+        for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
-            DescriptorSetLayout l0 = Ctx.LightingGlobalSet0Layout;
+            var l0 = Ctx.LightingGlobalSet0Layout;
             DescriptorSetAllocateInfo alloc0 = new()
             {
                 SType = StructureType.DescriptorSetAllocateInfo,
@@ -95,7 +137,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             };
             Ctx.Vk!.AllocateDescriptorSets(Ctx.Device, &alloc0, out Ctx.LightingGlobalSetsSet0[i]);
 
-            DescriptorSetLayout l1 = Ctx.LightingFrameSet1Layout;
+            var l1 = Ctx.LightingFrameSet1Layout;
             DescriptorSetAllocateInfo alloc1 = new()
             {
                 SType = StructureType.DescriptorSetAllocateInfo,
@@ -104,6 +146,16 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
                 PSetLayouts = &l1
             };
             Ctx.Vk!.AllocateDescriptorSets(Ctx.Device, &alloc1, out Ctx.LightingFrameSetsSet1[i]);
+
+            var lGeom = Ctx.GeometryCullingSet0Layout;
+            DescriptorSetAllocateInfo allocGeom = new()
+            {
+                SType = StructureType.DescriptorSetAllocateInfo,
+                DescriptorPool = Ctx.DescriptorPool,
+                DescriptorSetCount = 1,
+                PSetLayouts = &lGeom
+            };
+            Ctx.Vk!.AllocateDescriptorSets(Ctx.Device, &allocGeom, out Ctx.GeometryCullingSetsSet0[i]);
 
             DescriptorBufferInfo infoLights = new() { Buffer = Ctx.LightBuffers[i], Offset = 0, Range = Vk.WholeSize };
             DescriptorBufferInfo infoIndices = new()
@@ -147,6 +199,28 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
                 DescriptorCount = 1, DescriptorType = DescriptorType.UniformBuffer, PBufferInfo = &infoFrame
             };
             Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, 1, &wFrame, 0, null);
+
+            DescriptorBufferInfo infoObjects = new()
+                { Buffer = Ctx.ObjectDataBuffers[i], Offset = 0, Range = Vk.WholeSize };
+            DescriptorBufferInfo infoIndirect = new()
+                { Buffer = Ctx.IndirectDrawBuffers[i], Offset = 0, Range = Vk.WholeSize };
+
+            WriteDescriptorSet wGeom0 = new()
+            {
+                SType = StructureType.WriteDescriptorSet, DstSet = Ctx.GeometryCullingSetsSet0[i], DstBinding = 0,
+                DescriptorCount = 1, DescriptorType = DescriptorType.StorageBuffer, PBufferInfo = &infoObjects
+            };
+            WriteDescriptorSet wGeom1 = new()
+            {
+                SType = StructureType.WriteDescriptorSet, DstSet = Ctx.GeometryCullingSetsSet0[i], DstBinding = 1,
+                DescriptorCount = 1, DescriptorType = DescriptorType.StorageBuffer, PBufferInfo = &infoIndirect
+            };
+
+            WriteDescriptorSet[] writesGeom = [wGeom0, wGeom1];
+            fixed (WriteDescriptorSet* pWritesGeom = writesGeom)
+            {
+                Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, (uint)writesGeom.Length, pWritesGeom, 0, null);
+            }
         }
     }
 }

@@ -7,9 +7,9 @@ internal class VulkanColorResources : VulkanInjectable, IDisposable
 {
     internal unsafe void Create()
     {
-        Format colorFormat = Ctx.SwapChainSurfaceFormat.Format;
+        var colorFormat = Ctx.SwapChainSurfaceFormat.Format;
 
-        ImageUsageFlags colorUsage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
+        var colorUsage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
         if (Ctx.MsaaSamples == SampleCountFlags.Count1Bit)
         {
             colorUsage |= ImageUsageFlags.TransferSrcBit;
@@ -32,7 +32,7 @@ internal class VulkanColorResources : VulkanInjectable, IDisposable
             Ctx.ResolveImageView = ImageView.Create(Ctx, Ctx.ResolveImage, colorFormat, ImageAspectFlags.ColorBit, 1);
         }
 
-        ImageUsageFlags pingPongUsage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
+        var pingPongUsage = ImageUsageFlags.ColorAttachmentBit | ImageUsageFlags.SampledBit;
         (Ctx.ScreenPingImage, Ctx.ScreenPingImageMemory) = Image.Create(Ctx, Ctx.RenderExtent.Width,
             Ctx.RenderExtent.Height, 1,
             SampleCountFlags.Count1Bit, colorFormat, ImageTiling.Optimal,
@@ -47,7 +47,6 @@ internal class VulkanColorResources : VulkanInjectable, IDisposable
             MemoryPropertyFlags.DeviceLocalBit);
         Ctx.ScreenPongImageView = ImageView.Create(Ctx, Ctx.ScreenPongImage, colorFormat, ImageAspectFlags.ColorBit, 1);
 
-        Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice, out var pProperties);
         SamplerCreateInfo samplerInfo = new()
         {
             SType = StructureType.SamplerCreateInfo,

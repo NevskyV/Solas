@@ -20,9 +20,9 @@ internal static unsafe class VulkanBufferExtension
 
             ctx.Vk!.CreateBuffer(ctx.Device, &bufferCreateInfo, null, out var buffer);
 
-            MemoryRequirements memRequirements = ctx.Vk.GetBufferMemoryRequirements(ctx.Device, buffer);
+            var memRequirements = ctx.Vk.GetBufferMemoryRequirements(ctx.Device, buffer);
 
-            MemoryAllocateInfo memoryAllocateInfo = new MemoryAllocateInfo()
+            var memoryAllocateInfo = new MemoryAllocateInfo()
             {
                 SType = StructureType.MemoryAllocateInfo,
                 AllocationSize = memRequirements.Size,
@@ -89,7 +89,7 @@ internal static unsafe class VulkanBufferExtension
 
         internal static uint FindMemoryType(VulkanContext ctx, uint typeFilter, MemoryPropertyFlags properties)
         {
-            PhysicalDeviceMemoryProperties
+            var
                 memProperties = ctx.Vk!.GetPhysicalDeviceMemoryProperties(ctx.PhysicalDevice);
             for (var i = 0; i < memProperties.MemoryTypeCount; i++)
             {

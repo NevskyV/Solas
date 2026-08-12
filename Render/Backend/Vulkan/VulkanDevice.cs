@@ -18,12 +18,12 @@ internal unsafe class VulkanDevice : VulkanInjectable
             Ctx.Vk.GetPhysicalDeviceQueueFamilyProperties(Ctx.PhysicalDevice, &queueFamilyCount, pQueueFamilies);
         }
 
-        uint queueIndex = uint.MaxValue; // Equivalent to ~0 (all bits set to 1)
+        var queueIndex = uint.MaxValue; // Equivalent to ~0 (all bits set to 1)
 
         for (uint qfpIndex = 0; qfpIndex < (uint)queueFamilies.Length; qfpIndex++)
         {
             // Check if queue family supports graphics operations
-            bool supportsGraphicsAndCompute = queueFamilies[qfpIndex].QueueFlags
+            var supportsGraphicsAndCompute = queueFamilies[qfpIndex].QueueFlags
                 .HasFlag(QueueFlags.GraphicsBit | QueueFlags.ComputeBit);
 
             // Check if queue family supports presentation to the KHR surface
@@ -44,8 +44,8 @@ internal unsafe class VulkanDevice : VulkanInjectable
             throw new Exception("Could not find a queue for graphics and present -> terminating");
         }
 
-        int graphicsIndex = -1;
-        for (int i = 0; i < queueFamilies.Length; i++)
+        var graphicsIndex = -1;
+        for (var i = 0; i < queueFamilies.Length; i++)
         {
             if (queueFamilies[i].QueueFlags.HasFlag(QueueFlags.GraphicsBit))
             {
@@ -90,7 +90,7 @@ internal unsafe class VulkanDevice : VulkanInjectable
         };
 
         // 3. Define the queue creation properties
-        float queuePriority = 0.5f;
+        var queuePriority = 0.5f;
         var deviceQueueCreateInfo = new DeviceQueueCreateInfo
         {
             SType = StructureType.DeviceQueueCreateInfo,
@@ -100,8 +100,8 @@ internal unsafe class VulkanDevice : VulkanInjectable
         };
 
         // 4. Marshal C# strings to native null-terminated UTF-8 byte arrays
-        byte** ppEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(Ctx.RequiredDeviceExtensions);
-        uint enabledExtensionCount = (uint)Ctx.RequiredDeviceExtensions.Length;
+        var ppEnabledExtensionNames = (byte**)SilkMarshal.StringArrayToPtr(Ctx.RequiredDeviceExtensions);
+        var enabledExtensionCount = (uint)Ctx.RequiredDeviceExtensions.Length;
 
         // 5. Define logical device creation properties
         var deviceCreateInfo = new DeviceCreateInfo
@@ -118,7 +118,7 @@ internal unsafe class VulkanDevice : VulkanInjectable
         {
             // Create the logical device
             Device device;
-            Result result = Ctx.Vk.CreateDevice(Ctx.PhysicalDevice, &deviceCreateInfo, null, &device);
+            var result = Ctx.Vk.CreateDevice(Ctx.PhysicalDevice, &deviceCreateInfo, null, &device);
             if (result != Result.Success)
             {
                 throw new Exception($"Failed to create logical device: {result}");

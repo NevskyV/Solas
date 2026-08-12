@@ -1,4 +1,3 @@
-using System;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Components;
@@ -69,7 +68,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             for (uint b = 1; b <= 8; b++)
             {
                 TextureGpu gpuTex;
-                if (data.BoundGpuTextures.TryGetValue((int)b, out var customTex) && customTex != null)
+                if (data.BoundGpuTextures.TryGetValue((int)b, out var customTex))
                 {
                     gpuTex = customTex;
                 }
@@ -112,7 +111,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
 
     internal void FreeForObject(VulkanRenderData data)
     {
-        if (data.DescriptorSets == null || data.DescriptorSets.Length == 0) return;
+        if (data.DescriptorSets.Length == 0) return;
 
         fixed (DescriptorSet* pDescriptorSets = data.DescriptorSets)
         {
@@ -125,16 +124,16 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
     internal void CreateForScreen(Material screenMat, ImageView inputView, Sampler sampler,
         Silk.NET.Vulkan.Buffer[] uniformBuffers)
     {
-        int passCount = screenMat.PassCount;
+        var passCount = screenMat.PassCount;
         Ctx.ScreenDescriptorSets = new DescriptorSet[passCount][];
 
         const uint alignment = 256;
         uint passOffset = 0;
 
-        for (int p = 0; p < passCount; p++)
+        for (var p = 0; p < passCount; p++)
         {
-            uint passSize = (uint)screenMat.BuildPassUboData(p).Length;
-            uint paddedPassSize = (passSize + alignment - 1) & ~(alignment - 1);
+            var passSize = (uint)screenMat.BuildPassUboData(p).Length;
+            var paddedPassSize = (passSize + alignment - 1) & ~(alignment - 1);
             if (paddedPassSize == 0) paddedPassSize = alignment;
 
             Ctx.ScreenDescriptorSets[p] = new DescriptorSet[Ctx.Settings.MaxFramesInFlight];
@@ -247,11 +246,11 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
 
     internal void FreeForScreen()
     {
-        if (Ctx.ScreenDescriptorSets == null || Ctx.ScreenDescriptorSets.Length == 0) return;
+        if (Ctx.ScreenDescriptorSets.Length == 0) return;
 
-        for (int p = 0; p < Ctx.ScreenDescriptorSets.Length; p++)
+        for (var p = 0; p < Ctx.ScreenDescriptorSets.Length; p++)
         {
-            if (Ctx.ScreenDescriptorSets[p] != null && Ctx.ScreenDescriptorSets[p].Length > 0)
+            if (Ctx.ScreenDescriptorSets[p].Length > 0)
             {
                 fixed (DescriptorSet* pDescriptorSets = Ctx.ScreenDescriptorSets[p])
                 {

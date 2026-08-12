@@ -47,7 +47,7 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         PhysicalDeviceProperties properties;
         Ctx.Vk!.GetPhysicalDeviceProperties(device, &properties);
 
-        bool supportsVulkan13 = properties.ApiVersion >= Vk.Version13;
+        var supportsVulkan13 = properties.ApiVersion >= Vk.Version13;
 
         // 2. Check if any queue family supports graphics operations
         uint queueFamilyCount = 0;
@@ -58,7 +58,7 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
             Ctx.Vk.GetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, pQueueFamilies);
         }
 
-        bool supportsGraphics = queueFamilies.Any(q => q.QueueFlags.HasFlag(QueueFlags.GraphicsBit));
+        var supportsGraphics = queueFamilies.Any(q => q.QueueFlags.HasFlag(QueueFlags.GraphicsBit));
 
         // 3. Check if all required extensions are supported
         uint extensionCount = 0;
@@ -69,7 +69,7 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
             Ctx.Vk.EnumerateDeviceExtensionProperties(device, (byte*)null, &extensionCount, pAvailableExtensions);
         }
 
-        bool supportsAllRequiredExtensions = Ctx.RequiredDeviceExtensions.All(required =>
+        var supportsAllRequiredExtensions = Ctx.RequiredDeviceExtensions.All(required =>
             availableExtensions.Any(avail =>
             {
                 // Convert the fixed byte buffer of the extension name to a C# string
@@ -106,9 +106,9 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
 
         Ctx.Vk.GetPhysicalDeviceFeatures2(device, &features2);
 
-        bool supportsRequiredFeatures = vk11Features.ShaderDrawParameters && features2.Features.SamplerAnisotropy &&
-                                        vk13Features.DynamicRendering && vk13Features.Synchronization2 &&
-                                        extDynamicStateFeatures.ExtendedDynamicState;
+        var supportsRequiredFeatures = vk11Features.ShaderDrawParameters && features2.Features.SamplerAnisotropy &&
+                                       vk13Features.DynamicRendering && vk13Features.Synchronization2 &&
+                                       extDynamicStateFeatures.ExtendedDynamicState;
 
         return supportsVulkan13 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
     }
@@ -116,8 +116,8 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
     private SampleCountFlags GetMaxUsableSampleCount()
     {
         var physicalDeviceProperties = Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice);
-        SampleCountFlags counts = physicalDeviceProperties.Limits.FramebufferColorSampleCounts &
-                                  physicalDeviceProperties.Limits.FramebufferDepthSampleCounts;
+        var counts = physicalDeviceProperties.Limits.FramebufferColorSampleCounts &
+                     physicalDeviceProperties.Limits.FramebufferDepthSampleCounts;
 
         if ((counts & (SampleCountFlags)Ctx.Settings.Msaa) != 0)
         {

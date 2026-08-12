@@ -72,13 +72,13 @@ public sealed class Material(MaterialDomain domain) : Asset
         List<ShaderModule>? currentGroup = null;
         MaterialPass? currentPass = null;
 
-        for (int i = 0; i < _modules.Count; i++)
+        for (var i = 0; i < _modules.Count; i++)
         {
             var module = _modules[i];
-            bool startNewPass = currentPass == null ||
-                                module.RequiresSeparatePass ||
-                                (i > 0 && _modules[i - 1].RequiresSeparatePass) ||
-                                currentPass.Value.CullMode != module.RequiredCullMode;
+            var startNewPass = currentPass == null ||
+                               module.RequiresSeparatePass ||
+                               (i > 0 && _modules[i - 1].RequiresSeparatePass) ||
+                               currentPass.Value.CullMode != module.RequiredCullMode;
 
             if (startNewPass)
             {
@@ -98,18 +98,18 @@ public sealed class Material(MaterialDomain domain) : Asset
 
     public unsafe byte[] BuildCombinedUboData()
     {
-        int totalSize = 0;
+        var totalSize = 0;
 
         foreach (var module in _modules)
         {
             totalSize += module.SizeInBytes;
         }
 
-        byte[] buffer = new byte[totalSize];
+        var buffer = new byte[totalSize];
 
         fixed (byte* ptr = buffer)
         {
-            byte* currentPtr = ptr;
+            var currentPtr = ptr;
             foreach (var module in _modules)
             {
                 module.WriteToBuffer(currentPtr);
@@ -123,18 +123,18 @@ public sealed class Material(MaterialDomain domain) : Asset
     public unsafe byte[] BuildPassUboData(int passIndex)
     {
         var modules = GetModulesForPass(passIndex);
-        int totalSize = 0;
+        var totalSize = 0;
 
         foreach (var module in modules)
         {
             totalSize += module.SizeInBytes;
         }
 
-        byte[] buffer = new byte[totalSize];
+        var buffer = new byte[totalSize];
 
         fixed (byte* ptr = buffer)
         {
-            byte* currentPtr = ptr;
+            var currentPtr = ptr;
             foreach (var module in modules)
             {
                 module.WriteToBuffer(currentPtr);
@@ -147,23 +147,23 @@ public sealed class Material(MaterialDomain domain) : Asset
 
     public unsafe byte[] BuildScreenUboData(int passAlignment = 256)
     {
-        int totalSize = 0;
-        int passCount = PassCount;
+        var totalSize = 0;
+        var passCount = PassCount;
 
-        for (int p = 0; p < passCount; p++)
+        for (var p = 0; p < passCount; p++)
         {
-            int passSize = BuildPassUboData(p).Length;
-            int paddedPassSize = (passSize + passAlignment - 1) & ~(passAlignment - 1);
+            var passSize = BuildPassUboData(p).Length;
+            var paddedPassSize = (passSize + passAlignment - 1) & ~(passAlignment - 1);
             if (paddedPassSize == 0) paddedPassSize = passAlignment;
             totalSize += paddedPassSize;
         }
 
-        byte[] buffer = new byte[totalSize];
+        var buffer = new byte[totalSize];
 
         fixed (byte* ptr = buffer)
         {
-            byte* currentPtr = ptr;
-            for (int p = 0; p < passCount; p++)
+            var currentPtr = ptr;
+            for (var p = 0; p < passCount; p++)
             {
                 var passBytes = BuildPassUboData(p);
                 if (passBytes.Length > 0)
@@ -174,7 +174,7 @@ public sealed class Material(MaterialDomain domain) : Asset
                     }
                 }
 
-                int paddedPassSize = (passBytes.Length + passAlignment - 1) & ~(passAlignment - 1);
+                var paddedPassSize = (passBytes.Length + passAlignment - 1) & ~(passAlignment - 1);
                 if (paddedPassSize == 0) paddedPassSize = passAlignment;
                 currentPtr += paddedPassSize;
             }

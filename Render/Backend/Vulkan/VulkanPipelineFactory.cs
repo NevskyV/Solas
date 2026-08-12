@@ -40,7 +40,8 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
         return pipeline;
     }
 
-    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, int passIndex, string hash, CullMode cullMode,
+    private VulkanMaterialPipeline CreatePipelineForMaterial(Material? material, int passIndex, string hash,
+        CullMode cullMode,
         bool depthWrite)
     {
         byte[] spirvCode;
@@ -118,10 +119,10 @@ internal unsafe class VulkanPipelineFactory : VulkanInjectable
                 ScissorCount = 1
             };
 
-            bool isFront = cullMode == CullMode.Front;
-            bool enableStencil = !isScreen && material is { Passes.Count: > 1 };
+            var isFront = cullMode == CullMode.Front;
+            var enableStencil = !isScreen && material is { Passes.Count: > 1 };
 
-            StencilOpState stencilOp = isFront
+            var stencilOp = isFront
                 ? new StencilOpState
                 {
                     FailOp = StencilOp.Keep,

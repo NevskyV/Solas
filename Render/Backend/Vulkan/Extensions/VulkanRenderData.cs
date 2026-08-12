@@ -32,7 +32,7 @@ internal class VulkanRenderData
 
         foreach (var binding in Material.GetAllTextureBindings())
         {
-            int bindingIdx = binding.BindingIndex;
+            var bindingIdx = binding.BindingIndex;
             if (binding.Texture != null)
             {
                 var newId = binding.Texture.Id;

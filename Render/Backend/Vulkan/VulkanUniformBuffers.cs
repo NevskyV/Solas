@@ -1,4 +1,3 @@
-using System;
 using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
@@ -45,16 +44,16 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
     internal void Update(uint currentImage)
     {
-        Vector3 cameraPos = Ctx.CameraTransform.Position.Value;
-        Vector3 cameraRot = Ctx.CameraTransform.Rotation.Value;
-        Quaternion cameraQuat = cameraRot.ToQuaternion();
+        var cameraPos = Ctx.CameraTransform.Position.Value;
+        var cameraRot = Ctx.CameraTransform.Rotation.Value;
+        var cameraQuat = cameraRot.ToQuaternion();
 
-        Vector3 forward = Vector3.Transform(-Vector3.UnitZ, cameraQuat);
-        Vector3 up = Vector3.Transform(Vector3.UnitY, cameraQuat);
+        var forward = Vector3.Transform(-Vector3.UnitZ, cameraQuat);
+        var up = Vector3.Transform(Vector3.UnitY, cameraQuat);
 
         Ctx.CameraViewMatrix = Matrix4x4.CreateLookAt(cameraPos, cameraPos + forward, up);
 
-        float aspectRatio = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
+        var aspectRatio = (float)Ctx.RenderExtent.Width / Ctx.RenderExtent.Height;
 
         if (Ctx.CameraData.Type == CameraType.Perspective)
         {
@@ -77,18 +76,18 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
         Ctx.CameraProjectionMatrix.M22 *= -1;
 
-        float tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
-        float tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
+        var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
+        var tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
 
-        uint tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
-        uint tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
-        uint tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        var tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
+        var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
+        var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
 
-        bool isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
+        var isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
 
         foreach (var renderer in Ctx.RenderData)
         {
-            var activeLights = LightDataEventHandler.GetGpuLights(out uint directionalCount);
+            var activeLights = LightDataEventHandler.GetGpuLights(out var directionalCount);
 
             var ubo = new UniformBufferObject()
             {
@@ -114,7 +113,7 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
             if (extraBytes.Length > 0)
             {
-                byte* dstPtr = (byte*)data + sizeof(UniformBufferObject);
+                var dstPtr = (byte*)data + sizeof(UniformBufferObject);
                 fixed (byte* srcPtr = extraBytes)
                 {
                     System.Buffer.MemoryCopy(srcPtr, dstPtr, extraBytes.Length, extraBytes.Length);
@@ -144,7 +143,7 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
     internal void DestroyForScreen()
     {
-        if (Ctx.ScreenUniformBuffers == null || Ctx.ScreenUniformBuffers.Length == 0) return;
+        if (Ctx.ScreenUniformBuffers.Length == 0) return;
 
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {

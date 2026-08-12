@@ -12,7 +12,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
         Ctx.KhrSurface!.GetPhysicalDeviceSurfaceCapabilities(Ctx.PhysicalDevice, Ctx.Surface, &surfaceCapabilities);
 
         Ctx.SwapChainExtent = ChooseSwapExtent(surfaceCapabilities);
-        uint minImageCount = ChooseSwapMinImageCount(surfaceCapabilities);
+        var minImageCount = ChooseSwapMinImageCount(surfaceCapabilities);
 
         // Retrieve available surface formats
         uint formatCount = 0;
@@ -35,7 +35,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
                 pPresentModes);
         }
 
-        PresentModeKHR presentMode = ChooseSwapPresentMode(availablePresentModes);
+        var presentMode = ChooseSwapPresentMode(availablePresentModes);
 
         var swapChainCreateInfo = new SwapchainCreateInfoKHR
         {
@@ -89,7 +89,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
     internal void RecreateSwapChain()
     {
-        Vector2D<int> framebufferSize = Ctx.Window!.FramebufferSize;
+        var framebufferSize = Ctx.Window!.FramebufferSize;
 
         while (framebufferSize.X == 0 || framebufferSize.Y == 0)
         {
@@ -112,7 +112,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
     {
         Ctx.SwapChainImageViews = new ImageView[Ctx.SwapChainImages!.Length];
 
-        for (int i = 0; i < Ctx.SwapChainImages.Length; i++)
+        for (var i = 0; i < Ctx.SwapChainImages.Length; i++)
         {
             Ctx.SwapChainImageViews[i] =
                 ImageView.Create(Ctx, Ctx.SwapChainImages[i], Ctx.SwapChainSurfaceFormat.Format,
@@ -122,7 +122,7 @@ internal unsafe class VulkanSwapChain : VulkanInjectable, IDisposable
 
     private uint ChooseSwapMinImageCount(SurfaceCapabilitiesKHR surfaceCapabilities)
     {
-        uint minImageCount = Math.Max(3u, surfaceCapabilities.MinImageCount);
+        var minImageCount = Math.Max(3u, surfaceCapabilities.MinImageCount);
         if (surfaceCapabilities.MaxImageCount > 0 && surfaceCapabilities.MaxImageCount < minImageCount)
         {
             minImageCount = surfaceCapabilities.MaxImageCount;

@@ -3,11 +3,9 @@ using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
 using Silk.NET.Vulkan.Extensions.KHR;
 using Silk.NET.Windowing;
-using Solas.Render.Components;
 using Solas.Render.Data;
 using Solas.Render.Logics;
 using Solas.Render.Settings;
-using Solas.Render.Vulkan.Components;
 using Solas.Render.Vulkan.Extensions;
 using Solas.Transform;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -127,6 +125,10 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal DeviceMemory[] FrameParamsBuffersMemory = [];
     internal void*[] FrameParamsMappedPointers = [];
 
+    internal Buffer[] IndirectDrawBuffers = [];
+    internal DeviceMemory[] IndirectDrawBuffersMemory = [];
+    internal void*[] IndirectDrawMappedPointers = [];
+
     internal DescriptorSetLayout LightingGlobalSet0Layout;
     internal DescriptorSetLayout LightingFrameSet1Layout;
 
@@ -136,8 +138,17 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal Pipeline LightCullingPipeline;
     internal PipelineLayout LightCullingPipelineLayout;
 
+    internal Pipeline GeometryCullingPipeline;
+    internal PipelineLayout GeometryCullingPipelineLayout;
+    internal DescriptorSetLayout GeometryCullingSet0Layout;
+    internal DescriptorSet[] GeometryCullingSetsSet0 = [];
+    internal Buffer[] ObjectDataBuffers = [];
+    internal DeviceMemory[] ObjectDataBuffersMemory = [];
+    internal void*[] ObjectDataMappedPointers = [];
+
     internal Matrix4x4 CameraViewMatrix;
     internal Matrix4x4 CameraProjectionMatrix;
+    internal Matrix4x4 LightViewProjMatrix;
 
     internal Image ResolveImage;
     internal DeviceMemory ResolveImageMemory;
@@ -199,7 +210,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
             ComputeDescriptorSetLayout = default;
         }
 
-        for (int i = 0; i < Settings.MaxFramesInFlight; i++)
+        for (var i = 0; i < Settings.MaxFramesInFlight; i++)
         {
             Vk!.DestroyBuffer(Device, TileGridBuffers[i], null);
             Vk!.FreeMemory(Device, TileGridBuffersMemory[i], null);
@@ -244,7 +255,7 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
         foreach (var renderData in RenderData)
         {
-            for (int i = 0; i < renderData.UniformBuffersMemory.Length; i++)
+            for (var i = 0; i < renderData.UniformBuffersMemory.Length; i++)
             {
                 if (renderData.UniformBuffersMemory[i].Handle != 0)
                 {
@@ -266,12 +277,12 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         Vk!.DestroyDescriptorSetLayout(Device, DescriptorSetLayout, null);
         Vk!.DestroyDescriptorPool(Device, DescriptorPool, null);
 
-        for (int i = 0; i < RenderFinishedSemaphores!.Length; i++)
+        for (var i = 0; i < RenderFinishedSemaphores!.Length; i++)
         {
             Vk!.DestroySemaphore(Device, RenderFinishedSemaphores![i], null);
         }
 
-        for (int i = 0; i < Settings.MaxFramesInFlight; i++)
+        for (var i = 0; i < Settings.MaxFramesInFlight; i++)
         {
             Vk!.DestroySemaphore(Device, PresentCompleteSemaphores![i], null);
             Vk!.DestroyFence(Device, InFlightFences![i], null);

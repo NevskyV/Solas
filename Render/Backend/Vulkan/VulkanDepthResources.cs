@@ -19,13 +19,14 @@ internal unsafe class VulkanDepthResources : VulkanInjectable, IDisposable
             ImageUsageFlags.DepthStencilAttachmentBit,
             MemoryPropertyFlags.DeviceLocalBit);
 
-        ImageAspectFlags aspectFlags = ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit;
+        const ImageAspectFlags aspectFlags = ImageAspectFlags.DepthBit | ImageAspectFlags.StencilBit;
         Ctx.DepthImageView = ImageView.Create(Ctx, Ctx.DepthImage, Ctx.DepthFormat, aspectFlags, 1);
     }
 
     private Format FindDepthFormat()
     {
-        return FindSupportedFormat([Format.D24UnormS8Uint, Format.D32SfloatS8Uint, Format.D16UnormS8Uint, Format.D32Sfloat],
+        return FindSupportedFormat(
+            [Format.D24UnormS8Uint, Format.D32SfloatS8Uint, Format.D16UnormS8Uint, Format.D32Sfloat],
             ImageTiling.Optimal, FormatFeatureFlags.DepthStencilAttachmentBit);
     }
 

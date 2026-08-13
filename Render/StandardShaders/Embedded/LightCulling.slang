@@ -1,6 +1,7 @@
 module LightCulling;
 
 import LightData;
+import FrameParams;
 
 public struct TileGrid
 {
@@ -9,30 +10,10 @@ public struct TileGrid
 };
 
 [[vk::binding(0, 0)]] StructuredBuffer<Light> g_Lights;
+[[vk::binding(0, 1)]] ConstantBuffer<FrameParamsData> FrameParams;
 [[vk::binding(1, 0)]] RWStructuredBuffer<uint> g_GlobalLightIndices;
 [[vk::binding(2, 0)]] RWStructuredBuffer<TileGrid> g_TileGrid;
 [[vk::binding(3, 0)]] RWStructuredBuffer<uint> g_GlobalIndexCounter;
-
-struct FrameParamsData
-{
-    float4x4 LightViewProj;
-    float4 CameraPosition;
-    float4 CameraRight;
-    float4 CameraUp;
-    float4 CameraForward;
-    float4 ScreenResolution;
-    float4 TileCount;
-    uint TotalLightCount;
-    uint DirectionalLightCount;
-    float NearClip;
-    float FarClip;
-    uint IsOrthographic;
-    float TanHalfFovX;
-    float TanHalfFovY;
-    float _pad;
-};
-
-[[vk::binding(0, 1)]] ConstantBuffer<FrameParamsData> FrameParams;
 
 [shader("compute")]
 [numthreads(1, 1, 1)]

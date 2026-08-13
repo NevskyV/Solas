@@ -15,13 +15,20 @@ public struct UniformBuffer
     public float4x4 model;
     public float4x4 view;
     public float4x4 proj;
+    
+    public float3 camPos;
+    public float pad0;
+    
     public float4 tileCount;
+    
     public float tileSize;
     public float nearClip;
     public float farClip;
     public uint isOrthographic;
+    
     public uint totalLightCount;
     public uint directionalLightCount;
+    public float2 pad1;
 };
 
 [[vk::binding(0, 1)]] public ConstantBuffer<UniformBuffer> ubo;
@@ -59,5 +66,5 @@ public float4 fragMain<TFragChain : IFragmentChain>(VSOutput vertIn, TFragChain 
     float4 initialColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
     float3 N = normalize(vertIn.worldNormal);
 
-    return fragChain.ProcessChain(initialColor, vertIn.fragTexCoord, vertIn.worldPos, N);
+    return fragChain.ProcessChain(initialColor, vertIn.fragTexCoord, vertIn.worldPos, N, ubo.camPos);
 }

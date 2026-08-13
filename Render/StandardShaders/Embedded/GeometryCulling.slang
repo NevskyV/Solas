@@ -1,5 +1,7 @@
 module GeometryCulling;
 
+import FrameParams;
+
 public struct ObjectData
 {
     public float4 WorldCenterAndRadius;
@@ -16,26 +18,6 @@ public struct DrawIndexedIndirectCommand
 
 [[vk::binding(0, 0)]] StructuredBuffer<ObjectData> g_Objects;
 [[vk::binding(1, 0)]] RWStructuredBuffer<DrawIndexedIndirectCommand> g_IndirectCommands;
-
-struct FrameParamsData
-{
-    float4x4 LightViewProj;
-    float4 CameraPosition;
-    float4 CameraRight;
-    float4 CameraUp;
-    float4 CameraForward;
-    float4 ScreenResolution;
-    float4 TileCount;
-    uint TotalLightCount;
-    uint DirectionalLightCount;
-    float NearClip;
-    float FarClip;
-    uint IsOrthographic;
-    float TanHalfFovX;
-    float TanHalfFovY;
-    float _pad;
-};
-
 [[vk::binding(0, 1)]] ConstantBuffer<FrameParamsData> FrameParams;
 
 [shader("compute")]

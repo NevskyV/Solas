@@ -31,7 +31,7 @@ public interface IVertexModifier
 
 public interface IFragmentModifier
 {
-    float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal);
+    float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos);
 };
 
 public interface IVertexChain
@@ -41,7 +41,7 @@ public interface IVertexChain
 
 public interface IFragmentChain
 {
-    float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal);
+    float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos);
 };
 
 public struct ChainEndVertex : IVertexChain
@@ -65,7 +65,7 @@ public struct ChainNodeVertex<THead : IVertexModifier, TTail : IVertexChain> : I
 
 public struct ChainEnd : IFragmentChain
 {
-    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal)
+    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
         return inColor;
     }
@@ -73,7 +73,7 @@ public struct ChainEnd : IFragmentChain
 
 public struct ChainEndFragment : IFragmentChain
 {
-    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal)
+    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
         return inColor;
     }
@@ -83,10 +83,10 @@ public struct ChainNode<THead : IFragmentModifier, TTail : IFragmentChain> : IFr
 {
     public THead head;
     public TTail tail;
-    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal)
+    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
-        float4 c = head.ModifyColor(inColor, uv, worldPos, worldNormal);
-        return tail.ProcessChain(c, uv, worldPos, worldNormal);
+        float4 c = head.ModifyColor(inColor, uv, worldPos, worldNormal, camPos);
+        return tail.ProcessChain(c, uv, worldPos, worldNormal, camPos);
     }
 };
 
@@ -94,9 +94,9 @@ public struct ChainNodeFragment<THead : IFragmentModifier, TTail : IFragmentChai
 {
     public THead head;
     public TTail tail;
-    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal)
+    public float4 ProcessChain(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
-        float4 c = head.ModifyColor(inColor, uv, worldPos, worldNormal);
-        return tail.ProcessChain(c, uv, worldPos, worldNormal);
+        float4 c = head.ModifyColor(inColor, uv, worldPos, worldNormal, camPos);
+        return tail.ProcessChain(c, uv, worldPos, worldNormal, camPos);
     }
 };

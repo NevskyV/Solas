@@ -94,6 +94,7 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
                 Model = Matrix4x4.Transpose(renderer.Logic.GetModelMatrix()),
                 View = Matrix4x4.Transpose(Ctx.CameraViewMatrix),
                 Proj = Matrix4x4.Transpose(Ctx.CameraProjectionMatrix),
+                CamPos = Ctx.CameraTransform.Position.Value,
                 TileCount = new Vector4(tileCountX, tileCountY, tileCountZ, 0),
                 TileSize = tileSizeX,
                 NearClip = Ctx.CameraData.NearClipPlane,

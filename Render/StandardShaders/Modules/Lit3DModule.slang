@@ -48,6 +48,56 @@ public struct Lit3DModifier : IFragmentModifier
             float3 lightColor = dirLight.GetColor() * dirLight.GetIntensity();
             accumulatedLight += PBR(baseAlbedo, params.roughness, N, V, H, L, lightColor, params);
         }
+        
+        uint3 tileCount = uint3((uint)ubo.tileCount.x, (uint)ubo.tileCount.y, (uint)ubo.tileCount.z);
+        float nClip = max(ubo.nearClip, 0.001f);
+        float fClip = max(ubo.farClip, nClip + 0.001f);
+    
+        float4 viewPos4 = mul(ubo.view, float4(worldPos, 1.0f));
+        float depth = -viewPos4.z;
+        float4 clipPos = mul(ubo.proj, viewPos4);
+        float invW = 1.0f / clipPos.w;
+        float screenU = saturate(clipPos.x * invW * 0.5f + 0.5f);
+        float screenV = saturate(-clipPos.y * invW * 0.5f + 0.5f);
+    
+        uint tileX = min(uint(screenU * float(tileCount.x)), tileCount.x - 1u);
+        uint tileY = min(uint(screenV * float(tileCount.y)), tileCount.y - 1u);
+        uint sliceZ = 0u;
+        if (tileCount.z > 1u)
+        {
+            float depthClamped = clamp(depth, nClip, fClip);
+            float factor = log(depthClamped / nClip) / log(fClip / nClip);
+            sliceZ = min(uint(factor * float(tileCount.z)), tileCount.z - 1u);
+        }
+    
+        uint clusterIndex = tileX + tileY * tileCount.x + sliceZ * tileCount.x * tileCount.y;
+        TileGrid tile = g_TileGrid[clusterIndex];
+    
+        uint lightCount = tile.lightCount;
+        for (uint l = 0u; l < lightCount; ++l)
+        {
+            uint lightIndex = g_GlobalLightIndices[tile.lightOffset + l];
+            Light pointLight = g_Lights[lightIndex];
+    
+            float3 lightPos = pointLight.GetPosition();
+            float radius = pointLight.GetRadius();
+    
+            float3 lightDir = lightPos - worldPos;
+            float dist = length(lightDir);
+    
+            if (dist < radius && dist > 0.001f)
+            {
+                float3 L = lightDir / dist;
+                float NdotL = max(dot(N, L), 0.0f);
+                float attenuation = saturate(1.0f - (dist / radius) * (dist / radius));
+                float3 H = normalize(V + L);
+                            
+                float3 lightColor = pointLight.GetColor() * pointLight.GetIntensity() * attenuation;
+                accumulatedLight += PBR(baseAlbedo, params.roughness, N, V, H, L, lightColor, params);
+            }
+            
+        }
+        
         return float4(accumulatedLight, inColor.a);
     }
     

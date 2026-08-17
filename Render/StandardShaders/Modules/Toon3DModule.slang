@@ -18,7 +18,7 @@ public struct Toon3DModifier : IFragmentModifier
 {
     public Toon3DParams params;
 
-    public float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal)
+    public float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
         float stepsCount = params.steps >= 1.0f ? params.steps : 3.0f;
         float minBright = params.minBrightness >= 0.01f ? params.minBrightness : 0.25f;
@@ -97,19 +97,9 @@ public struct Toon3DModifier : IFragmentModifier
             if (dist < radius && dist > 0.0001f)
             {
                 float3 L = lightDir / dist;
-                float attenuation = saturate(1.0f - (dist / radius));
+                float attenuation = saturate(1.0f - (dist / radius) * (dist / radius));;
 
-                if (pointLight.GetLightType() == 1u)
-                {
-                    float innerAngleCos = pointLight.extra1.x;
-                    float outerAngleCos = pointLight.extra1.y;
-                    float3 spotDir = normalize(pointLight.extra0.xyz);
-                    float theta = dot(-L, spotDir);
-                    float spotFactor = smoothstep(outerAngleCos, innerAngleCos, theta);
-                    attenuation *= spotFactor;
-                }
-
-                float3 lightColor = pointLight.GetColor() * pointLight.GetIntensity();
+                float3 lightColor = pointLight.GetColor() * pointLight.GetIntensity() * attenuation;
 
                 float NdotL = saturate(dot(N, L));
                 float rawStep = NdotL * stepsCount;
@@ -118,7 +108,7 @@ public struct Toon3DModifier : IFragmentModifier
                 float smoothFactor = smoothstep(0.5f - edgeWidth, 0.5f + edgeWidth, stepFrac);
                 float toonNdotL = (stepIdx + smoothFactor) / stepsCount;
 
-                totalDiffuse += inColor.rgb * lightColor * toonNdotL * attenuation;
+                totalDiffuse += inColor.rgb * lightColor * toonNdotL;
 
                 if (enableSpecular > 0.5f)
                 {

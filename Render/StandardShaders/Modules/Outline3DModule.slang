@@ -24,7 +24,7 @@ public struct Outline3DModifier : IVertexModifier, IFragmentModifier
         return pos;
     }
 
-    public float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal)
+    public float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
         if (cullMode == 1)
         {

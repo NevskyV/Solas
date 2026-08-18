@@ -8,41 +8,43 @@ internal unsafe class VulkanDescriptorPool : VulkanInjectable
 
     internal void Create()
     {
-        var maxSets = Ctx.Settings.MaxFramesInFlight * MaxObjectsCapacity;
+        var frameCount = (uint)Ctx.Settings.MaxFramesInFlight;
+        var globalSetCount = frameCount * 3u;
+        var maxSets = frameCount * MaxObjectsCapacity + globalSetCount;
 
         DescriptorPoolSize[] poolSizes =
         [
             new()
             {
                 Type = DescriptorType.UniformBuffer,
-                DescriptorCount = maxSets,
+                DescriptorCount = maxSets * 2u + frameCount
             },
             new()
             {
                 Type = DescriptorType.CombinedImageSampler,
-                DescriptorCount = maxSets,
+                DescriptorCount = maxSets + frameCount * 2u
             },
             new()
             {
                 Type = DescriptorType.StorageBuffer,
-                DescriptorCount = Ctx.Settings.MaxFramesInFlight * 2u
+                DescriptorCount = frameCount * 10u
             }
         ];
 
-        fixed (DescriptorPoolSize* pPoolSizes = poolSizes)
+        fixed (DescriptorPoolSize* poolSizesPointer = poolSizes)
         {
-            DescriptorPoolCreateInfo poolInfo = new()
+            var poolInfo = new DescriptorPoolCreateInfo
             {
                 SType = StructureType.DescriptorPoolCreateInfo,
                 Flags = DescriptorPoolCreateFlags.FreeDescriptorSetBit,
                 MaxSets = maxSets,
                 PoolSizeCount = (uint)poolSizes.Length,
-                PPoolSizes = pPoolSizes
+                PPoolSizes = poolSizesPointer
             };
 
             if (Ctx.Vk!.CreateDescriptorPool(Ctx.Device, &poolInfo, null, out Ctx.DescriptorPool) != Result.Success)
             {
-                throw new Exception("failed to create descriptor pool!");
+                throw new InvalidOperationException("Failed to create the Vulkan descriptor pool.");
             }
         }
     }

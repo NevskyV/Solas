@@ -28,7 +28,9 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
         Ctx.LightBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.LightBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
-        Ctx.LightBuffersMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
+        Ctx.LightUploadBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.LightUploadBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.LightUploadBuffersMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
 
         Ctx.GlobalLightIndicesBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.GlobalLightIndicesBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
@@ -38,7 +40,6 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
         Ctx.GlobalIndexCounterBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.GlobalIndexCounterBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
-        Ctx.GlobalIndexCounterMappedPointers = new void*[Ctx.Settings.MaxFramesInFlight];
 
         Ctx.FrameParamsBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.FrameParamsBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
@@ -57,31 +58,39 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
-            var (lightBuf, lightMem) = Buffer.Create(Ctx, lightsSize, BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            var (lightBuf, lightMem) = Buffer.Create(
+                Ctx,
+                lightsSize,
+                BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
+                MemoryPropertyFlags.DeviceLocalBit);
             Ctx.LightBuffers[i] = lightBuf;
             Ctx.LightBuffersMemory[i] = lightMem;
-            void* pLight;
-            Ctx.Vk!.MapMemory(Ctx.Device, lightMem, 0, lightsSize, 0, &pLight);
-            Ctx.LightBuffersMappedPointers[i] = pLight;
+            var (lightUploadBuf, lightUploadMem) = Buffer.Create(
+                Ctx,
+                lightsSize,
+                BufferUsageFlags.TransferSrcBit,
+                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            Ctx.LightUploadBuffers[i] = lightUploadBuf;
+            Ctx.LightUploadBuffersMemory[i] = lightUploadMem;
+            void* pLightUpload;
+            Ctx.Vk!.MapMemory(Ctx.Device, lightUploadMem, 0, lightsSize, 0, &pLightUpload);
+            Ctx.LightUploadBuffersMappedPointers[i] = pLightUpload;
 
             var (indicesBuf, indicesMem) = Buffer.Create(Ctx, indicesSize, BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                MemoryPropertyFlags.DeviceLocalBit);
             Ctx.GlobalLightIndicesBuffers[i] = indicesBuf;
             Ctx.GlobalLightIndicesBuffersMemory[i] = indicesMem;
 
             var (gridBuf, gridMem) = Buffer.Create(Ctx, gridSize, BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+                MemoryPropertyFlags.DeviceLocalBit);
             Ctx.TileGridBuffers[i] = gridBuf;
             Ctx.TileGridBuffersMemory[i] = gridMem;
 
-            var (counterBuf, counterMem) = Buffer.Create(Ctx, counterSize, BufferUsageFlags.StorageBufferBit,
-                MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
+            var (counterBuf, counterMem) = Buffer.Create(Ctx, counterSize,
+                BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
+                MemoryPropertyFlags.DeviceLocalBit);
             Ctx.GlobalIndexCounterBuffers[i] = counterBuf;
             Ctx.GlobalIndexCounterBuffersMemory[i] = counterMem;
-            void* pCounter;
-            Ctx.Vk!.MapMemory(Ctx.Device, counterMem, 0, counterSize, 0, &pCounter);
-            Ctx.GlobalIndexCounterMappedPointers[i] = pCounter;
 
             var (frameBuf, frameMem) = Buffer.Create(Ctx, frameParamsSize, BufferUsageFlags.UniformBufferBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);

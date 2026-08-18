@@ -38,7 +38,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
-        DescriptorSetLayoutBinding b4ShadowMap = new()
+        DescriptorSetLayoutBinding b4ShadowDepthArray = new()
         {
             Binding = 4,
             DescriptorType = DescriptorType.CombinedImageSampler,
@@ -46,7 +46,35 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
-        DescriptorSetLayoutBinding[] set0Bindings = [b0Lights, b1LightIndices, b2TileGrid, b3IndexCounter, b4ShadowMap];
+        DescriptorSetLayoutBinding b5PointShadowCubeArray = new()
+        {
+            Binding = 5,
+            DescriptorType = DescriptorType.CombinedImageSampler,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
+        };
+
+        DescriptorSetLayoutBinding b6ShadowMatrices = new()
+        {
+            Binding = 6,
+            DescriptorType = DescriptorType.StorageBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
+        };
+
+        DescriptorSetLayoutBinding b7ShadowFrameParams = new()
+        {
+            Binding = 7,
+            DescriptorType = DescriptorType.UniformBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
+        };
+
+        DescriptorSetLayoutBinding[] set0Bindings =
+        [
+            b0Lights, b1LightIndices, b2TileGrid, b3IndexCounter, b4ShadowDepthArray, b5PointShadowCubeArray,
+            b6ShadowMatrices, b7ShadowFrameParams
+        ];
 
         fixed (DescriptorSetLayoutBinding* pBindings0 = set0Bindings)
         {
@@ -163,6 +191,22 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             DescriptorBufferInfo infoGrid = new() { Buffer = Ctx.TileGridBuffers[i], Offset = 0, Range = Vk.WholeSize };
             DescriptorBufferInfo infoCounter = new()
                 { Buffer = Ctx.GlobalIndexCounterBuffers[i], Offset = 0, Range = Vk.WholeSize };
+            DescriptorBufferInfo infoShadowMatrices = new()
+                { Buffer = Ctx.ShadowMatrixBuffers[i], Offset = 0, Range = Vk.WholeSize };
+            DescriptorBufferInfo infoShadowFrameParams = new()
+                { Buffer = Ctx.FrameParamsBuffers[i], Offset = 0, Range = Vk.WholeSize };
+            DescriptorImageInfo infoShadowDepthArray = new()
+            {
+                Sampler = Ctx.ShadowSampler,
+                ImageView = Ctx.ShadowDepthArrayView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal
+            };
+            DescriptorImageInfo infoPointShadowCubeArray = new()
+            {
+                Sampler = Ctx.ShadowSampler,
+                ImageView = Ctx.PointShadowCubeArrayView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal
+            };
 
             WriteDescriptorSet w0 = new()
             {
@@ -185,7 +229,45 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
                 DescriptorCount = 1, DescriptorType = DescriptorType.StorageBuffer, PBufferInfo = &infoCounter
             };
 
-            WriteDescriptorSet[] writes0 = [w0, w1, w2, w3];
+            WriteDescriptorSet w4 = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[i],
+                DstBinding = 4,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.CombinedImageSampler,
+                PImageInfo = &infoShadowDepthArray
+            };
+            WriteDescriptorSet w5 = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[i],
+                DstBinding = 5,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.CombinedImageSampler,
+                PImageInfo = &infoPointShadowCubeArray
+            };
+            WriteDescriptorSet w6 = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[i],
+                DstBinding = 6,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.StorageBuffer,
+                PBufferInfo = &infoShadowMatrices
+            };
+
+            WriteDescriptorSet w7 = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[i],
+                DstBinding = 7,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.UniformBuffer,
+                PBufferInfo = &infoShadowFrameParams
+            };
+
+            WriteDescriptorSet[] writes0 = [w0, w1, w2, w3, w4, w5, w6, w7];
             fixed (WriteDescriptorSet* pWrites0 = writes0)
             {
                 Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, (uint)writes0.Length, pWrites0, 0, null);
@@ -221,6 +303,73 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             {
                 Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, (uint)writesGeom.Length, pWritesGeom, 0, null);
             }
+        }
+    }
+
+    internal void UpdateShadowImageBindings()
+    {
+        for (var frame = 0; frame < Ctx.LightingGlobalSetsSet0.Length; frame++)
+        {
+            var depthImageInfo = new DescriptorImageInfo
+            {
+                Sampler = Ctx.ShadowSampler,
+                ImageView = Ctx.ShadowDepthArrayView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal
+            };
+            var cubeImageInfo = new DescriptorImageInfo
+            {
+                Sampler = Ctx.ShadowSampler,
+                ImageView = Ctx.PointShadowCubeArrayView,
+                ImageLayout = ImageLayout.ShaderReadOnlyOptimal
+            };
+            WriteDescriptorSet[] writes =
+            [
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.LightingGlobalSetsSet0[frame],
+                    DstBinding = 4,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.CombinedImageSampler,
+                    PImageInfo = &depthImageInfo
+                },
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.LightingGlobalSetsSet0[frame],
+                    DstBinding = 5,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.CombinedImageSampler,
+                    PImageInfo = &cubeImageInfo
+                }
+            ];
+            fixed (WriteDescriptorSet* writesPointer = writes)
+            {
+                Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, (uint)writes.Length, writesPointer, 0, null);
+            }
+        }
+    }
+
+    internal void UpdateShadowMatrixBindings()
+    {
+        for (var frame = 0; frame < Ctx.LightingGlobalSetsSet0.Length; frame++)
+        {
+            var matrixBufferInfo = new DescriptorBufferInfo
+            {
+                Buffer = Ctx.ShadowMatrixBuffers[frame],
+                Offset = 0,
+                Range = Vk.WholeSize
+            };
+            var write = new WriteDescriptorSet
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[frame],
+                DstBinding = 6,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.StorageBuffer,
+                PBufferInfo = &matrixBufferInfo
+            };
+            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, 1, &write, 0, null);
         }
     }
 }

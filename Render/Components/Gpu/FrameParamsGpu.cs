@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Solas.Render.Components;
 
-[StructLayout(LayoutKind.Sequential, Size = 192)]
+[StructLayout(LayoutKind.Sequential, Size = 224)]
 internal struct FrameParamsGpu
 {
     internal Matrix4x4 LightViewProj;
@@ -20,5 +20,13 @@ internal struct FrameParamsGpu
     internal uint IsOrthographic;
     internal float TanHalfFovX;
     internal float TanHalfFovY;
-    private float _pad;
+    internal float ShadowSplitLambda;
+    internal uint ShadowCascadeCount;
+    internal uint ShadowMapResolution;
+    internal float ShadowSpotPaddingDegrees;
+    internal uint ShadowMatrixCount;
+    internal float ShadowMaxDistance;
+    private float ShadowPadding0;
+    private float ShadowPadding1;
+    private float ShadowPadding2;
 }

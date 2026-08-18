@@ -29,6 +29,15 @@ internal unsafe class VulkanDescriptorSetLayout : VulkanInjectable
             });
         }
 
+        bindingsList.Add(new DescriptorSetLayoutBinding
+        {
+            Binding = 9,
+            DescriptorType = DescriptorType.UniformBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+            PImmutableSamplers = null
+        });
+
         DescriptorSetLayoutBinding[] bindings = [.. bindingsList];
 
         fixed (DescriptorSetLayoutBinding* pBindings = bindings)

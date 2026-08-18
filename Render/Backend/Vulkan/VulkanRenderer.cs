@@ -69,6 +69,8 @@ internal class VulkanRenderer : IRenderer
     private readonly VulkanDescriptorSets _descriptorSets = new();
     private readonly VulkanDepthResources _depthResources = new();
     private readonly VulkanColorResources _colorResources = new();
+    private readonly VulkanShadowResources _shadowResources = new();
+    private readonly VulkanShadowRenderer _shadowRenderer = new();
     private readonly VulkanResourceManager _resourceManager = new();
     private readonly VulkanComputePipeline _computePipeline = new();
     private readonly VulkanLightingResources _lightingResources = new();
@@ -79,10 +81,13 @@ internal class VulkanRenderer : IRenderer
         _context = new VulkanContext(window);
         _context.DepthResources = _depthResources;
         _context.ColorResources = _colorResources;
+        _context.ShadowResources = _shadowResources;
+        _context.ShadowRenderer = _shadowRenderer;
         _context.CameraTransform = cameraTransform;
         _context.CameraData = cameraData;
         _context.ResourceManager = _resourceManager;
         _context.LightingResources = _lightingResources;
+        _context.LightingDescriptors = _lightingDescriptors;
         _context.PipelineFactory = _pipelineFactory;
 
         _context.Settings = Query.GetSettings<GraphicsSettings>();
@@ -99,6 +104,7 @@ internal class VulkanRenderer : IRenderer
         _swapChain.CreateImageViews();
         _colorResources.Create();
         _depthResources.Create();
+        _shadowResources.Create();
 
         _lightingDescriptors.CreateLayouts();
         _descriptorSetLayout.Create();
@@ -111,6 +117,7 @@ internal class VulkanRenderer : IRenderer
         _descriptorPool.Create();
 
         _lightingDescriptors.AllocateAndWriteSets();
+        _shadowRenderer.Create();
 
         _commands.CreateCommandBuffers();
 
@@ -178,8 +185,8 @@ internal class VulkanRenderer : IRenderer
             {
                 _resourceManager.ReleaseMesh(logic.Mesh.Id);
             }
-            
-            renderData.GpuMesh = newMesh != null? _resourceManager.AcquireMesh(newMesh) : null;
+
+            renderData.GpuMesh = newMesh != null ? _resourceManager.AcquireMesh(newMesh) : null;
         });
     }
 

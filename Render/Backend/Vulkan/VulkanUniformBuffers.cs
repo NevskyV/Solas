@@ -17,7 +17,8 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         data.UniformBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
         var extraMaterialSize = (ulong)(data.Material?.BuildCombinedUboData().Length ?? 0);
-        var bufferSize = (ulong)sizeof(UniformBufferObject) + extraMaterialSize;
+        var materialParamsOffset = GetMaterialParamsOffset();
+        var bufferSize = materialParamsOffset + extraMaterialSize;
 
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
@@ -26,6 +27,15 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
             data.UniformBuffers[i] = buffer;
             data.UniformBuffersMemory[i] = bufferMem;
         }
+    }
+
+    private ulong GetMaterialParamsOffset()
+    {
+        var alignment =
+            Math.Max(Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice).Limits.MinUniformBufferOffsetAlignment,
+                1ul);
+        var baseSize = (ulong)sizeof(UniformBufferObject);
+        return (baseSize + alignment - 1ul) / alignment * alignment;
     }
 
     internal void DestroyForObject(VulkanRenderData data)
@@ -84,11 +94,10 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
         var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
 
         var isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
+        var activeLights = LightDataEventHandler.GetGpuLights(out var directionalCount);
 
         foreach (var renderer in Ctx.RenderData)
         {
-            var activeLights = LightDataEventHandler.GetGpuLights(out var directionalCount);
-
             var ubo = new UniformBufferObject()
             {
                 Model = Matrix4x4.Transpose(renderer.Logic.GetModelMatrix()),
@@ -105,7 +114,8 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
             };
 
             var extraBytes = renderer.Material?.BuildCombinedUboData() ?? [];
-            var totalSize = (ulong)sizeof(UniformBufferObject) + (ulong)extraBytes.Length;
+            var materialParamsOffset = GetMaterialParamsOffset();
+            var totalSize = materialParamsOffset + (ulong)extraBytes.Length;
 
             void* data;
             Ctx.Vk!.MapMemory(Ctx.Device, renderer.UniformBuffersMemory[currentImage], 0, totalSize, 0, &data);
@@ -114,7 +124,7 @@ internal unsafe class VulkanUniformBuffers : VulkanInjectable
 
             if (extraBytes.Length > 0)
             {
-                var dstPtr = (byte*)data + sizeof(UniformBufferObject);
+                var dstPtr = (byte*)data + materialParamsOffset;
                 fixed (byte* srcPtr = extraBytes)
                 {
                     System.Buffer.MemoryCopy(srcPtr, dstPtr, extraBytes.Length, extraBytes.Length);

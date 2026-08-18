@@ -16,5 +16,13 @@ public struct FrameParamsData
     public uint IsOrthographic;
     public float TanHalfFovX;
     public float TanHalfFovY;
-    public float _pad;
+    public float ShadowSplitLambda;
+    public uint ShadowCascadeCount;
+    public uint ShadowMapResolution;
+    public float ShadowSpotPaddingDegrees;
+    public uint ShadowMatrixCount;
+    public float ShadowMaxDistance;
+    private float ShadowPadding0;
+    private float ShadowPadding1;
+    private float ShadowPadding2;
 };

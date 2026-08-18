@@ -85,7 +85,7 @@ internal unsafe class VulkanDevice : VulkanInjectable
         var features2 = new PhysicalDeviceFeatures2
         {
             SType = StructureType.PhysicalDeviceFeatures2,
-            Features = { SamplerAnisotropy = true },
+            Features = { SamplerAnisotropy = true, ImageCubeArray = true },
             PNext = &vk11Features
         };
 

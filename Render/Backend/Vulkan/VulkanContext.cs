@@ -78,6 +78,27 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal ImageView ColorImageView;
     internal VulkanColorResources ColorResources = null!;
 
+    internal VulkanShadowResources ShadowResources = null!;
+    internal VulkanShadowRenderer ShadowRenderer = null!;
+    internal Image ShadowDepthArrayImage;
+    internal DeviceMemory ShadowDepthArrayMemory;
+    internal ImageView ShadowDepthArrayView;
+    internal ImageView[] ShadowDepthLayerViews = [];
+    internal Image PointShadowCubeArrayImage;
+    internal DeviceMemory PointShadowCubeArrayMemory;
+    internal ImageView PointShadowCubeArrayView;
+    internal ImageView[] PointShadowCubeViews = [];
+    internal ImageView[] PointShadowFaceViews = [];
+    internal Sampler ShadowSampler;
+    internal Buffer[] ShadowMatrixBuffers = [];
+    internal DeviceMemory[] ShadowMatrixBuffersMemory = [];
+    internal uint ShadowMatrixCapacity;
+    internal bool ShadowImagesInitialized;
+    internal Pipeline ShadowSetupPipeline;
+    internal PipelineLayout ShadowSetupPipelineLayout;
+    internal Pipeline ShadowDepthRigidPipeline;
+    internal PipelineLayout ShadowDepthRigidPipelineLayout;
+
     internal readonly Dictionary<MeshRenderLogic, VulkanRenderData> RenderDataMap = new();
     internal readonly List<VulkanRenderData> RenderData = [];
     internal VulkanResourceManager ResourceManager = null!;
@@ -95,16 +116,19 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal DeviceMemory[] ScreenUniformBuffersMemory = [];
     internal DescriptorSet[][] ScreenDescriptorSets = [];
     internal VulkanMaterialPipeline[] ScreenPipelines = [];
-    
+
     internal Pipeline ComputePipeline;
     internal PipelineLayout ComputePipelineLayout;
     internal DescriptorSetLayout ComputeDescriptorSetLayout;
 
     internal VulkanLightingResources LightingResources = null!;
+    internal VulkanLightingDescriptors LightingDescriptors = null!;
     internal VulkanPipelineFactory PipelineFactory = null!;
     internal Buffer[] LightBuffers = [];
     internal DeviceMemory[] LightBuffersMemory = [];
-    internal void*[] LightBuffersMappedPointers = [];
+    internal Buffer[] LightUploadBuffers = [];
+    internal DeviceMemory[] LightUploadBuffersMemory = [];
+    internal void*[] LightUploadBuffersMappedPointers = [];
 
     internal Buffer[] GlobalLightIndicesBuffers = [];
     internal DeviceMemory[] GlobalLightIndicesBuffersMemory = [];
@@ -114,7 +138,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     internal Buffer[] GlobalIndexCounterBuffers = [];
     internal DeviceMemory[] GlobalIndexCounterBuffersMemory = [];
-    internal void*[] GlobalIndexCounterMappedPointers = [];
 
     internal Buffer[] FrameParamsBuffers = [];
     internal DeviceMemory[] FrameParamsBuffersMemory = [];
@@ -174,6 +197,24 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
             LightCullingPipelineLayout = default;
         }
 
+        if (GeometryCullingPipeline.Handle != 0)
+        {
+            Vk!.DestroyPipeline(Device, GeometryCullingPipeline, null);
+            GeometryCullingPipeline = default;
+        }
+
+        if (GeometryCullingPipelineLayout.Handle != 0)
+        {
+            Vk!.DestroyPipelineLayout(Device, GeometryCullingPipelineLayout, null);
+            GeometryCullingPipelineLayout = default;
+        }
+
+        if (GeometryCullingSet0Layout.Handle != 0)
+        {
+            Vk!.DestroyDescriptorSetLayout(Device, GeometryCullingSet0Layout, null);
+            GeometryCullingSet0Layout = default;
+        }
+
         if (ComputePipeline.Handle != 0)
         {
             Vk!.DestroyPipeline(Device, ComputePipeline, null);
@@ -211,15 +252,21 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
             if (LightBuffersMemory != null && i < LightBuffersMemory.Length && LightBuffersMemory[i].Handle != 0)
             {
-                Vk!.UnmapMemory(Device, LightBuffersMemory[i]);
                 Vk!.DestroyBuffer(Device, LightBuffers[i], null);
                 Vk!.FreeMemory(Device, LightBuffersMemory[i], null);
+            }
+
+            if (LightUploadBuffersMemory != null && i < LightUploadBuffersMemory.Length &&
+                LightUploadBuffersMemory[i].Handle != 0)
+            {
+                Vk!.UnmapMemory(Device, LightUploadBuffersMemory[i]);
+                Vk!.DestroyBuffer(Device, LightUploadBuffers[i], null);
+                Vk!.FreeMemory(Device, LightUploadBuffersMemory[i], null);
             }
 
             if (GlobalIndexCounterBuffersMemory != null && i < GlobalIndexCounterBuffersMemory.Length &&
                 GlobalIndexCounterBuffersMemory[i].Handle != 0)
             {
-                Vk!.UnmapMemory(Device, GlobalIndexCounterBuffersMemory[i]);
                 Vk!.DestroyBuffer(Device, GlobalIndexCounterBuffers[i], null);
                 Vk!.FreeMemory(Device, GlobalIndexCounterBuffersMemory[i], null);
             }
@@ -238,6 +285,22 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
                 Vk!.DestroyBuffer(Device, GlobalLightIndicesBuffers[i], null);
                 Vk!.FreeMemory(Device, GlobalLightIndicesBuffersMemory[i], null);
             }
+
+            if (IndirectDrawBuffersMemory != null && i < IndirectDrawBuffersMemory.Length &&
+                IndirectDrawBuffersMemory[i].Handle != 0)
+            {
+                Vk!.UnmapMemory(Device, IndirectDrawBuffersMemory[i]);
+                Vk!.DestroyBuffer(Device, IndirectDrawBuffers[i], null);
+                Vk!.FreeMemory(Device, IndirectDrawBuffersMemory[i], null);
+            }
+
+            if (ObjectDataBuffersMemory != null && i < ObjectDataBuffersMemory.Length &&
+                ObjectDataBuffersMemory[i].Handle != 0)
+            {
+                Vk!.UnmapMemory(Device, ObjectDataBuffersMemory[i]);
+                Vk!.DestroyBuffer(Device, ObjectDataBuffers[i], null);
+                Vk!.FreeMemory(Device, ObjectDataBuffersMemory[i], null);
+            }
         }
 
         foreach (var renderData in RenderData)
@@ -255,10 +318,11 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         RenderDataMap.Clear();
         RenderData.Clear();
 
-        Array.Clear(LightBuffersMappedPointers, 0, LightBuffersMappedPointers.Length);
-        Array.Clear(GlobalIndexCounterMappedPointers, 0, GlobalIndexCounterMappedPointers.Length);
+        Array.Clear(LightUploadBuffersMappedPointers, 0, LightUploadBuffersMappedPointers.Length);
         Array.Clear(FrameParamsMappedPointers, 0, FrameParamsMappedPointers.Length);
 
+        ShadowRenderer.Dispose();
+        ShadowResources.Dispose();
         ResourceManager.Dispose();
 
         Vk!.DestroyDescriptorSetLayout(Device, DescriptorSetLayout, null);

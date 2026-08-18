@@ -46,7 +46,7 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
             {
                 Buffer = data.UniformBuffers![i],
                 Offset = 0,
-                Range = (ulong)sizeof(UniformBufferObject) + extraMaterialSize
+                Range = (ulong)sizeof(UniformBufferObject)
             };
 
             List<WriteDescriptorSet> writes =
@@ -62,6 +62,26 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                     PBufferInfo = &bufferInfo,
                 }
             ];
+
+            if (extraMaterialSize > 0)
+            {
+                DescriptorBufferInfo materialBufferInfo = new()
+                {
+                    Buffer = data.UniformBuffers[i],
+                    Offset = GetMaterialParamsOffset(),
+                    Range = extraMaterialSize
+                };
+                writes.Add(new WriteDescriptorSet
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = data.DescriptorSets[i],
+                    DstBinding = 9,
+                    DstArrayElement = 0,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.UniformBuffer,
+                    PBufferInfo = &materialBufferInfo
+                });
+            }
 
             List<DescriptorImageInfo> imageInfos = new();
 
@@ -107,6 +127,15 @@ internal unsafe class VulkanDescriptorSets : VulkanInjectable
                 Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, writesArray, []);
             }
         }
+    }
+
+    private ulong GetMaterialParamsOffset()
+    {
+        var alignment =
+            Math.Max(Ctx.Vk!.GetPhysicalDeviceProperties(Ctx.PhysicalDevice).Limits.MinUniformBufferOffsetAlignment,
+                1ul);
+        var baseSize = (ulong)sizeof(UniformBufferObject);
+        return (baseSize + alignment - 1ul) / alignment * alignment;
     }
 
     internal void FreeForObject(VulkanRenderData data)

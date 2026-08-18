@@ -1,6 +1,8 @@
+using System.Diagnostics;
 using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Settings;
 using Solas.Transform;
 using Solas.Transform.MathExtensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
@@ -9,6 +11,9 @@ namespace Solas.Render.Vulkan;
 
 internal unsafe class VulkanCommands : VulkanInjectable
 {
+    private const float ShadowCasterFrustumPadding = 20.0f;
+    private long _lastProfilingLogTimestamp;
+
     #region Command Pool
 
     internal void CreateCommandPool()
@@ -178,8 +183,6 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
         var frameIdx = Ctx.FrameIndex;
 
-        uint zeroCounter = 0;
-        System.Buffer.MemoryCopy(&zeroCounter, Ctx.GlobalIndexCounterMappedPointers[frameIdx], 4, 4);
 
         var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
         var tileSizeY = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.Y * 4f : Ctx.Settings.TileSize.Y;
@@ -196,14 +199,239 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var orthoHalfW = Ctx.CameraData.Size * aspectRatioCompute * 0.5f;
         var orthoHalfH = Ctx.CameraData.Size * 0.5f;
 
-        var activeLights = LightDataEventHandler.GetGpuLights(out var directionalCount);
+        var allLights = LightDataEventHandler.GetGpuLights(out _).ToArray();
+        var objectCount = (uint)Math.Min(Ctx.RenderData.Count, 4096);
+        var isProfilingEnabled = Query.GetSettings<CoreSettings>().IsProfilingEnabled;
+        var shouldWriteProfiling = false;
+        if (isProfilingEnabled)
+        {
+            var timestamp = Stopwatch.GetTimestamp();
+            shouldWriteProfiling = timestamp - _lastProfilingLogTimestamp >= Stopwatch.Frequency;
+            if (shouldWriteProfiling)
+            {
+                _lastProfilingLogTimestamp = timestamp;
+            }
+        }
+        else
+        {
+            _lastProfilingLogTimestamp = 0;
+        }
 
-        var camPos = Ctx.CameraTransform.Position.Value;
+        var cameraPosition = Ctx.CameraTransform.Position.Value;
+        var camPos = cameraPosition;
         var camRot = Ctx.CameraTransform.Rotation.Value;
         var camQuat = camRot.ToQuaternion();
         var camForward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, camQuat));
         var camUp = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, camQuat));
         var camRight = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, camQuat));
+        var shadowCullingFarDistance = MathF.Min(Ctx.Settings.ShadowMaxDistance, Ctx.CameraData.FarClipPlane);
+        var visibleLights = new List<LightGpu>(allLights.Length);
+        foreach (var light in allLights)
+        {
+            if (IsLightCameraVisible(
+                    light,
+                    camPos,
+                    camForward,
+                    camUp,
+                    camRight,
+                    isOrtho,
+                    tanHalfFovX,
+                    tanHalfFovY,
+                    orthoHalfW,
+                    orthoHalfH,
+                    Ctx.CameraData.NearClipPlane,
+                    Ctx.CameraData.FarClipPlane))
+            {
+                visibleLights.Add(light);
+            }
+        }
+
+        var activeLights = visibleLights.ToArray();
+        var directionalCount = (uint)activeLights.Count(light => (uint)light.PositionOrDirection.W == 2u);
+        var shadowCandidateIndices = new List<int>();
+        var shadowCasterCapacity = Ctx.ShadowResources.GetShadowedLightCapacityLimit();
+        var cascadeCount = Math.Min(Math.Max(Ctx.Settings.ShadowCascadeCount, 1u), 6u);
+        var maxDepthShadowLayers = cascadeCount + shadowCasterCapacity;
+        uint shadowMatrixCount = 0;
+        uint requestedShadowLightCount = 0;
+        uint requestedShadowMatrixCount = 0;
+        uint cameraVisibleShadowMatrixCount = 0;
+        uint requiredDepthShadowLayers = 0;
+        uint depthShadowLayerIndex = 0;
+        uint pointShadowCubeIndex = 0;
+
+        for (var lightIndex = 0; lightIndex < activeLights.Length; lightIndex++)
+        {
+            var light = activeLights[lightIndex];
+            var requestedShadow = light.ShadowParams.X >= 0.0f;
+            if (requestedShadow)
+            {
+                requestedShadowLightCount++;
+                var lightType = (uint)light.PositionOrDirection.W;
+                var requiredShadowRecords = lightType == 2u ? cascadeCount : lightType == 1u ? 1u : 6u;
+                requestedShadowMatrixCount += requiredShadowRecords;
+                if (IsLightCameraVisible(
+                        light,
+                        camPos,
+                        camForward,
+                        camUp,
+                        camRight,
+                        isOrtho,
+                        tanHalfFovX,
+                        tanHalfFovY,
+                        orthoHalfW,
+                        orthoHalfH,
+                        Ctx.CameraData.NearClipPlane,
+                        shadowCullingFarDistance))
+                {
+                    shadowCandidateIndices.Add(lightIndex);
+                    cameraVisibleShadowMatrixCount += requiredShadowRecords;
+                }
+            }
+
+            var shadowParams = light.ShadowParams;
+            shadowParams.X = -1.0f;
+            light.ShadowParams = shadowParams;
+            activeLights[lightIndex] = light;
+        }
+
+        shadowCandidateIndices.Sort((leftIndex, rightIndex) =>
+        {
+            var leftLight = activeLights[leftIndex];
+            var rightLight = activeLights[rightIndex];
+            var leftType = (uint)leftLight.PositionOrDirection.W;
+            var rightType = (uint)rightLight.PositionOrDirection.W;
+            var leftPriority = leftType == 2u ? 0 : leftType == 1u ? 1 : 2;
+            var rightPriority = rightType == 2u ? 0 : rightType == 1u ? 1 : 2;
+            var priorityComparison = leftPriority.CompareTo(rightPriority);
+            if (priorityComparison != 0)
+            {
+                return priorityComparison;
+            }
+
+            if (leftType == 2u)
+            {
+                return leftIndex.CompareTo(rightIndex);
+            }
+
+            var leftPosition = new Vector3(leftLight.PositionOrDirection.X, leftLight.PositionOrDirection.Y,
+                leftLight.PositionOrDirection.Z);
+            var rightPosition = new Vector3(rightLight.PositionOrDirection.X, rightLight.PositionOrDirection.Y,
+                rightLight.PositionOrDirection.Z);
+            var leftDistance = Vector3.DistanceSquared(cameraPosition, leftPosition);
+            var rightDistance = Vector3.DistanceSquared(cameraPosition, rightPosition);
+            return leftDistance.CompareTo(rightDistance);
+        });
+
+        uint selectedShadowCasterCount = 0;
+        foreach (var lightIndex in shadowCandidateIndices)
+        {
+            if (selectedShadowCasterCount >= shadowCasterCapacity)
+            {
+                break;
+            }
+
+            var light = activeLights[lightIndex];
+            var lightType = (uint)light.PositionOrDirection.W;
+            var requiredDepthLayersForLight = lightType == 2u ? cascadeCount : lightType == 1u ? 1u : 0u;
+            var requiredCubeMapsForLight = lightType == 0u ? 1u : 0u;
+            if (requiredDepthShadowLayers + requiredDepthLayersForLight > maxDepthShadowLayers ||
+                pointShadowCubeIndex + requiredCubeMapsForLight > shadowCasterCapacity)
+            {
+                continue;
+            }
+
+            var shadowParams = light.ShadowParams;
+            var extra1 = light.Extra1;
+            shadowParams.X = shadowMatrixCount;
+            if (lightType == 2u)
+            {
+                extra1.W = depthShadowLayerIndex;
+                shadowMatrixCount += cascadeCount;
+                requiredDepthShadowLayers += cascadeCount;
+                depthShadowLayerIndex += cascadeCount;
+            }
+            else if (lightType == 1u)
+            {
+                extra1.W = depthShadowLayerIndex;
+                shadowMatrixCount++;
+                requiredDepthShadowLayers++;
+                depthShadowLayerIndex++;
+            }
+            else
+            {
+                extra1.Z = pointShadowCubeIndex;
+                pointShadowCubeIndex++;
+                shadowMatrixCount += 6u;
+            }
+
+            light.ShadowParams = shadowParams;
+            light.Extra1 = extra1;
+            activeLights[lightIndex] = light;
+            selectedShadowCasterCount++;
+        }
+
+        Ctx.ShadowResources.EnsureShadowMapCapacity(requiredDepthShadowLayers, pointShadowCubeIndex);
+        Ctx.ShadowResources.EnsureShadowMatrixCapacity(shadowMatrixCount);
+
+        var shadowVisibleObjectIndices = CollectCameraVisibleObjectIndices(
+            objectCount,
+            camPos,
+            camForward,
+            camUp,
+            camRight,
+            isOrtho,
+            tanHalfFovX,
+            tanHalfFovY,
+            orthoHalfW,
+            orthoHalfH,
+            shadowCullingFarDistance);
+        var shadowCasterObjectIndices = CollectCameraVisibleObjectIndices(
+            objectCount,
+            camPos,
+            camForward,
+            camUp,
+            camRight,
+            isOrtho,
+            tanHalfFovX,
+            tanHalfFovY,
+            orthoHalfW,
+            orthoHalfH,
+            shadowCullingFarDistance + ShadowCasterFrustumPadding,
+            ShadowCasterFrustumPadding);
+        var visibleLightCount = (uint)activeLights.Length;
+        if (shouldWriteProfiling)
+        {
+            Debug.WriteLine(
+                $"[Vulkan Culling] Meshes: total={objectCount}, visible={shadowVisibleObjectIndices.Count}, culled={objectCount - (uint)shadowVisibleObjectIndices.Count}.");
+            Debug.WriteLine(
+                $"[Vulkan Culling] Lights: total={allLights.Length}, camera-visible={visibleLightCount}, culled={allLights.Length - visibleLightCount}.");
+            Debug.WriteLine(
+                $"[Vulkan Culling] Shadow casters: total={objectCount}, selected={shadowCasterObjectIndices.Count}, added-outside-camera={shadowCasterObjectIndices.Count - shadowVisibleObjectIndices.Count}.");
+            var clusterCount = (ulong)tileCountX * tileCountY * tileCountZ;
+            var localLightCount = (uint)Math.Max(0, activeLights.Length - (int)directionalCount);
+            Debug.WriteLine(
+                $"[Vulkan Culling] Clustered lighting: clusters={clusterCount}, local-lights={localLightCount}, candidate-tests={clusterCount * localLightCount}.");
+            Debug.WriteLine(
+                $"[Vulkan Culling] Shadows: requested-lights={requestedShadowLightCount}, camera-visible-lights={shadowCandidateIndices.Count}, selected-lights={selectedShadowCasterCount}, culled-lights={requestedShadowLightCount - selectedShadowCasterCount}, requested-maps={requestedShadowMatrixCount}, camera-visible-maps={cameraVisibleShadowMatrixCount}, rendered-maps={shadowMatrixCount}, culled-maps={requestedShadowMatrixCount - shadowMatrixCount}.");
+            var selectedShadowDescriptions = new List<string>();
+            for (var lightIndex = 0; lightIndex < activeLights.Length; lightIndex++)
+            {
+                var light = activeLights[lightIndex];
+                if (light.ShadowParams.X < 0.0f)
+                {
+                    continue;
+                }
+
+                selectedShadowDescriptions.Add(
+                    $"index={lightIndex}, type={(uint)light.PositionOrDirection.W}, matrix={light.ShadowParams.X}, bias={light.ShadowParams.Y:F4}, strength={light.ShadowParams.W:F3}");
+            }
+
+            Debug.WriteLine(
+                $"[Vulkan Culling] Selected shadow lights: {string.Join("; ", selectedShadowDescriptions)}.");
+            Debug.WriteLine(
+                $"[Vulkan Culling] Shadow depth draws: {shadowCasterObjectIndices.Count * shadowMatrixCount} direct indexed draws.");
+        }
 
         var lightViewProj = Matrix4x4.Identity;
         if (activeLights.Length > 0)
@@ -220,7 +448,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
             var upVector = MathF.Abs(Vector3.Dot(lightDir, Vector3.UnitY)) > 0.9f ? Vector3.UnitZ : Vector3.UnitY;
 
-            if ( Math.Abs(mainLight.PositionOrDirection.W - 2.0f) < 0.1)
+            if (Math.Abs(mainLight.PositionOrDirection.W - 2.0f) < 0.1)
             {
                 var focusPoint = Vector3.Zero;
                 lightPos = focusPoint - lightDir * 150.0f;
@@ -243,7 +471,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             CameraRight = new Vector4(camRight, 0.0f),
             CameraUp = new Vector4(camUp, 0.0f),
             CameraForward = new Vector4(camForward, 0.0f),
-            ScreenResolution = new Vector4(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, 0, 0),
+            ScreenResolution = new Vector4(Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, objectCount, 0),
             TileCount = new Vector4(tileCountX, tileCountY, tileCountZ, 0),
             TotalLightCount = (uint)activeLights.Length,
             DirectionalLightCount = directionalCount,
@@ -251,7 +479,13 @@ internal unsafe class VulkanCommands : VulkanInjectable
             FarClip = Ctx.CameraData.FarClipPlane,
             IsOrthographic = isOrtho ? 1u : 0u,
             TanHalfFovX = isOrtho ? orthoHalfW : tanHalfFovX,
-            TanHalfFovY = isOrtho ? orthoHalfH : tanHalfFovY
+            TanHalfFovY = isOrtho ? orthoHalfH : tanHalfFovY,
+            ShadowSplitLambda = Ctx.Settings.ShadowSplitLambda,
+            ShadowCascadeCount = Math.Min(Math.Max(Ctx.Settings.ShadowCascadeCount, 1u), 6u),
+            ShadowMapResolution = Math.Max(Ctx.Settings.ShadowMapResolution, 1u),
+            ShadowSpotPaddingDegrees = Ctx.Settings.ShadowSpotPaddingDegrees,
+            ShadowMatrixCount = shadowMatrixCount,
+            ShadowMaxDistance = Math.Min(Ctx.Settings.ShadowMaxDistance, Ctx.CameraData.FarClipPlane)
         };
 
 
@@ -259,36 +493,72 @@ internal unsafe class VulkanCommands : VulkanInjectable
             sizeof(FrameParamsGpu));
 
 
-        fixed (LightGpu* pLights = activeLights)
+        var lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
+        if (lightsSize > 0)
         {
-            var lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
-            System.Buffer.MemoryCopy(pLights, Ctx.LightBuffersMappedPointers[frameIdx], lightsSize, lightsSize);
+            fixed (LightGpu* pLights = activeLights)
+            {
+                System.Buffer.MemoryCopy(pLights, Ctx.LightUploadBuffersMappedPointers[frameIdx], lightsSize,
+                    lightsSize);
+            }
+
+            var lightCopy = new BufferCopy
+            {
+                SrcOffset = 0,
+                DstOffset = 0,
+                Size = lightsSize
+            };
+            Ctx.Vk!.CmdCopyBuffer(
+                cmdBuffer,
+                Ctx.LightUploadBuffers[frameIdx],
+                Ctx.LightBuffers[frameIdx],
+                1,
+                &lightCopy);
         }
 
         Ctx.Vk!.CmdFillBuffer(cmdBuffer, Ctx.GlobalIndexCounterBuffers[frameIdx], 0, sizeof(uint), 0);
 
-        var bufferBarrier = new BufferMemoryBarrier2
+        BufferMemoryBarrier2[] bufferBarriers =
+        [
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier2,
+                SrcStageMask = PipelineStageFlags2.TransferBit,
+                SrcAccessMask = AccessFlags2.TransferWriteBit,
+                DstStageMask = PipelineStageFlags2.ComputeShaderBit | PipelineStageFlags2.VertexShaderBit |
+                               PipelineStageFlags2.FragmentShaderBit,
+                DstAccessMask = AccessFlags2.ShaderReadBit,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Buffer = Ctx.LightBuffers[frameIdx],
+                Offset = 0,
+                Size = Vk.WholeSize
+            },
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier2,
+                SrcStageMask = PipelineStageFlags2.TransferBit,
+                SrcAccessMask = AccessFlags2.TransferWriteBit,
+                DstStageMask = PipelineStageFlags2.ComputeShaderBit,
+                DstAccessMask = AccessFlags2.ShaderReadBit | AccessFlags2.ShaderWriteBit,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Buffer = Ctx.GlobalIndexCounterBuffers[frameIdx],
+                Offset = 0,
+                Size = sizeof(uint)
+            }
+        ];
+        fixed (BufferMemoryBarrier2* bufferBarriersPointer = bufferBarriers)
         {
-            SType = StructureType.BufferMemoryBarrier2,
-            SrcStageMask = PipelineStageFlags2.TransferBit,
-            SrcAccessMask = AccessFlags2.TransferWriteBit,
-            DstStageMask = PipelineStageFlags2.ComputeShaderBit,
-            DstAccessMask = AccessFlags2.ShaderReadBit | AccessFlags2.ShaderWriteBit,
-            SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
-            Buffer = Ctx.GlobalIndexCounterBuffers[frameIdx],
-            Offset = 0,
-            Size = sizeof(uint)
-        };
+            DependencyInfo dependencyInfo = new()
+            {
+                SType = StructureType.DependencyInfo,
+                BufferMemoryBarrierCount = (uint)bufferBarriers.Length,
+                PBufferMemoryBarriers = bufferBarriersPointer
+            };
 
-        DependencyInfo dependencyInfo = new()
-        {
-            SType = StructureType.DependencyInfo,
-            BufferMemoryBarrierCount = 1,
-            PBufferMemoryBarriers = &bufferBarrier
-        };
-
-        Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+            Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
+        }
 
         Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipeline);
         DescriptorSet[] computeSets = [Ctx.LightingGlobalSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
@@ -300,7 +570,6 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, tileCountZ);
 
-        var objectCount = (uint)Math.Min(Ctx.RenderData.Count, 4096);
         if (objectCount > 0)
         {
             var pObjectDataMap = (ObjectDataGpu*)Ctx.ObjectDataMappedPointers[frameIdx];
@@ -330,6 +599,36 @@ internal unsafe class VulkanCommands : VulkanInjectable
                     VertexOffset = 0,
                     FirstInstance = 0
                 };
+            }
+
+            var shadowContentHash = ComputeShadowContentHash(
+                activeLights,
+                shadowCasterObjectIndices,
+                camPos,
+                camForward,
+                camUp,
+                camRight,
+                shadowMatrixCount,
+                cascadeCount,
+                isOrtho,
+                Ctx.CameraData.NearClipPlane,
+                Ctx.CameraData.FarClipPlane,
+                Ctx.Settings.ShadowSplitLambda,
+                shadowCullingFarDistance,
+                tanHalfFovX,
+                tanHalfFovY,
+                orthoHalfW,
+                orthoHalfH);
+            var shadowMapsUpdated = Ctx.ShadowRenderer.Record(
+                cmdBuffer,
+                shadowVisibleObjectIndices.Count > 0 ? shadowCasterObjectIndices : Array.Empty<int>(),
+                shadowMatrixCount,
+                activeLights,
+                shadowContentHash);
+            if (shouldWriteProfiling)
+            {
+                Debug.WriteLine(
+                    $"[Vulkan Culling] Shadow maps: {(shadowMapsUpdated ? "updated" : "reused")}, visible-receivers={shadowVisibleObjectIndices.Count}, selected-casters={shadowCasterObjectIndices.Count}, rendered-maps={shadowMatrixCount}.");
             }
 
             Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.GeometryCullingPipeline);
@@ -381,7 +680,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             var material = renderObject.Material;
             var passes = material?.Passes;
             var passCount = passes is { Count: > 0 } ? passes.Count : 1;
-            
+
             if (material is { Passes.Count: > 1 })
             {
                 var clearStencil = new ClearAttachment
@@ -707,6 +1006,253 @@ internal unsafe class VulkanCommands : VulkanInjectable
         {
             throw new Exception("Failed to end command buffer");
         }
+    }
+
+    private ulong ComputeShadowContentHash(
+        ReadOnlySpan<LightGpu> lights,
+        IReadOnlyList<int> renderObjectIndices,
+        Vector3 cameraPosition,
+        Vector3 cameraForward,
+        Vector3 cameraUp,
+        Vector3 cameraRight,
+        uint shadowMatrixCount,
+        uint cascadeCount,
+        bool isOrthographic,
+        float nearDistance,
+        float farDistance,
+        float splitLambda,
+        float shadowDistance,
+        float tanHalfFovX,
+        float tanHalfFovY,
+        float orthographicHalfWidth,
+        float orthographicHalfHeight)
+    {
+        var hash = 14695981039346656037ul;
+        hash = AddHashValue(hash, shadowMatrixCount);
+        hash = AddHashValue(hash, cascadeCount);
+        hash = AddHashValue(hash, isOrthographic ? 1u : 0u);
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(nearDistance));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(farDistance));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(splitLambda));
+        hash = AddHashVector3(hash, cameraPosition);
+        hash = AddHashVector3(hash, cameraForward);
+        hash = AddHashVector3(hash, cameraUp);
+        hash = AddHashVector3(hash, cameraRight);
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(shadowDistance));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(tanHalfFovX));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(tanHalfFovY));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(orthographicHalfWidth));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(orthographicHalfHeight));
+
+        foreach (var light in lights)
+        {
+            if (light.ShadowParams.X < 0.0f)
+            {
+                continue;
+            }
+
+            hash = AddHashVector4(hash, light.PositionOrDirection);
+            hash = AddHashVector4(hash, light.ColorIntensity);
+            hash = AddHashVector4(hash, light.ShadowParams);
+            hash = AddHashVector4(hash, light.Extra0);
+            hash = AddHashVector4(hash, light.Extra1);
+        }
+
+        foreach (var objectIndex in renderObjectIndices)
+        {
+            hash = AddHashValue(hash, (uint)objectIndex);
+            hash = AddHashMatrix(hash, Ctx.RenderData[objectIndex].Logic.GetModelMatrix());
+        }
+
+        return hash;
+    }
+
+    private static ulong AddHashMatrix(ulong hash, Matrix4x4 matrix)
+    {
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M11));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M12));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M13));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M14));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M21));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M22));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M23));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M24));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M31));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M32));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M33));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M34));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M41));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M42));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M43));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(matrix.M44));
+        return hash;
+    }
+
+    private static ulong AddHashVector3(ulong hash, Vector3 value)
+    {
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.X));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.Y));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.Z));
+        return hash;
+    }
+
+    private static ulong AddHashVector4(ulong hash, Vector4 value)
+    {
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.X));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.Y));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.Z));
+        hash = AddHashValue(hash, BitConverter.SingleToUInt32Bits(value.W));
+        return hash;
+    }
+
+    private static ulong AddHashValue(ulong hash, uint value)
+    {
+        return (hash ^ value) * 1099511628211ul;
+    }
+
+    private List<int> CollectCameraVisibleObjectIndices(
+        uint objectCount,
+        Vector3 cameraPosition,
+        Vector3 cameraForward,
+        Vector3 cameraUp,
+        Vector3 cameraRight,
+        bool isOrthographic,
+        float tanHalfFovX,
+        float tanHalfFovY,
+        float orthographicHalfWidth,
+        float orthographicHalfHeight,
+        float farDistance,
+        float frustumPadding = 0.0f)
+    {
+        var visibleObjectIndices = new List<int>((int)objectCount);
+        for (var objectIndex = 0; objectIndex < objectCount; objectIndex++)
+        {
+            var renderObject = Ctx.RenderData[objectIndex];
+            if (renderObject.GpuMesh == null)
+            {
+                continue;
+            }
+
+            var modelMatrix = renderObject.Logic.GetModelMatrix();
+            var localCenter = renderObject.Logic.Mesh?.BoundingCenter ?? Vector3.Zero;
+            var localRadius = renderObject.Logic.Mesh?.BoundingRadius ?? 5.0f;
+            var worldCenter = Vector3.Transform(localCenter, modelMatrix);
+            var scale = renderObject.Logic.Entity.GetData<TransformData>()?.Scale.Value ?? Vector3.One;
+            var worldRadius = localRadius * MathF.Max(scale.X, MathF.Max(scale.Y, scale.Z));
+            var toObject = worldCenter - cameraPosition;
+            var depth = Vector3.Dot(toObject, cameraForward);
+
+            if (depth + worldRadius + frustumPadding < Ctx.CameraData.NearClipPlane ||
+                depth - worldRadius - frustumPadding > farDistance)
+            {
+                continue;
+            }
+
+            var horizontal = MathF.Abs(Vector3.Dot(toObject, cameraRight));
+            var vertical = MathF.Abs(Vector3.Dot(toObject, cameraUp));
+            if (isOrthographic)
+            {
+                if (horizontal - worldRadius > orthographicHalfWidth + frustumPadding ||
+                    vertical - worldRadius > orthographicHalfHeight + frustumPadding)
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                var visibleDepth = MathF.Max(depth, 0.0f);
+                if (horizontal - worldRadius > visibleDepth * tanHalfFovX + frustumPadding ||
+                    vertical - worldRadius > visibleDepth * tanHalfFovY + frustumPadding)
+                {
+                    continue;
+                }
+            }
+
+            visibleObjectIndices.Add(objectIndex);
+        }
+
+        return visibleObjectIndices;
+    }
+
+    private static uint CountCameraVisibleLights(
+        ReadOnlySpan<LightGpu> lights,
+        Vector3 cameraPosition,
+        Vector3 cameraForward,
+        Vector3 cameraUp,
+        Vector3 cameraRight,
+        bool isOrthographic,
+        float tanHalfFovX,
+        float tanHalfFovY,
+        float orthographicHalfWidth,
+        float orthographicHalfHeight,
+        float nearDistance,
+        float farDistance)
+    {
+        uint visibleLightCount = 0;
+        foreach (var light in lights)
+        {
+            if (IsLightCameraVisible(
+                    light,
+                    cameraPosition,
+                    cameraForward,
+                    cameraUp,
+                    cameraRight,
+                    isOrthographic,
+                    tanHalfFovX,
+                    tanHalfFovY,
+                    orthographicHalfWidth,
+                    orthographicHalfHeight,
+                    nearDistance,
+                    farDistance))
+            {
+                visibleLightCount++;
+            }
+        }
+
+        return visibleLightCount;
+    }
+
+    private static bool IsLightCameraVisible(
+        LightGpu light,
+        Vector3 cameraPosition,
+        Vector3 cameraForward,
+        Vector3 cameraUp,
+        Vector3 cameraRight,
+        bool isOrthographic,
+        float tanHalfFovX,
+        float tanHalfFovY,
+        float orthographicHalfWidth,
+        float orthographicHalfHeight,
+        float nearDistance,
+        float farDistance)
+    {
+        var lightType = (uint)light.PositionOrDirection.W;
+        if (lightType == 2u)
+        {
+            return true;
+        }
+
+        var lightPosition = new Vector3(light.PositionOrDirection.X, light.PositionOrDirection.Y,
+            light.PositionOrDirection.Z);
+        var lightRadius = lightType == 1u ? light.Extra0.W : light.Extra0.X;
+        var toLight = lightPosition - cameraPosition;
+        var depth = Vector3.Dot(toLight, cameraForward);
+        if (depth + lightRadius < nearDistance || depth - lightRadius > farDistance)
+        {
+            return false;
+        }
+
+        var horizontal = MathF.Abs(Vector3.Dot(toLight, cameraRight));
+        var vertical = MathF.Abs(Vector3.Dot(toLight, cameraUp));
+        if (isOrthographic)
+        {
+            return horizontal - lightRadius <= orthographicHalfWidth &&
+                   vertical - lightRadius <= orthographicHalfHeight;
+        }
+
+        var visibleDepth = MathF.Max(depth, 0.0f);
+        return horizontal - lightRadius <= visibleDepth * tanHalfFovX &&
+               vertical - lightRadius <= visibleDepth * tanHalfFovY;
     }
 
     private void TransitionImageLayout(

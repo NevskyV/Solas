@@ -23,6 +23,12 @@ public class GraphicsSettings : IData
     public float AnisotropyLevel = 16.0f;
     public bool SupportsHdr = false;
     public Vector3 TileSize = new(16, 16, 16);
+    public uint ShadowMapResolution = 3072;
+    public uint ShadowCascadeCount = 4;
+    public float ShadowSplitLambda = 0.7f;
+    public float ShadowMaxDistance = 120.0f;
+    public float ShadowSpotPaddingDegrees = 4.0f;
+    public uint MaxShadowedLights = 2;
 
     #endregion
 

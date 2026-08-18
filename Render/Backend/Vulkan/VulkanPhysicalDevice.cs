@@ -107,7 +107,8 @@ internal unsafe class VulkanPhysicalDevice : VulkanInjectable
         Ctx.Vk.GetPhysicalDeviceFeatures2(device, &features2);
 
         var supportsRequiredFeatures = vk11Features.ShaderDrawParameters && features2.Features.SamplerAnisotropy &&
-                                       vk13Features.DynamicRendering && vk13Features.Synchronization2 &&
+                                       features2.Features.ImageCubeArray && vk13Features.DynamicRendering &&
+                                       vk13Features.Synchronization2 &&
                                        extDynamicStateFeatures.ExtendedDynamicState;
 
         return supportsVulkan13 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;

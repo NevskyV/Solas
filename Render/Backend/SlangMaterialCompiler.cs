@@ -8,6 +8,7 @@ public sealed class SlangMaterialCompiler
 {
     public static readonly SlangMaterialCompiler Instance = new(
     [
+        Path.Combine(AppContext.BaseDirectory, "StandardShaders", "Embedded"),
         Path.Combine(AppContext.BaseDirectory, "StandardShaders"),
         Path.Combine(AppContext.BaseDirectory, "StandardShaders", "Modules"),
         ..Directory.GetDirectories(Query.GetPath("assets://"), "*", SearchOption.AllDirectories)
@@ -36,7 +37,11 @@ public sealed class SlangMaterialCompiler
         {
             MaterialDomain.TwoD => new[] { "MaterialInterfaces", "Material2D" },
             MaterialDomain.Screen => new[] { "MaterialInterfaces", "MaterialScreen" },
-            MaterialDomain.ThreeD => new[] { "LightData", "Lighting", "MaterialInterfaces", "Material3D" },
+            MaterialDomain.ThreeD => new[]
+            {
+                "LightData", "ShadowData", "FrameParams", "Lighting", "MaterialInterfaces", "Material3D",
+                "ShadowSampling"
+            },
             _ => throw new ArgumentOutOfRangeException()
         };
 
@@ -109,6 +114,65 @@ public sealed class SlangMaterialCompiler
         var result = new ReadOnlySpan<byte>(spirvBlob.GetBufferPointer(), size).ToArray();
 
         return result;
+    }
+
+    public unsafe byte[] CompileEntryPointToSpirv(string moduleName, string entryPointName)
+    {
+        var components = new List<IComponentType>();
+        if (moduleName.StartsWith("Shadow", StringComparison.Ordinal))
+        {
+            string[] dependencyModuleNames = ["LightData", "ShadowData", "FrameParams"];
+            foreach (var dependencyModuleName in dependencyModuleNames)
+            {
+                if (dependencyModuleName == moduleName)
+                {
+                    continue;
+                }
+
+                var dependencyModule = _session.LoadModule(dependencyModuleName, out var dependencyDiagnostics);
+                CheckDiagnostics(dependencyDiagnostics);
+                if (dependencyModule == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Unable to load Slang dependency module '{dependencyModuleName}'.");
+                }
+
+                components.Add(dependencyModule);
+            }
+        }
+
+        var module = _session.LoadModule(moduleName, out var moduleDiagnostics);
+        CheckDiagnostics(moduleDiagnostics);
+        if (module == null)
+        {
+            throw new InvalidOperationException($"Unable to load Slang module '{moduleName}'.");
+        }
+
+        module.FindEntryPointByName(entryPointName, out var entryPoint);
+        if (entryPoint == null)
+        {
+            throw new InvalidOperationException(
+                $"Unable to find Slang entry point '{entryPointName}' in module '{moduleName}'.");
+        }
+
+        components.Add(module);
+        components.Add(entryPoint);
+        _session.CreateCompositeComponentType([.. components], out var linkedProgram, out var linkDiagnostics);
+        CheckDiagnostics(linkDiagnostics);
+        if (linkedProgram == null)
+        {
+            throw new InvalidOperationException($"Unable to link Slang module '{moduleName}'.");
+        }
+
+        linkedProgram.GetTargetCode(0, out var spirvBlob, out var targetDiagnostics);
+        CheckDiagnostics(targetDiagnostics);
+        if (spirvBlob == null)
+        {
+            throw new InvalidOperationException($"Unable to produce SPIR-V for Slang module '{moduleName}'.");
+        }
+
+        var size = checked((int)spirvBlob.GetBufferSize());
+        return new ReadOnlySpan<byte>(spirvBlob.GetBufferPointer(), size).ToArray();
     }
 
     private unsafe void CheckDiagnostics(ISlangBlob? diagnosticsBlob)
@@ -184,11 +248,6 @@ public sealed class SlangMaterialCompiler
 
         sb.AppendLine("struct MaterialParamsUBO");
         sb.AppendLine("{");
-        if (domain != MaterialDomain.Screen)
-        {
-            sb.AppendLine("    UniformBuffer baseUbo;");
-        }
-
         var activeModules = domain == MaterialDomain.Screen ? passModules : allModules;
 
         for (var i = 0; i < activeModules.Count; i++)
@@ -201,7 +260,8 @@ public sealed class SlangMaterialCompiler
 
         sb.AppendLine("};");
         sb.AppendLine();
-        sb.AppendLine("[[vk::binding(0, 1)]] ConstantBuffer<MaterialParamsUBO> matUbo;");
+        var materialParamsBinding = domain == MaterialDomain.Screen ? 0 : 9;
+        sb.AppendLine($"[[vk::binding({materialParamsBinding}, 1)]] ConstantBuffer<MaterialParamsUBO> matUbo;");
         sb.AppendLine();
 
         sb.AppendLine("[shader(\"vertex\")]");

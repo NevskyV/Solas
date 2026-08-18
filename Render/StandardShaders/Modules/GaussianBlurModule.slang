@@ -11,7 +11,7 @@ public struct GaussianBlurParams
 };
 
 [DomainScreen]
-[PassState("None",false, true)]
+[PassState(CullMode::None, false, true)]
 public struct GaussianBlurModifier : IFragmentModifier
 {
     public GaussianBlurParams params;

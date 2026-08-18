@@ -12,7 +12,7 @@ public struct BloomExtractParams
 };
 
 [DomainScreen]
-[PassState("None", false, true)]
+[PassState(CullMode::None, false, true)]
 public struct BloomExtractModifier : IFragmentModifier
 {
     public BloomExtractParams params;

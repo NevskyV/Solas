@@ -12,7 +12,7 @@ public struct BokehBlurParams
 };
 
 [DomainScreen]
-[PassState("None", false, true)]
+[PassState(CullMode::None, false, true)]
 public struct BokehBlurModifier : IFragmentModifier
 {
     public BokehBlurParams params;

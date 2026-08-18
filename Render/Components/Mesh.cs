@@ -6,8 +6,8 @@ namespace Solas.Render.Components;
 
 public class Mesh : Asset
 {
-    public Vertex[]? Vertices { get; private set; }
-    public uint[]? Indices { get; private set; }
+    public Vertex[] Vertices { get; private set; }
+    public uint[] Indices { get; private set; }
     public Vector3 BoundingCenter { get; }
     public float BoundingRadius { get; private set; }
 
@@ -27,7 +27,7 @@ public class Mesh : Asset
         Vertices = vertices.ToArray();
         Indices = indices.ToArray();
 
-        if (Vertices != null && Vertices.Length > 0)
+        if (Vertices is { Length: > 0 })
         {
             var min = Vertices[0].Pos;
             var max = Vertices[0].Pos;
@@ -112,7 +112,7 @@ public class Mesh : Asset
 
     public void FreeCpuData()
     {
-        Vertices = null;
-        Indices = null;
+        Vertices = null!;
+        Indices = null!;
     }
 }

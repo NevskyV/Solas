@@ -43,6 +43,7 @@ internal static class DependencyInjectionBuilder
         if (injectableMembers.Count == 0)
             return null;
         var sb = new StringBuilder();
+        sb.AppendLine("#nullable enable\n");
         sb.AppendLine("using System;");
         sb.AppendLine("using System.IO;");
         sb.AppendLine("using Solas;");

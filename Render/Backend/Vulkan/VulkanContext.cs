@@ -15,9 +15,9 @@ namespace Solas.Render.Vulkan;
 
 internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 {
-    internal GraphicsSettings Settings;
-    internal TransformData CameraTransform;
-    internal CameraData CameraData;
+    internal GraphicsSettings Settings = null!;
+    internal TransformData CameraTransform = null!;
+    internal CameraData CameraData = null!;
 
     internal uint FrameIndex;
     internal bool FrameBufferResized;
@@ -56,8 +56,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal ImageView[]? SwapChainImageViews;
 
     internal DescriptorSetLayout DescriptorSetLayout;
-    internal PipelineLayout PipelineLayout;
-    internal Pipeline GraphicsPipeline;
 
     internal CommandPool CommandPool;
     internal CommandBuffer[]? CommandBuffers;
@@ -72,17 +70,17 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal DeviceMemory DepthImageMemory;
     internal ImageView DepthImageView;
     internal Format DepthFormat;
-    internal VulkanDepthResources DepthResources;
+    internal VulkanDepthResources DepthResources = null!;
 
     internal SampleCountFlags MsaaSamples = SampleCountFlags.Count1Bit;
     internal Image ColorImage;
     internal DeviceMemory ColorImageMemory;
     internal ImageView ColorImageView;
-    internal VulkanColorResources ColorResources;
+    internal VulkanColorResources ColorResources = null!;
 
-    internal Dictionary<MeshRenderLogic, VulkanRenderData> RenderDataMap = new();
-    internal List<VulkanRenderData> RenderData = [];
-    internal VulkanResourceManager ResourceManager;
+    internal readonly Dictionary<MeshRenderLogic, VulkanRenderData> RenderDataMap = new();
+    internal readonly List<VulkanRenderData> RenderData = [];
+    internal VulkanResourceManager ResourceManager = null!;
 
     internal Image ScreenPingImage;
     internal DeviceMemory ScreenPingImageMemory;
@@ -97,16 +95,13 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
     internal DeviceMemory[] ScreenUniformBuffersMemory = [];
     internal DescriptorSet[][] ScreenDescriptorSets = [];
     internal VulkanMaterialPipeline[] ScreenPipelines = [];
-
-    internal Buffer[] ShaderStorageBuffers;
-    internal DeviceMemory[] ShaderStorageBuffersMemory;
+    
     internal Pipeline ComputePipeline;
     internal PipelineLayout ComputePipelineLayout;
-    internal DescriptorSet[] ComputeDescriptorSets;
     internal DescriptorSetLayout ComputeDescriptorSetLayout;
 
-    internal VulkanLightingResources LightingResources;
-    internal VulkanPipelineFactory PipelineFactory;
+    internal VulkanLightingResources LightingResources = null!;
+    internal VulkanPipelineFactory PipelineFactory = null!;
     internal Buffer[] LightBuffers = [];
     internal DeviceMemory[] LightBuffersMemory = [];
     internal void*[] LightBuffersMappedPointers = [];
@@ -148,7 +143,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
 
     internal Matrix4x4 CameraViewMatrix;
     internal Matrix4x4 CameraProjectionMatrix;
-    internal Matrix4x4 LightViewProjMatrix;
 
     internal Image ResolveImage;
     internal DeviceMemory ResolveImageMemory;
@@ -244,13 +238,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
                 Vk!.DestroyBuffer(Device, GlobalLightIndicesBuffers[i], null);
                 Vk!.FreeMemory(Device, GlobalLightIndicesBuffersMemory[i], null);
             }
-
-            if (ShaderStorageBuffersMemory != null && i < ShaderStorageBuffersMemory.Length &&
-                ShaderStorageBuffersMemory[i].Handle != 0)
-            {
-                Vk!.DestroyBuffer(Device, ShaderStorageBuffers[i], null);
-                Vk!.FreeMemory(Device, ShaderStorageBuffersMemory[i], null);
-            }
         }
 
         foreach (var renderData in RenderData)
@@ -291,16 +278,6 @@ internal sealed unsafe class VulkanContext(IWindow window) : IDisposable
         if (CommandPool.Handle != 0)
         {
             Vk!.DestroyCommandPool(Device, CommandPool, null);
-        }
-
-        if (GraphicsPipeline.Handle != 0)
-        {
-            Vk!.DestroyPipeline(Device, GraphicsPipeline, null);
-        }
-
-        if (PipelineLayout.Handle != 0)
-        {
-            Vk!.DestroyPipelineLayout(Device, PipelineLayout, null);
         }
 
         Vk!.DestroyDevice(Device, null);

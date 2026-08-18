@@ -36,7 +36,8 @@ public sealed class SlangMaterialCompiler
         {
             MaterialDomain.TwoD => new[] { "MaterialInterfaces", "Material2D" },
             MaterialDomain.Screen => new[] { "MaterialInterfaces", "MaterialScreen" },
-            MaterialDomain.ThreeD => new[] { "LightData", "Lighting", "MaterialInterfaces", "Material3D" }
+            MaterialDomain.ThreeD => new[] { "LightData", "Lighting", "MaterialInterfaces", "Material3D" },
+            _ => throw new ArgumentOutOfRangeException()
         };
 
         foreach (var baseModName in baseModules)
@@ -70,7 +71,8 @@ public sealed class SlangMaterialCompiler
         {
             MaterialDomain.TwoD => "Material2D",
             MaterialDomain.Screen => "MaterialScreen",
-            MaterialDomain.ThreeD => "Material3D"
+            MaterialDomain.ThreeD => "Material3D",
+            _ => throw new ArgumentOutOfRangeException()
         };
         var bootstrapperCode =
             BuildBootstrapper(masterModule, material.Modules, passModules, vertModules, fragModules, vertChain,

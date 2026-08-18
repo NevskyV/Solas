@@ -25,6 +25,9 @@ public struct Lit3DParams
 };
 
 static const float PI = 3.14159265359f;
+static const float INV_PI = 0.31830988618f;
+static const float MIN_ROUGHNESS = 0.05f;
+static const float EPSILON = 1e-6f;
 
 [Domain3D]
 public struct Lit3DModifier : IFragmentModifier
@@ -33,122 +36,149 @@ public struct Lit3DModifier : IFragmentModifier
 
     public float4 ModifyColor(float4 inColor, float2 uv, float3 worldPos, float3 worldNormal, float3 camPos)
     {
-        float3 N = normalize(worldNormal);
-        float3 V = normalize(camPos - worldPos);
-        float3 baseAlbedo = inColor.rgb;
+        const float3 N = normalize(worldNormal);
+        const float3 V = normalize(camPos - worldPos);
+        const float3 albedo = inColor.rgb;
 
-        float3 accumulatedLight = float3(0.0f);
+        const float roughness = max(params.roughness, MIN_ROUGHNESS);
+        const float metallic  = params.metallic;
+        const float3 F0       = lerp(float3(0.04f), albedo, metallic);
+        const float NdotV     = max(dot(N, V), EPSILON);
+        const float3 ambient  = albedo * params.ambientIntensity;
 
+        float3 accumulatedLight = ambient;
+
+        //Directional lights
         for (uint i = 0u; i < ubo.directionalLightCount; ++i)
         {
             Light dirLight = g_Lights[i];
             float3 L = normalize(-dirLight.GetDirection());
-            float3 H = normalize(V + L);
-            
-            float3 lightColor = dirLight.GetColor() * dirLight.GetIntensity();
-            accumulatedLight += PBR(baseAlbedo, params.roughness, N, V, H, L, lightColor, params);
+            float NdotL = max(dot(N, L), 0.0f);
+
+            if (NdotL > 0.0f)
+            {
+                float3 H = normalize(V + L);
+                float3 lightColor = dirLight.GetColor() * dirLight.GetIntensity();
+                accumulatedLight += EvaluateBRDF(albedo, roughness, metallic, F0,
+                                                 N, V, H, L, NdotV, NdotL) * lightColor * NdotL;
+            }
         }
-        
-        uint3 tileCount = uint3((uint)ubo.tileCount.x, (uint)ubo.tileCount.y, (uint)ubo.tileCount.z);
-        float nClip = max(ubo.nearClip, 0.001f);
-        float fClip = max(ubo.farClip, nClip + 0.001f);
-    
+
+        //Clustered lights
+        const uint3 tileCount = uint4(ubo.tileCount).xyz;
+        const float nClip = max(ubo.nearClip, 0.001f);
+        const float fClip = max(ubo.farClip, nClip + 0.001f);
+
         float4 viewPos4 = mul(ubo.view, float4(worldPos, 1.0f));
         float depth = -viewPos4.z;
         float4 clipPos = mul(ubo.proj, viewPos4);
-        float invW = 1.0f / clipPos.w;
-        float screenU = saturate(clipPos.x * invW * 0.5f + 0.5f);
-        float screenV = saturate(-clipPos.y * invW * 0.5f + 0.5f);
-    
-        uint tileX = min(uint(screenU * float(tileCount.x)), tileCount.x - 1u);
-        uint tileY = min(uint(screenV * float(tileCount.y)), tileCount.y - 1u);
+
+        float invW = rcp(max(abs(clipPos.w), EPSILON));
+        float2 screenUV = saturate(float2(
+            clipPos.x * invW * 0.5f + 0.5f,
+           -clipPos.y * invW * 0.5f + 0.5f));
+
+        uint tileX = min(uint(screenUV.x * float(tileCount.x)), tileCount.x - 1u);
+        uint tileY = min(uint(screenUV.y * float(tileCount.y)), tileCount.y - 1u);
+
         uint sliceZ = 0u;
         if (tileCount.z > 1u)
         {
             float depthClamped = clamp(depth, nClip, fClip);
-            float factor = log(depthClamped / nClip) / log(fClip / nClip);
+            float factor = log2(depthClamped / nClip) * rcp(log2(fClip / nClip));
             sliceZ = min(uint(factor * float(tileCount.z)), tileCount.z - 1u);
         }
-    
-        uint clusterIndex = tileX + tileY * tileCount.x + sliceZ * tileCount.x * tileCount.y;
+
+        uint clusterIndex = tileX + tileY * tileCount.x + sliceZ * (tileCount.x * tileCount.y);
         TileGrid tile = g_TileGrid[clusterIndex];
-    
-        uint lightCount = tile.lightCount;
-        for (uint l = 0u; l < lightCount; ++l)
+
+        for (uint l = 0u; l < tile.lightCount; ++l)
         {
             uint lightIndex = g_GlobalLightIndices[tile.lightOffset + l];
             Light pointLight = g_Lights[lightIndex];
-    
+
             float3 lightPos = pointLight.GetPosition();
-            float radius = pointLight.GetRadius();
-    
-            float3 lightDir = lightPos - worldPos;
-            float dist = length(lightDir);
-    
-            if (dist < radius && dist > 0.001f)
+            float  radius   = pointLight.GetRadius();
+
+            float3 lightVec = lightPos - worldPos;
+            float  distSq   = dot(lightVec, lightVec);
+            float  radiusSq = radius * radius;
+
+            if (distSq < radiusSq && distSq > 1e-6f)
             {
-                float3 L = lightDir / dist;
+                float dist = sqrt(distSq);
+                float3 L = lightVec * rcp(dist);
                 float NdotL = max(dot(N, L), 0.0f);
-                float attenuation = saturate(1.0f - (dist / radius) * (dist / radius));
-                float3 H = normalize(V + L);
-                            
-                float3 lightColor = pointLight.GetColor() * pointLight.GetIntensity() * attenuation;
-                accumulatedLight += PBR(baseAlbedo, params.roughness, N, V, H, L, lightColor, params);
+
+                if (NdotL > 0.0f)
+                {
+                    float atten = saturate(1.0f - distSq * rcp(radiusSq));
+                    float3 H = normalize(V + L);
+                    float3 lightColor = pointLight.GetColor() * pointLight.GetIntensity() * atten;
+
+                    accumulatedLight += EvaluateBRDF(albedo, roughness, metallic, F0,
+                                                     N, V, H, L, NdotV, NdotL) * lightColor * NdotL;
+                }
             }
-            
         }
-        
+
         return float4(accumulatedLight, inColor.a);
     }
-    
-    float3 PBR(float3 albedo, float alpha, float3 N, float3 V, float3 H, float3 L, float3 lightColor, Lit3DParams params)
+
+
+    // Single BRDF evaluation
+    float3 EvaluateBRDF(float3 albedo, float roughness, float metallic,
+                        float3 F0, float3 N, float3 V, float3 H, float3 L,
+                        float NdotV, float NdotL)
     {
-        float3 F0 = lerp(float3(0.04), albedo, params.metallic);
-        float3 Ks = F(F0, V, H);
-        float3 Kd = float3(1.0) - Ks * (1.0 - params.metallic);
-        
-        float3 lambert = albedo / PI;
-        
-        float LdotN = max(dot(L, N), 0.0);
-        
-        float3 cookTorranceNumerator = D(alpha, N, H) * G(alpha, N, V, L) * F(F0, V, H);
-        float cookTorranceDenominator = 4.0 * max(dot(V, N), 0.001) * max(LdotN, 0.001);
-        float3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator;
-        
-        float3 BRDF = Kd * lambert + cookTorrance;
-        float3 outgoingLight = albedo * params.ambientIntensity + BRDF * lightColor * LdotN; 
-        return outgoingLight;
+        float3 F = FresnelSchlick(F0, V, H);
+        float3 Kd = (1.0f - F) * (1.0f - metallic);
+
+        // Diffuse (Lambert)
+        float3 diffuse = Kd * albedo * INV_PI;
+
+        // Specular (GGX + Smith + Fresnel)
+        float D = DistributionGGX(roughness, N, H);
+        float G = GeometrySmith(roughness, NdotV, NdotL);
+        float3 specular = (D * G * F) * rcp(4.0f * NdotV * NdotL + EPSILON);
+
+        return diffuse + specular;
     }
-    
-    // GGX Normal Distribution Function
-    float D(float roughness, float3 N, float3 H)
+
+    // GGX / Trowbridge-Reitz NDF
+    float DistributionGGX(float roughness, float3 N, float3 H)
     {
-        float alpha = max(roughness, 0.05f);
-        float alpha2 = alpha * alpha;
+        float a  = roughness;
+        float a2 = a * a;
         float NdotH = max(dot(N, H), 0.0f);
-        float denom = (NdotH * NdotH * (alpha2 - 1.0f) + 1.0f);
+        float NdotH2 = NdotH * NdotH;
+
+        float denom = NdotH2 * (a2 - 1.0f) + 1.0f;
         denom = PI * denom * denom;
-        return alpha2 / max(denom, 0.000001f);
+        return a2 * rcp(max(denom, EPSILON));
     }
-    
-    // Schlick-GGX Geometry Function
-    float G1(float roughness, float3 N, float3 X)
+
+    // Schlick-GGX (Smith height-correlated form, k = a²/2)
+    float GeometrySchlickGGX(float NdotX, float roughness)
     {
-        float NdotX = max(dot(N, X), 0.0f);
-        float k = (roughness * roughness) / 2.0f;
-        float denom = NdotX * (1.0f - k) + k;
-        return NdotX / max(denom, 0.000001f);
+        float k = (roughness * roughness) * 0.5f;
+        return NdotX * rcp(NdotX * (1.0f - k) + k + EPSILON);
     }
-    
-    //Smith Model
-    float G(float alpha, float3 N, float3 V, float3 L)
+
+    float GeometrySmith(float roughness, float NdotV, float NdotL)
     {
-        return G1(alpha, N, V) * G1(alpha, N, L);
+        return GeometrySchlickGGX(NdotV, roughness) *
+               GeometrySchlickGGX(NdotL, roughness);
     }
-    
-    //Fresnel-Schlick Function
-    float3 F(float3 F0, float3 V, float3 H)
+
+    // Fresnel-Schlick
+    float3 FresnelSchlick(float3 F0, float3 V, float3 H)
     {
-        return F0 + (float3(1.0) - F0) * pow(1 - max(dot(V, H), 0.0), 5.0);
+        float cosTheta = max(dot(V, H), 0.0f);
+        float oneMinus = 1.0f - cosTheta;
+
+        float oneMinus2 = oneMinus * oneMinus;
+        float oneMinus5 = oneMinus2 * oneMinus2 * oneMinus;
+        return F0 + (1.0f - F0) * oneMinus5;
     }
 };

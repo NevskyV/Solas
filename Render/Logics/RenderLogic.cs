@@ -15,12 +15,12 @@ namespace Solas.Render.Logics;
 [Update, LateUpdate]
 public class RenderLogic : Logic
 {
-    private WindowSettings _windowSettings;
-    private IWindow _window;
-    private IRenderer _renderer;
-    private TransformData _cameraTransform;
-    private CameraData _cameraData;
-    private SceneCameraLogic _sceneCameraLogic;
+    private WindowSettings _windowSettings = null!;
+    private IWindow _window = null!;
+    private IRenderer _renderer = null!;
+    private TransformData _cameraTransform = null!;
+    private CameraData _cameraData = null!;
+    private SceneCameraLogic _sceneCameraLogic = null!;
     private bool _isDestroyed;
 
     private void Setup()

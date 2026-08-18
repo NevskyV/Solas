@@ -16,14 +16,14 @@ public class SceneCameraLogic : Logic, IInitializable
     private float _mouseSensitivity = 0.1f;
     private float _zoomSensitivity = 2.0f;
 
-    private TransformData _transformData;
-    private CameraData _cameraData;
+    private TransformData _transformData = null!;
+    private CameraData _cameraData = null!;
 
     private float _currentFov;
     private bool _isRotating;
     private Vector2 _lastMousePosition;
 
-    public IInputContext InputContext { get; set; }
+    public IInputContext InputContext { get; set; } = null!;
 
     public void Initialize()
     {

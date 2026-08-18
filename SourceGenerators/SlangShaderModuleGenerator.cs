@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
@@ -88,9 +86,9 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
 
             if (attributesStr.Contains("PassState"))
             {
-                var cullMatch = Regex.Match(attributesStr, @"cullMode\s*:\s*""([^""]+)""");
-                var depthMatch = Regex.Match(attributesStr, @"depthWrite\s*:\s*(true|false)");
-                var separateMatch = Regex.Match(attributesStr, @"separatePass\s*:\s*(true|false)");
+                var cullMatch = Regex.Match(attributesStr, @"CullMode::([A-z]+)");
+                var depthMatch = Regex.Match(attributesStr, @"(true|false)");
+                var separateMatch = Regex.Match(attributesStr, @"(true|false)");
 
                 if (cullMatch.Success)
                 {
@@ -292,7 +290,9 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
             ? module.ModifierStructName.Substring(0, module.ModifierStructName.Length - "Modifier".Length) + "Params"
             : module.ModifierStructName + "Params";
 
-        return $@"namespace Solas.Render.Materials.Generated;
+        return $@"#nullable enable
+
+namespace Solas.Render.Materials.Generated;
 
 using System;
 using System.Collections.Generic;

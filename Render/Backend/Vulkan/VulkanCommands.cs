@@ -211,7 +211,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             var mainLight = activeLights[0];
             var lightPos = new Vector3(mainLight.PositionOrDirection.X, mainLight.PositionOrDirection.Y,
                 mainLight.PositionOrDirection.Z);
-            var lightDir = mainLight.PositionOrDirection.W == 2.0f
+            var lightDir = Math.Abs(mainLight.PositionOrDirection.W - 2.0f) < 0.1
                 ? lightPos
                 : new Vector3(mainLight.Extra0.X, mainLight.Extra0.Y, mainLight.Extra0.Z);
 
@@ -220,7 +220,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
             var upVector = MathF.Abs(Vector3.Dot(lightDir, Vector3.UnitY)) > 0.9f ? Vector3.UnitZ : Vector3.UnitY;
 
-            if (mainLight.PositionOrDirection.W == 2.0f)
+            if ( Math.Abs(mainLight.PositionOrDirection.W - 2.0f) < 0.1)
             {
                 var focusPoint = Vector3.Zero;
                 lightPos = focusPoint - lightDir * 150.0f;
@@ -380,12 +380,31 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
             var material = renderObject.Material;
             var passes = material?.Passes;
-            var passCount = passes != null && passes.Count > 0 ? passes.Count : 1;
+            var passCount = passes is { Count: > 0 } ? passes.Count : 1;
+            
+            if (material is { Passes.Count: > 1 })
+            {
+                var clearStencil = new ClearAttachment
+                {
+                    AspectMask = ImageAspectFlags.StencilBit,
+                    ColorAttachment = 0,
+                    ClearValue = new ClearValue { DepthStencil = new ClearDepthStencilValue(0, 0) }
+                };
+
+                var clearRect = new ClearRect
+                {
+                    Rect = new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent),
+                    BaseArrayLayer = 0,
+                    LayerCount = 1
+                };
+
+                Ctx.Vk.CmdClearAttachments(cmdBuffer, 1, &clearStencil, 1, &clearRect);
+            }
 
             for (var passIdx = 0; passIdx < passCount; passIdx++)
             {
                 VulkanMaterialPipeline materialPipeline;
-                if (material != null && passes != null && passes.Count > 0)
+                if (material != null && passes is { Count: > 0 })
                 {
                     materialPipeline = Ctx.PipelineFactory.GetOrCreatePipeline(material, passes[passIdx], passIdx);
                 }

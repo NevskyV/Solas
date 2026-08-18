@@ -166,7 +166,7 @@ internal class VulkanRenderer : IRenderer
         });
     }
 
-    private void UpdateMesh(MeshRenderLogic logic, Mesh newMesh)
+    private void UpdateMesh(MeshRenderLogic logic, Mesh? newMesh)
     {
         _pendingActions.Enqueue(() =>
         {
@@ -178,12 +178,12 @@ internal class VulkanRenderer : IRenderer
             {
                 _resourceManager.ReleaseMesh(logic.Mesh.Id);
             }
-
-            renderData.GpuMesh = _resourceManager.AcquireMesh(newMesh);
+            
+            renderData.GpuMesh = newMesh != null? _resourceManager.AcquireMesh(newMesh) : null;
         });
     }
 
-    private void UpdateMaterial(MeshRenderLogic logic, Material newMaterial)
+    private void UpdateMaterial(MeshRenderLogic logic, Material? newMaterial)
     {
         _pendingActions.Enqueue(() =>
         {

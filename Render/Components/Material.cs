@@ -78,14 +78,17 @@ public sealed class Material(MaterialDomain domain) : Asset
             var startNewPass = currentPass == null ||
                                module.RequiresSeparatePass ||
                                (i > 0 && _modules[i - 1].RequiresSeparatePass) ||
-                               currentPass.Value.CullMode != module.RequiredCullMode;
+                               currentPass.Value.CullMode != module.RequiredCullMode ||
+                               currentPass.Value.DepthWrite != module.RequiredDepthWrite ||
+                               currentPass.Value.Phase != module.RequiredPassPhase;
 
             if (startNewPass)
             {
                 currentPass = new MaterialPass
                 {
                     CullMode = module.RequiredCullMode,
-                    DepthWrite = module.RequiredDepthWrite
+                    DepthWrite = module.RequiredDepthWrite,
+                    Phase = module.RequiredPassPhase
                 };
                 _passes.Add(currentPass.Value);
                 currentGroup = [];

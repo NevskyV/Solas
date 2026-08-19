@@ -42,13 +42,6 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </AdditionalFiles>
         <EmbeddedResource Include="StandardShaders\Embedded\*.spv"/>
-        <None Include="StandardShaders\Embedded\FrameParams.slang">
-            <Link>StandardShaders\Embedded\FrameParams.slang</Link>
-            <Pack>true</Pack>
-            <PackagePath>contentFiles/any/any/StandardShaders\Embedded\FrameParams.slang</PackagePath>
-            <PackageCopyToOutput>true</PackageCopyToOutput>
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
     </ItemGroup>
 
 </Project>

@@ -9,6 +9,8 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 {
     private const uint MaxLights = 1024;
     private const uint MaxTileIndices = 4 * 1024 * 1024;
+    private const uint CoarseTileScale = 4;
+    private const uint MaxCoarseLightsPerTile = 1024;
 
     internal void Create()
     {
@@ -22,6 +24,11 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
         var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
         var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
         var gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
+        var coarseTileCountX = (tileCountX + CoarseTileScale - 1u) / CoarseTileScale;
+        var coarseTileCountY = (tileCountY + CoarseTileScale - 1u) / CoarseTileScale;
+        var coarseTileCount = coarseTileCountX * coarseTileCountY;
+        var coarseCountSize = sizeof(uint) * coarseTileCount;
+        var coarseIndexSize = sizeof(uint) * coarseTileCount * MaxCoarseLightsPerTile;
 
         uint counterSize = sizeof(uint);
         var frameParamsSize = (uint)sizeof(FrameParamsGpu);
@@ -40,6 +47,10 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
         Ctx.GlobalIndexCounterBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.GlobalIndexCounterBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.CoarseTileLightCountBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.CoarseTileLightCountBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
+        Ctx.CoarseTileLightIndexBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
+        Ctx.CoarseTileLightIndexBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
 
         Ctx.FrameParamsBuffers = new Buffer[Ctx.Settings.MaxFramesInFlight];
         Ctx.FrameParamsBuffersMemory = new DeviceMemory[Ctx.Settings.MaxFramesInFlight];
@@ -91,6 +102,16 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
                 MemoryPropertyFlags.DeviceLocalBit);
             Ctx.GlobalIndexCounterBuffers[i] = counterBuf;
             Ctx.GlobalIndexCounterBuffersMemory[i] = counterMem;
+            var (coarseCountBuf, coarseCountMem) = Buffer.Create(Ctx, coarseCountSize,
+                BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
+                MemoryPropertyFlags.DeviceLocalBit);
+            Ctx.CoarseTileLightCountBuffers[i] = coarseCountBuf;
+            Ctx.CoarseTileLightCountBuffersMemory[i] = coarseCountMem;
+            var (coarseIndexBuf, coarseIndexMem) = Buffer.Create(Ctx, coarseIndexSize,
+                BufferUsageFlags.StorageBufferBit,
+                MemoryPropertyFlags.DeviceLocalBit);
+            Ctx.CoarseTileLightIndexBuffers[i] = coarseIndexBuf;
+            Ctx.CoarseTileLightIndexBuffersMemory[i] = coarseIndexMem;
 
             var (frameBuf, frameMem) = Buffer.Create(Ctx, frameParamsSize, BufferUsageFlags.UniformBufferBit,
                 MemoryPropertyFlags.HostVisibleBit | MemoryPropertyFlags.HostCoherentBit);
@@ -136,6 +157,30 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
                 Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.TileGridBuffersMemory[i], null);
                 Ctx.TileGridBuffersMemory[i] = default;
             }
+
+            if (Ctx.CoarseTileLightCountBuffers[i].Handle != 0)
+            {
+                Ctx.Vk!.DestroyBuffer(Ctx.Device, Ctx.CoarseTileLightCountBuffers[i], null);
+                Ctx.CoarseTileLightCountBuffers[i] = default;
+            }
+
+            if (Ctx.CoarseTileLightCountBuffersMemory[i].Handle != 0)
+            {
+                Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.CoarseTileLightCountBuffersMemory[i], null);
+                Ctx.CoarseTileLightCountBuffersMemory[i] = default;
+            }
+
+            if (Ctx.CoarseTileLightIndexBuffers[i].Handle != 0)
+            {
+                Ctx.Vk!.DestroyBuffer(Ctx.Device, Ctx.CoarseTileLightIndexBuffers[i], null);
+                Ctx.CoarseTileLightIndexBuffers[i] = default;
+            }
+
+            if (Ctx.CoarseTileLightIndexBuffersMemory[i].Handle != 0)
+            {
+                Ctx.Vk!.FreeMemory(Ctx.Device, Ctx.CoarseTileLightIndexBuffersMemory[i], null);
+                Ctx.CoarseTileLightIndexBuffersMemory[i] = default;
+            }
         }
 
         var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
@@ -145,6 +190,11 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
         var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
         var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
         var gridSize = (uint)(sizeof(TileGridGpu) * tileCountX * tileCountY * tileCountZ);
+        var coarseTileCountX = (tileCountX + CoarseTileScale - 1u) / CoarseTileScale;
+        var coarseTileCountY = (tileCountY + CoarseTileScale - 1u) / CoarseTileScale;
+        var coarseTileCount = coarseTileCountX * coarseTileCountY;
+        var coarseCountSize = sizeof(uint) * coarseTileCount;
+        var coarseIndexSize = sizeof(uint) * coarseTileCount * MaxCoarseLightsPerTile;
 
         for (var i = 0; i < Ctx.Settings.MaxFramesInFlight; i++)
         {
@@ -157,6 +207,22 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
 
             Ctx.TileGridBuffers[i] = gridBuf;
             Ctx.TileGridBuffersMemory[i] = gridMem;
+            var (coarseCountBuf, coarseCountMem) = Buffer.Create(
+                Ctx,
+                coarseCountSize,
+                BufferUsageFlags.StorageBufferBit | BufferUsageFlags.TransferDstBit,
+                MemoryPropertyFlags.DeviceLocalBit
+            );
+            Ctx.CoarseTileLightCountBuffers[i] = coarseCountBuf;
+            Ctx.CoarseTileLightCountBuffersMemory[i] = coarseCountMem;
+            var (coarseIndexBuf, coarseIndexMem) = Buffer.Create(
+                Ctx,
+                coarseIndexSize,
+                BufferUsageFlags.StorageBufferBit,
+                MemoryPropertyFlags.DeviceLocalBit
+            );
+            Ctx.CoarseTileLightIndexBuffers[i] = coarseIndexBuf;
+            Ctx.CoarseTileLightIndexBuffersMemory[i] = coarseIndexMem;
 
             DescriptorBufferInfo infoGrid = new()
             {
@@ -165,17 +231,52 @@ internal unsafe class VulkanLightingResources : VulkanInjectable
                 Range = Vk.WholeSize
             };
 
-            WriteDescriptorSet writeGrid = new()
+            DescriptorBufferInfo infoCoarseCounts = new()
             {
-                SType = StructureType.WriteDescriptorSet,
-                DstSet = Ctx.LightingGlobalSetsSet0[i],
-                DstBinding = 2,
-                DescriptorCount = 1,
-                DescriptorType = DescriptorType.StorageBuffer,
-                PBufferInfo = &infoGrid
+                Buffer = Ctx.CoarseTileLightCountBuffers[i],
+                Offset = 0,
+                Range = Vk.WholeSize
             };
-
-            Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, 1, &writeGrid, 0, null);
+            DescriptorBufferInfo infoCoarseIndices = new()
+            {
+                Buffer = Ctx.CoarseTileLightIndexBuffers[i],
+                Offset = 0,
+                Range = Vk.WholeSize
+            };
+            WriteDescriptorSet[] writes =
+            [
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.LightingGlobalSetsSet0[i],
+                    DstBinding = 2,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.StorageBuffer,
+                    PBufferInfo = &infoGrid
+                },
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.LightingGlobalSetsSet0[i],
+                    DstBinding = 8,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.StorageBuffer,
+                    PBufferInfo = &infoCoarseCounts
+                },
+                new()
+                {
+                    SType = StructureType.WriteDescriptorSet,
+                    DstSet = Ctx.LightingGlobalSetsSet0[i],
+                    DstBinding = 9,
+                    DescriptorCount = 1,
+                    DescriptorType = DescriptorType.StorageBuffer,
+                    PBufferInfo = &infoCoarseIndices
+                }
+            ];
+            fixed (WriteDescriptorSet* writesPointer = writes)
+            {
+                Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, (uint)writes.Length, writesPointer, 0, null);
+            }
         }
     }
 }

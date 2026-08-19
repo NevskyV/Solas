@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
+using Solas.Render.Vulkan.Extensions;
 using Solas.Settings;
 using Solas.Transform;
 using Solas.Transform.MathExtensions;
@@ -56,6 +57,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
     internal void RecordCommandBuffer(uint imageIndex)
     {
+        Ctx.GpuProfiler.CollectCompletedFrame(Ctx.FrameIndex);
+
         var beginInfo = new CommandBufferBeginInfo
         {
             SType = StructureType.CommandBufferBeginInfo,
@@ -182,6 +185,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         var cmdBuffer = Ctx.CommandBuffers![Ctx.FrameIndex];
         var frameIdx = Ctx.FrameIndex;
+        Ctx.GpuProfiler.BeginFrame(cmdBuffer, frameIdx);
 
 
         var tileSizeX = Ctx.Settings.TileSize.Z > 1 ? Ctx.Settings.TileSize.X * 4f : Ctx.Settings.TileSize.X;
@@ -190,6 +194,9 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var tileCountX = (uint)MathF.Ceiling(Ctx.RenderExtent.Width / tileSizeX);
         var tileCountY = (uint)MathF.Ceiling(Ctx.RenderExtent.Height / tileSizeY);
         var tileCountZ = (uint)Math.Max(1, (int)Ctx.Settings.TileSize.Z);
+        var coarseTileCountX = (tileCountX + 3u) / 4u;
+        var coarseTileCountY = (tileCountY + 3u) / 4u;
+        var coarseTileCount = coarseTileCountX * coarseTileCountY;
 
         var isOrtho = Ctx.CameraData.Type == CameraType.Orthographic;
 
@@ -374,6 +381,19 @@ internal unsafe class VulkanCommands : VulkanInjectable
         Ctx.ShadowResources.EnsureShadowMapCapacity(requiredDepthShadowLayers, pointShadowCubeIndex);
         Ctx.ShadowResources.EnsureShadowMatrixCapacity(shadowMatrixCount);
 
+        var renderVisibleObjectIndices = CollectCameraVisibleObjectIndices(
+            objectCount,
+            camPos,
+            camForward,
+            camUp,
+            camRight,
+            isOrtho,
+            tanHalfFovX,
+            tanHalfFovY,
+            orthoHalfW,
+            orthoHalfH,
+            Ctx.CameraData.FarClipPlane);
+        var hasCameraVisibleGeometry = renderVisibleObjectIndices.Count > 0;
         var shadowVisibleObjectIndices = CollectCameraVisibleObjectIndices(
             objectCount,
             camPos,
@@ -402,17 +422,17 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var visibleLightCount = (uint)activeLights.Length;
         if (shouldWriteProfiling)
         {
-            Debug.WriteLine(
-                $"[Vulkan Culling] Meshes: total={objectCount}, visible={shadowVisibleObjectIndices.Count}, culled={objectCount - (uint)shadowVisibleObjectIndices.Count}.");
-            Debug.WriteLine(
+            Console.WriteLine(
+                $"[Vulkan Culling] Meshes: total={objectCount}, visible={renderVisibleObjectIndices.Count}, culled={objectCount - (uint)renderVisibleObjectIndices.Count}.");
+            Console.WriteLine(
                 $"[Vulkan Culling] Lights: total={allLights.Length}, camera-visible={visibleLightCount}, culled={allLights.Length - visibleLightCount}.");
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[Vulkan Culling] Shadow casters: total={objectCount}, selected={shadowCasterObjectIndices.Count}, added-outside-camera={shadowCasterObjectIndices.Count - shadowVisibleObjectIndices.Count}.");
             var clusterCount = (ulong)tileCountX * tileCountY * tileCountZ;
             var localLightCount = (uint)Math.Max(0, activeLights.Length - (int)directionalCount);
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[Vulkan Culling] Clustered lighting: clusters={clusterCount}, local-lights={localLightCount}, candidate-tests={clusterCount * localLightCount}.");
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[Vulkan Culling] Shadows: requested-lights={requestedShadowLightCount}, camera-visible-lights={shadowCandidateIndices.Count}, selected-lights={selectedShadowCasterCount}, culled-lights={requestedShadowLightCount - selectedShadowCasterCount}, requested-maps={requestedShadowMatrixCount}, camera-visible-maps={cameraVisibleShadowMatrixCount}, rendered-maps={shadowMatrixCount}, culled-maps={requestedShadowMatrixCount - shadowMatrixCount}.");
             var selectedShadowDescriptions = new List<string>();
             for (var lightIndex = 0; lightIndex < activeLights.Length; lightIndex++)
@@ -427,10 +447,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
                     $"index={lightIndex}, type={(uint)light.PositionOrDirection.W}, matrix={light.ShadowParams.X}, bias={light.ShadowParams.Y:F4}, strength={light.ShadowParams.W:F3}");
             }
 
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"[Vulkan Culling] Selected shadow lights: {string.Join("; ", selectedShadowDescriptions)}.");
-            Debug.WriteLine(
-                $"[Vulkan Culling] Shadow depth draws: {shadowCasterObjectIndices.Count * shadowMatrixCount} direct indexed draws.");
         }
 
         var lightViewProj = Matrix4x4.Identity;
@@ -493,7 +511,9 @@ internal unsafe class VulkanCommands : VulkanInjectable
             sizeof(FrameParamsGpu));
 
 
-        var lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
+        if (hasCameraVisibleGeometry)
+        {
+            var lightsSize = (uint)(sizeof(LightGpu) * activeLights.Length);
         if (lightsSize > 0)
         {
             fixed (LightGpu* pLights = activeLights)
@@ -517,6 +537,8 @@ internal unsafe class VulkanCommands : VulkanInjectable
         }
 
         Ctx.Vk!.CmdFillBuffer(cmdBuffer, Ctx.GlobalIndexCounterBuffers[frameIdx], 0, sizeof(uint), 0);
+        Ctx.Vk.CmdFillBuffer(cmdBuffer, Ctx.CoarseTileLightCountBuffers[frameIdx], 0,
+            sizeof(uint) * coarseTileCount, 0);
 
         BufferMemoryBarrier2[] bufferBarriers =
         [
@@ -546,6 +568,19 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 Buffer = Ctx.GlobalIndexCounterBuffers[frameIdx],
                 Offset = 0,
                 Size = sizeof(uint)
+            },
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier2,
+                SrcStageMask = PipelineStageFlags2.TransferBit,
+                SrcAccessMask = AccessFlags2.TransferWriteBit,
+                DstStageMask = PipelineStageFlags2.ComputeShaderBit,
+                DstAccessMask = AccessFlags2.ShaderReadBit | AccessFlags2.ShaderWriteBit,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Buffer = Ctx.CoarseTileLightCountBuffers[frameIdx],
+                Offset = 0,
+                Size = sizeof(uint) * coarseTileCount
             }
         ];
         fixed (BufferMemoryBarrier2* bufferBarriersPointer = bufferBarriers)
@@ -560,7 +595,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
             Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &dependencyInfo);
         }
 
-        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipeline);
+        Ctx.GpuProfiler.WriteLightCullingBegin(cmdBuffer, frameIdx);
         DescriptorSet[] computeSets = [Ctx.LightingGlobalSetsSet0[frameIdx], Ctx.LightingFrameSetsSet1[frameIdx]];
         fixed (DescriptorSet* pComputeSets = computeSets)
         {
@@ -568,7 +603,56 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 (uint)computeSets.Length, pComputeSets, 0, null);
         }
 
-        Ctx.Vk!.CmdDispatch(cmdBuffer, tileCountX, tileCountY, tileCountZ);
+        var localLightCountForBinning = (uint)Math.Max(0, activeLights.Length - (int)directionalCount);
+        if (localLightCountForBinning > 0u)
+        {
+            Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightBinningPipeline);
+            Ctx.Vk.CmdDispatch(cmdBuffer, (localLightCountForBinning + 63u) / 64u, 1, 1);
+        }
+
+        BufferMemoryBarrier2[] binningBarriers =
+        [
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier2,
+                SrcStageMask = PipelineStageFlags2.ComputeShaderBit,
+                SrcAccessMask = AccessFlags2.ShaderWriteBit,
+                DstStageMask = PipelineStageFlags2.ComputeShaderBit,
+                DstAccessMask = AccessFlags2.ShaderReadBit,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Buffer = Ctx.CoarseTileLightCountBuffers[frameIdx],
+                Offset = 0,
+                Size = sizeof(uint) * coarseTileCount
+            },
+            new()
+            {
+                SType = StructureType.BufferMemoryBarrier2,
+                SrcStageMask = PipelineStageFlags2.ComputeShaderBit,
+                SrcAccessMask = AccessFlags2.ShaderWriteBit,
+                DstStageMask = PipelineStageFlags2.ComputeShaderBit,
+                DstAccessMask = AccessFlags2.ShaderReadBit,
+                SrcQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                DstQueueFamilyIndex = Vk.QueueFamilyIgnored,
+                Buffer = Ctx.CoarseTileLightIndexBuffers[frameIdx],
+                Offset = 0,
+                Size = Vk.WholeSize
+            }
+        ];
+        fixed (BufferMemoryBarrier2* binningBarriersPointer = binningBarriers)
+        {
+            DependencyInfo binningDependencyInfo = new()
+            {
+                SType = StructureType.DependencyInfo,
+                BufferMemoryBarrierCount = (uint)binningBarriers.Length,
+                PBufferMemoryBarriers = binningBarriersPointer
+            };
+            Ctx.Vk.CmdPipelineBarrier2(cmdBuffer, &binningDependencyInfo);
+        }
+
+        Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.LightCullingPipeline);
+        Ctx.Vk.CmdDispatch(cmdBuffer, tileCountX, tileCountY, tileCountZ);
+        Ctx.GpuProfiler.WriteLightCullingEnd(cmdBuffer, frameIdx);
 
         if (objectCount > 0)
         {
@@ -619,16 +703,20 @@ internal unsafe class VulkanCommands : VulkanInjectable
                 tanHalfFovY,
                 orthoHalfW,
                 orthoHalfH);
+            Ctx.GpuProfiler.WriteShadowBegin(cmdBuffer, frameIdx);
             var shadowMapsUpdated = Ctx.ShadowRenderer.Record(
                 cmdBuffer,
                 shadowVisibleObjectIndices.Count > 0 ? shadowCasterObjectIndices : Array.Empty<int>(),
                 shadowMatrixCount,
                 activeLights,
                 shadowContentHash);
+            Ctx.GpuProfiler.WriteShadowEnd(cmdBuffer, frameIdx);
             if (shouldWriteProfiling)
             {
-                Debug.WriteLine(
+                Console.WriteLine(
                     $"[Vulkan Culling] Shadow maps: {(shadowMapsUpdated ? "updated" : "reused")}, visible-receivers={shadowVisibleObjectIndices.Count}, selected-casters={shadowCasterObjectIndices.Count}, rendered-maps={shadowMatrixCount}.");
+                Console.WriteLine(
+                    $"[Vulkan Culling] Shadow record culling: records={Ctx.ShadowRenderer.LastShadowRecordCount}, depth-draws={Ctx.ShadowRenderer.LastShadowDepthDrawCount}, culled-caster-tests={Ctx.ShadowRenderer.LastShadowCasterCulledCount}.");
             }
 
             Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Compute, Ctx.GeometryCullingPipeline);
@@ -642,6 +730,19 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
             var groupCountX = (objectCount + 63u) / 64u;
             Ctx.Vk!.CmdDispatch(cmdBuffer, groupCountX, 1, 1);
+        }
+        }
+        else
+        {
+            Ctx.GpuProfiler.WriteLightCullingBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteLightCullingEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteShadowBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteShadowEnd(cmdBuffer, frameIdx);
+            if (shouldWriteProfiling)
+            {
+                Console.WriteLine(
+                    "[Vulkan Culling] Empty camera view: skipped clustered lighting, geometry culling, shadow submission, and material draws.");
+            }
         }
 
         var computeToFragBarrier = new MemoryBarrier2
@@ -662,6 +763,7 @@ internal unsafe class VulkanCommands : VulkanInjectable
 
         Ctx.Vk!.CmdPipelineBarrier2(cmdBuffer, &computeToFragDependency);
 
+        Ctx.GpuProfiler.WriteMainBegin(cmdBuffer, frameIdx);
         Ctx.Vk.CmdBeginRendering(cmdBuffer, &renderingInfo);
 
         var viewport = new Viewport(0.0f, 0.0f, Ctx.RenderExtent.Width, Ctx.RenderExtent.Height, 0.0f, 1.0f);
@@ -670,112 +772,105 @@ internal unsafe class VulkanCommands : VulkanInjectable
         var scissor = new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent);
         Ctx.Vk.CmdSetScissor(cmdBuffer, 0, 1, &scissor);
 
-        Buffer lastVertexBuffer = default;
-        Pipeline lastPipeline = default;
-
-        foreach (var renderObject in Ctx.RenderData)
+        if (!hasCameraVisibleGeometry)
         {
-            if (renderObject.GpuMesh == null) continue;
+            Ctx.GpuProfiler.WriteStencilBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteStencilEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteBaseBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteBaseEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteOverlayBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteOverlayEnd(cmdBuffer, frameIdx);
+        }
+        else
+        {
+            Buffer lastVertexBuffer = default;
+            Pipeline lastPipeline = default;
+            var globalOverlayObjectIndices = new List<int>();
+            var hasLocalMultipassMaterials = false;
 
-            var material = renderObject.Material;
-            var passes = material?.Passes;
-            var passCount = passes is { Count: > 0 } ? passes.Count : 1;
-
-            if (material is { Passes.Count: > 1 })
+        for (var renderObjectIndex = 0; renderObjectIndex < Ctx.RenderData.Count; renderObjectIndex++)
+        {
+            var passes = Ctx.RenderData[renderObjectIndex].Material?.Passes;
+            if (passes is not { Count: > 1 })
             {
-                var clearStencil = new ClearAttachment
-                {
-                    AspectMask = ImageAspectFlags.StencilBit,
-                    ColorAttachment = 0,
-                    ClearValue = new ClearValue { DepthStencil = new ClearDepthStencilValue(0, 0) }
-                };
-
-                var clearRect = new ClearRect
-                {
-                    Rect = new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent),
-                    BaseArrayLayer = 0,
-                    LayerCount = 1
-                };
-
-                Ctx.Vk.CmdClearAttachments(cmdBuffer, 1, &clearStencil, 1, &clearRect);
+                continue;
             }
 
-            for (var passIdx = 0; passIdx < passCount; passIdx++)
+            if (passes.Any(pass => pass.Phase == MaterialPassPhase.GlobalOverlay))
             {
-                VulkanMaterialPipeline materialPipeline;
-                if (material != null && passes is { Count: > 0 })
-                {
-                    materialPipeline = Ctx.PipelineFactory.GetOrCreatePipeline(material, passes[passIdx], passIdx);
-                }
-                else
-                {
-                    materialPipeline = renderObject.MaterialPipeline;
-                }
+                globalOverlayObjectIndices.Add(renderObjectIndex);
+            }
+            else
+            {
+                hasLocalMultipassMaterials = true;
+            }
+        }
 
-                var pipeline = materialPipeline.Pipeline;
-                var layout = materialPipeline.Layout;
-
-                if (pipeline.Handle != lastPipeline.Handle)
-                {
-                    Ctx.Vk.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, pipeline);
-                    lastPipeline = pipeline;
-                }
-
-                uint[] pushData = passes is { Count: > 0 }
-                    ? [(uint)passes[passIdx].CullMode, passes[passIdx].DepthWrite ? 1u : 0u]
-                    : [(uint)CullMode.Back, 1u];
-                fixed (uint* pPushData = pushData)
-                {
-                    Ctx.Vk.CmdPushConstants(
-                        cmdBuffer,
-                        layout,
-                        ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
-                        0,
-                        sizeof(uint) * 2,
-                        pPushData
-                    );
-                }
-
-                var gpuMesh = renderObject.GpuMesh;
-
-                if (gpuMesh.VertexBuffer.Handle != lastVertexBuffer.Handle)
-                {
-                    ulong offset = 0;
-                    Ctx.Vk.CmdBindVertexBuffers(cmdBuffer, 0, 1, in gpuMesh.VertexBuffer, in offset);
-                    Ctx.Vk.CmdBindIndexBuffer(cmdBuffer, gpuMesh.IndexBuffer, 0, IndexType.Uint32);
-                    lastVertexBuffer = gpuMesh.VertexBuffer;
-                }
-
-                var lightingSet0 = Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex];
-                var objectMaterialSet1 = renderObject.DescriptorSets[Ctx.FrameIndex];
-
-                DescriptorSet[] descriptorSets = [lightingSet0, objectMaterialSet1];
-
-                fixed (DescriptorSet* pDescriptorSets = descriptorSets)
-                {
-                    Ctx.Vk.CmdBindDescriptorSets(
-                        cmdBuffer,
-                        PipelineBindPoint.Graphics,
-                        layout,
-                        0,
-                        (uint)descriptorSets.Length,
-                        pDescriptorSets,
-                        0,
-                        null
-                    );
-                }
-
-                var drawIdx = (uint)Ctx.RenderData.IndexOf(renderObject);
-                var indirectOffset = (ulong)(drawIdx * sizeof(DrawIndexedIndirectCommand));
-
-                Ctx.Vk.CmdDrawIndexedIndirect(
+        if (globalOverlayObjectIndices.Count == 0 || hasLocalMultipassMaterials)
+        {
+            Ctx.GpuProfiler.WriteStencilBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteStencilEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteBaseBegin(cmdBuffer, frameIdx);
+            for (var renderObjectIndex = 0; renderObjectIndex < Ctx.RenderData.Count; renderObjectIndex++)
+            {
+                RecordAllMaterialPasses(
                     cmdBuffer,
-                    Ctx.IndirectDrawBuffers[Ctx.FrameIndex],
-                    indirectOffset,
-                    1,
-                    (uint)sizeof(DrawIndexedIndirectCommand)
-                );
+                    Ctx.RenderData[renderObjectIndex],
+                    renderObjectIndex,
+                    ref lastVertexBuffer,
+                    ref lastPipeline);
             }
+            Ctx.GpuProfiler.WriteBaseEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteOverlayBegin(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteOverlayEnd(cmdBuffer, frameIdx);
+        }
+        else
+        {
+            Ctx.GpuProfiler.WriteStencilBegin(cmdBuffer, frameIdx);
+            ClearStencilAttachment(cmdBuffer);
+            Ctx.GpuProfiler.WriteStencilEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteBaseBegin(cmdBuffer, frameIdx);
+
+            for (var renderObjectIndex = 0; renderObjectIndex < Ctx.RenderData.Count; renderObjectIndex++)
+            {
+                if (globalOverlayObjectIndices.Contains(renderObjectIndex))
+                {
+                    continue;
+                }
+
+                RecordObjectLocalMaterialPasses(
+                    cmdBuffer,
+                    Ctx.RenderData[renderObjectIndex],
+                    renderObjectIndex,
+                    ref lastVertexBuffer,
+                    ref lastPipeline,
+                    clearStencilBeforePasses: false);
+            }
+
+            foreach (var renderObjectIndex in globalOverlayObjectIndices)
+            {
+                RecordObjectLocalMaterialPasses(
+                    cmdBuffer,
+                    Ctx.RenderData[renderObjectIndex],
+                    renderObjectIndex,
+                    ref lastVertexBuffer,
+                    ref lastPipeline,
+                    clearStencilBeforePasses: false);
+            }
+            Ctx.GpuProfiler.WriteBaseEnd(cmdBuffer, frameIdx);
+            Ctx.GpuProfiler.WriteOverlayBegin(cmdBuffer, frameIdx);
+
+            foreach (var renderObjectIndex in globalOverlayObjectIndices)
+            {
+                RecordGlobalOverlayMaterialPasses(
+                    cmdBuffer,
+                    Ctx.RenderData[renderObjectIndex],
+                    renderObjectIndex,
+                    ref lastVertexBuffer,
+                    ref lastPipeline);
+            }
+            Ctx.GpuProfiler.WriteOverlayEnd(cmdBuffer, frameIdx);
+        }
         }
 
         Ctx.Vk.CmdEndRendering(cmdBuffer);
@@ -1002,10 +1097,283 @@ internal unsafe class VulkanCommands : VulkanInjectable
             );
         }
 
+        Ctx.GpuProfiler.WriteMainEnd(cmdBuffer, frameIdx);
+        Ctx.GpuProfiler.EndFrame(cmdBuffer, frameIdx);
+
         if (Ctx.Vk!.EndCommandBuffer(cmdBuffer) != Result.Success)
         {
             throw new Exception("Failed to end command buffer");
         }
+    }
+
+    private void RecordAllMaterialPasses(
+        CommandBuffer cmdBuffer,
+        VulkanRenderData renderObject,
+        int renderObjectIndex,
+        ref Buffer lastVertexBuffer,
+        ref Pipeline lastPipeline)
+    {
+        if (renderObject.GpuMesh == null)
+        {
+            return;
+        }
+
+        var passes = renderObject.Material?.Passes;
+        var passCount = passes is { Count: > 0 } ? passes.Count : 1;
+        if (passCount > 1)
+        {
+            ClearStencilAttachment(cmdBuffer, renderObject);
+        }
+
+        for (var passIndex = 0; passIndex < passCount; passIndex++)
+        {
+            RecordMaterialPass(
+                cmdBuffer,
+                renderObject,
+                renderObjectIndex,
+                passIndex,
+                ref lastVertexBuffer,
+                ref lastPipeline);
+        }
+    }
+
+    private void ClearStencilAttachment(CommandBuffer cmdBuffer)
+    {
+        ClearStencilAttachment(cmdBuffer, null);
+    }
+
+    private void ClearStencilAttachment(CommandBuffer cmdBuffer, VulkanRenderData? renderObject)
+    {
+        var clearStencil = new ClearAttachment
+        {
+            AspectMask = ImageAspectFlags.StencilBit,
+            ColorAttachment = 0,
+            ClearValue = new ClearValue { DepthStencil = new ClearDepthStencilValue(0, 0) }
+        };
+        var clearRect = new ClearRect
+        {
+            Rect = renderObject == null
+                ? new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent)
+                : ComputeStencilClearRect(renderObject),
+            BaseArrayLayer = 0,
+            LayerCount = 1
+        };
+        Ctx.Vk!.CmdClearAttachments(cmdBuffer, 1, &clearStencil, 1, &clearRect);
+    }
+
+    private Rect2D ComputeStencilClearRect(VulkanRenderData renderObject)
+    {
+        var modelMatrix = renderObject.Logic.GetModelMatrix();
+        var localCenter = renderObject.Logic.Mesh?.BoundingCenter ?? Vector3.Zero;
+        var localRadius = renderObject.Logic.Mesh?.BoundingRadius ?? 5.0f;
+        var worldCenter = Vector3.Transform(localCenter, modelMatrix);
+        var scale = renderObject.Logic.Entity.GetData<TransformData>()?.Scale.Value ?? Vector3.One;
+        var worldRadius = localRadius * MathF.Max(scale.X, MathF.Max(scale.Y, scale.Z));
+        var cameraPosition = Ctx.CameraTransform.Position.Value;
+        var cameraRotation = Ctx.CameraTransform.Rotation.Value.ToQuaternion();
+        var cameraForward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, cameraRotation));
+        var cameraUp = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, cameraRotation));
+        var cameraRight = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, cameraRotation));
+        var toObject = worldCenter - cameraPosition;
+        var depth = Vector3.Dot(toObject, cameraForward);
+        var horizontal = Vector3.Dot(toObject, cameraRight);
+        var vertical = Vector3.Dot(toObject, cameraUp);
+        var width = (int)Ctx.RenderExtent.Width;
+        var height = (int)Ctx.RenderExtent.Height;
+        var aspectRatio = (float)width / Math.Max(height, 1);
+        float centerHalfWidth;
+        float centerHalfHeight;
+        float radiusHalfWidth;
+        float radiusHalfHeight;
+        if (Ctx.CameraData.Type == CameraType.Orthographic)
+        {
+            centerHalfHeight = Ctx.CameraData.Size * 0.5f;
+            centerHalfWidth = centerHalfHeight * aspectRatio;
+            radiusHalfHeight = centerHalfHeight;
+            radiusHalfWidth = centerHalfWidth;
+        }
+        else
+        {
+            var nearestDepth = depth - worldRadius;
+            if (nearestDepth <= Ctx.CameraData.NearClipPlane)
+            {
+                return new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent);
+            }
+
+            var tanHalfFovY = MathF.Tan(Ctx.CameraData.FieldOfView * MathF.PI / 360.0f);
+            centerHalfHeight = depth * tanHalfFovY;
+            centerHalfWidth = centerHalfHeight * aspectRatio;
+            radiusHalfHeight = nearestDepth * tanHalfFovY;
+            radiusHalfWidth = radiusHalfHeight * aspectRatio;
+        }
+
+        if (centerHalfWidth <= 0.0001f || centerHalfHeight <= 0.0001f ||
+            radiusHalfWidth <= 0.0001f || radiusHalfHeight <= 0.0001f)
+        {
+            return new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent);
+        }
+
+        const float paddingPixels = 4.0f;
+        var centerX = (horizontal / centerHalfWidth * 0.5f + 0.5f) * width;
+        var centerY = (-vertical / centerHalfHeight * 0.5f + 0.5f) * height;
+        var radiusX = worldRadius / radiusHalfWidth * 0.5f * width + paddingPixels;
+        var radiusY = worldRadius / radiusHalfHeight * 0.5f * height + paddingPixels;
+        var minX = Math.Clamp((int)MathF.Floor(centerX - radiusX), 0, width);
+        var maxX = Math.Clamp((int)MathF.Ceiling(centerX + radiusX), 0, width);
+        var minY = Math.Clamp((int)MathF.Floor(centerY - radiusY), 0, height);
+        var maxY = Math.Clamp((int)MathF.Ceiling(centerY + radiusY), 0, height);
+        if (maxX <= minX || maxY <= minY)
+        {
+            return new Rect2D(new Offset2D(0, 0), Ctx.RenderExtent);
+        }
+
+        return new Rect2D(
+            new Offset2D(minX, minY),
+            new Extent2D((uint)(maxX - minX), (uint)(maxY - minY)));
+    }
+
+    private void RecordObjectLocalMaterialPasses(
+        CommandBuffer cmdBuffer,
+        VulkanRenderData renderObject,
+        int renderObjectIndex,
+        ref Buffer lastVertexBuffer,
+        ref Pipeline lastPipeline,
+        bool clearStencilBeforePasses)
+    {
+        if (renderObject.GpuMesh == null)
+        {
+            return;
+        }
+
+        var material = renderObject.Material;
+        var passes = material?.Passes;
+        var passCount = passes is { Count: > 0 } ? passes.Count : 1;
+        if (clearStencilBeforePasses)
+        {
+            ClearStencilAttachment(cmdBuffer, renderObject);
+        }
+
+        for (var passIndex = 0; passIndex < passCount; passIndex++)
+        {
+            if (passes is { Count: > 0 } && passes[passIndex].Phase != MaterialPassPhase.ObjectLocal)
+            {
+                continue;
+            }
+
+            RecordMaterialPass(
+                cmdBuffer,
+                renderObject,
+                renderObjectIndex,
+                passIndex,
+                ref lastVertexBuffer,
+                ref lastPipeline);
+        }
+    }
+
+    private void RecordGlobalOverlayMaterialPasses(
+        CommandBuffer cmdBuffer,
+        VulkanRenderData renderObject,
+        int renderObjectIndex,
+        ref Buffer lastVertexBuffer,
+        ref Pipeline lastPipeline)
+    {
+        if (renderObject.GpuMesh == null || renderObject.Material?.Passes is not { Count: > 0 } passes)
+        {
+            return;
+        }
+
+        for (var passIndex = 0; passIndex < passes.Count; passIndex++)
+        {
+            if (passes[passIndex].Phase != MaterialPassPhase.GlobalOverlay)
+            {
+                continue;
+            }
+
+            RecordMaterialPass(
+                cmdBuffer,
+                renderObject,
+                renderObjectIndex,
+                passIndex,
+                ref lastVertexBuffer,
+                ref lastPipeline);
+        }
+    }
+
+    private void RecordMaterialPass(
+        CommandBuffer cmdBuffer,
+        VulkanRenderData renderObject,
+        int renderObjectIndex,
+        int passIndex,
+        ref Buffer lastVertexBuffer,
+        ref Pipeline lastPipeline)
+    {
+        var material = renderObject.Material;
+        var passes = material?.Passes;
+        VulkanMaterialPipeline materialPipeline;
+        if (material != null && passes is { Count: > 0 })
+        {
+            materialPipeline = Ctx.PipelineFactory.GetOrCreatePipeline(material, passes[passIndex], passIndex);
+        }
+        else
+        {
+            materialPipeline = renderObject.MaterialPipeline;
+        }
+
+        var pipeline = materialPipeline.Pipeline;
+        var layout = materialPipeline.Layout;
+        if (pipeline.Handle != lastPipeline.Handle)
+        {
+            Ctx.Vk!.CmdBindPipeline(cmdBuffer, PipelineBindPoint.Graphics, pipeline);
+            lastPipeline = pipeline;
+        }
+
+        uint[] pushData = passes is { Count: > 0 }
+            ? [(uint)passes[passIndex].CullMode, passes[passIndex].DepthWrite ? 1u : 0u]
+            : [(uint)CullMode.Back, 1u];
+        fixed (uint* pushDataPointer = pushData)
+        {
+            Ctx.Vk!.CmdPushConstants(
+                cmdBuffer,
+                layout,
+                ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit,
+                0,
+                sizeof(uint) * 2,
+                pushDataPointer);
+        }
+
+        var gpuMesh = renderObject.GpuMesh!;
+        if (gpuMesh.VertexBuffer.Handle != lastVertexBuffer.Handle)
+        {
+            ulong offset = 0;
+            Ctx.Vk!.CmdBindVertexBuffers(cmdBuffer, 0, 1, in gpuMesh.VertexBuffer, in offset);
+            Ctx.Vk.CmdBindIndexBuffer(cmdBuffer, gpuMesh.IndexBuffer, 0, IndexType.Uint32);
+            lastVertexBuffer = gpuMesh.VertexBuffer;
+        }
+
+        DescriptorSet[] descriptorSets = [
+            Ctx.LightingGlobalSetsSet0[Ctx.FrameIndex],
+            renderObject.DescriptorSets[Ctx.FrameIndex]
+        ];
+        fixed (DescriptorSet* descriptorSetsPointer = descriptorSets)
+        {
+            Ctx.Vk!.CmdBindDescriptorSets(
+                cmdBuffer,
+                PipelineBindPoint.Graphics,
+                layout,
+                0,
+                (uint)descriptorSets.Length,
+                descriptorSetsPointer,
+                0,
+                null);
+        }
+
+        var indirectOffset = (ulong)(renderObjectIndex * sizeof(DrawIndexedIndirectCommand));
+        Ctx.Vk!.CmdDrawIndexedIndirect(
+            cmdBuffer,
+            Ctx.IndirectDrawBuffers[Ctx.FrameIndex],
+            indirectOffset,
+            1,
+            (uint)sizeof(DrawIndexedIndirectCommand));
     }
 
     private ulong ComputeShadowContentHash(

@@ -58,6 +58,40 @@ internal unsafe class VulkanComputePipeline : VulkanInjectable
         Ctx.Vk!.DestroyShaderModule(Ctx.Device, shaderModule, null);
         SilkMarshal.Free((nint)stageInfo.PName);
 
+        using var binningStream =
+            assembly.GetManifestResourceStream("Solas.Render.StandardShaders.Embedded.LightBinning.spv")
+            ?? throw new FileNotFoundException("Light binning shader resource not found.");
+        var binningCode = new byte[binningStream.Length];
+        binningStream.ReadExactly(binningCode);
+        var binningShaderModule = CreateShaderModule(binningCode);
+        PipelineShaderStageCreateInfo binningStageInfo = new()
+        {
+            SType = StructureType.PipelineShaderStageCreateInfo,
+            Stage = ShaderStageFlags.ComputeBit,
+            Module = binningShaderModule,
+            PName = (byte*)SilkMarshal.StringToPtr("main")
+        };
+        ComputePipelineCreateInfo binningPipelineInfo = new()
+        {
+            SType = StructureType.ComputePipelineCreateInfo,
+            Stage = binningStageInfo,
+            Layout = Ctx.LightCullingPipelineLayout
+        };
+        var binningResult = Ctx.Vk!.CreateComputePipelines(
+            Ctx.Device,
+            default,
+            1,
+            &binningPipelineInfo,
+            null,
+            out Ctx.LightBinningPipeline);
+        if (binningResult != Result.Success)
+        {
+            throw new Exception($"failed to create light binning compute pipeline! Result = {binningResult}");
+        }
+
+        Ctx.Vk!.DestroyShaderModule(Ctx.Device, binningShaderModule, null);
+        SilkMarshal.Free((nint)binningStageInfo.PName);
+
         using var geomStream =
             assembly.GetManifestResourceStream("Solas.Render.StandardShaders.Embedded.GeometryCulling.spv")
             ?? throw new FileNotFoundException("Geometry culling shader resource not found.");

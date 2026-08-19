@@ -99,6 +99,8 @@ internal class VulkanRenderer : IRenderer
         _surface.Create();
         _physicalDevice.PickPhysicalDevice();
         _device.CreateLogicalDevice();
+        _context.GpuProfiler = new VulkanGpuProfiler();
+        _context.GpuProfiler.Create();
 
         _swapChain.Create();
         _swapChain.CreateImageViews();

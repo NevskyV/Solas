@@ -27,7 +27,7 @@ internal unsafe class VulkanDescriptorPool : VulkanInjectable
             new()
             {
                 Type = DescriptorType.StorageBuffer,
-                DescriptorCount = frameCount * 10u
+                DescriptorCount = frameCount * 12u
             }
         ];
 

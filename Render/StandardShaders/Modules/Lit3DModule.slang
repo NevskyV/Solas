@@ -27,6 +27,7 @@ static const float PI = 3.14159265359f;
 static const float INV_PI = 0.31830988618f;
 static const float MIN_ROUGHNESS = 0.05f;
 static const float EPSILON = 1e-6f;
+static const float MIN_PBR_LIGHT_IMPORTANCE = 1e-6f;
 
 [Domain3D]
 public struct Lit3DModifier : IFragmentModifier
@@ -107,8 +108,14 @@ public struct Lit3DModifier : IFragmentModifier
                 if (NdotL > 0.0f)
                 {
                     float attenuation = saturate(1.0f - distanceSquared * rcp(radiusSquared));
-                    float3 H = normalize(V + L);
                     float3 lightColor = localLight.GetColor() * localLight.GetIntensity() * attenuation;
+                    float importance = Luminance(lightColor) * NdotL;
+                    if (importance <= MIN_PBR_LIGHT_IMPORTANCE)
+                    {
+                        continue;
+                    }
+
+                    float3 H = normalize(V + L);
                     float shadow = shadowProvider.EvaluateShadow(localLight, worldPos, N, shadowViewDepth);
                     accumulatedLight += EvaluateBRDF(albedo, roughness, metallic, F0, N, V, H, L, NdotV, NdotL) *
                                         lightColor * NdotL * shadow;
@@ -117,6 +124,11 @@ public struct Lit3DModifier : IFragmentModifier
         }
 
         return float4(accumulatedLight, inColor.a);
+    }
+
+    float Luminance(float3 color)
+    {
+        return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
     }
 
     float3 EvaluateBRDF(float3 albedo, float roughness, float metallic,

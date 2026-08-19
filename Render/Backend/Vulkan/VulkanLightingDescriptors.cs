@@ -70,10 +70,26 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             StageFlags = ShaderStageFlags.ComputeBit | ShaderStageFlags.VertexBit | ShaderStageFlags.FragmentBit
         };
 
+        DescriptorSetLayoutBinding b8CoarseTileLightCounts = new()
+        {
+            Binding = 8,
+            DescriptorType = DescriptorType.StorageBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit
+        };
+
+        DescriptorSetLayoutBinding b9CoarseTileLightIndices = new()
+        {
+            Binding = 9,
+            DescriptorType = DescriptorType.StorageBuffer,
+            DescriptorCount = 1,
+            StageFlags = ShaderStageFlags.ComputeBit
+        };
+
         DescriptorSetLayoutBinding[] set0Bindings =
         [
             b0Lights, b1LightIndices, b2TileGrid, b3IndexCounter, b4ShadowDepthArray, b5PointShadowCubeArray,
-            b6ShadowMatrices, b7ShadowFrameParams
+            b6ShadowMatrices, b7ShadowFrameParams, b8CoarseTileLightCounts, b9CoarseTileLightIndices
         ];
 
         fixed (DescriptorSetLayoutBinding* pBindings0 = set0Bindings)
@@ -191,6 +207,10 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             DescriptorBufferInfo infoGrid = new() { Buffer = Ctx.TileGridBuffers[i], Offset = 0, Range = Vk.WholeSize };
             DescriptorBufferInfo infoCounter = new()
                 { Buffer = Ctx.GlobalIndexCounterBuffers[i], Offset = 0, Range = Vk.WholeSize };
+            DescriptorBufferInfo infoCoarseTileLightCounts = new()
+                { Buffer = Ctx.CoarseTileLightCountBuffers[i], Offset = 0, Range = Vk.WholeSize };
+            DescriptorBufferInfo infoCoarseTileLightIndices = new()
+                { Buffer = Ctx.CoarseTileLightIndexBuffers[i], Offset = 0, Range = Vk.WholeSize };
             DescriptorBufferInfo infoShadowMatrices = new()
                 { Buffer = Ctx.ShadowMatrixBuffers[i], Offset = 0, Range = Vk.WholeSize };
             DescriptorBufferInfo infoShadowFrameParams = new()
@@ -227,6 +247,25 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
             {
                 SType = StructureType.WriteDescriptorSet, DstSet = Ctx.LightingGlobalSetsSet0[i], DstBinding = 3,
                 DescriptorCount = 1, DescriptorType = DescriptorType.StorageBuffer, PBufferInfo = &infoCounter
+            };
+
+            WriteDescriptorSet w8 = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[i],
+                DstBinding = 8,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.StorageBuffer,
+                PBufferInfo = &infoCoarseTileLightCounts
+            };
+            WriteDescriptorSet w9 = new()
+            {
+                SType = StructureType.WriteDescriptorSet,
+                DstSet = Ctx.LightingGlobalSetsSet0[i],
+                DstBinding = 9,
+                DescriptorCount = 1,
+                DescriptorType = DescriptorType.StorageBuffer,
+                PBufferInfo = &infoCoarseTileLightIndices
             };
 
             WriteDescriptorSet w4 = new()
@@ -267,7 +306,7 @@ internal unsafe class VulkanLightingDescriptors : VulkanInjectable
                 PBufferInfo = &infoShadowFrameParams
             };
 
-            WriteDescriptorSet[] writes0 = [w0, w1, w2, w3, w4, w5, w6, w7];
+            WriteDescriptorSet[] writes0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9];
             fixed (WriteDescriptorSet* pWrites0 = writes0)
             {
                 Ctx.Vk!.UpdateDescriptorSets(Ctx.Device, (uint)writes0.Length, pWrites0, 0, null);

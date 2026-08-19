@@ -83,37 +83,21 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
             string requiredCullMode = "CullMode.Back";
             bool requiredDepthWrite = true;
             bool requiresSeparatePass = false;
+            string requiredPassPhase = "MaterialPassPhase.ObjectLocal";
 
             if (attributesStr.Contains("PassState"))
             {
-                var cullMatch = Regex.Match(attributesStr, @"CullMode::([A-z]+)");
-                var depthMatch = Regex.Match(attributesStr, @"(true|false)");
-                var separateMatch = Regex.Match(attributesStr, @"(true|false)");
-
-                if (cullMatch.Success)
+                var passStateMatch = Regex.Match(
+                    attributesStr,
+                    @"PassState\s*\(\s*CullMode::([A-z]+)\s*,\s*(true|false)\s*,\s*(true|false)(?:\s*,\s*PassPhase::([A-z]+))?\s*\)");
+                if (passStateMatch.Success)
                 {
-                    requiredCullMode = $"CullMode.{cullMatch.Groups[1].Value}";
-                }
-
-                if (depthMatch.Success)
-                {
-                    requiredDepthWrite = bool.Parse(depthMatch.Groups[1].Value);
-                }
-
-                if (separateMatch.Success)
-                {
-                    requiresSeparatePass = bool.Parse(separateMatch.Groups[1].Value);
-                }
-
-                if (!cullMatch.Success && !depthMatch.Success && !separateMatch.Success)
-                {
-                    var positionalMatch = Regex.Match(attributesStr,
-                        @"PassState\s*\(\s*""([^""]+)""\s*,\s*(true|false)\s*,\s*(true|false)\s*\)");
-                    if (positionalMatch.Success)
+                    requiredCullMode = $"CullMode.{passStateMatch.Groups[1].Value}";
+                    requiredDepthWrite = bool.Parse(passStateMatch.Groups[2].Value);
+                    requiresSeparatePass = bool.Parse(passStateMatch.Groups[3].Value);
+                    if (passStateMatch.Groups[4].Success)
                     {
-                        requiredCullMode = $"CullMode.{positionalMatch.Groups[1].Value}";
-                        requiredDepthWrite = bool.Parse(positionalMatch.Groups[2].Value);
-                        requiresSeparatePass = bool.Parse(positionalMatch.Groups[3].Value);
+                        requiredPassPhase = $"MaterialPassPhase.{passStateMatch.Groups[4].Value}";
                     }
                 }
             }
@@ -132,6 +116,7 @@ public class SlangShaderModuleGenerator : IIncrementalGenerator
                 RequiredCullMode = requiredCullMode,
                 RequiredDepthWrite = requiredDepthWrite,
                 RequiresSeparatePass = requiresSeparatePass,
+                RequiredPassPhase = requiredPassPhase,
                 Fields = fields,
                 Textures = textures
             });
@@ -320,6 +305,7 @@ public unsafe class {module.ClassName} : ShaderModule
     public override CullMode RequiredCullMode => {module.RequiredCullMode};
     public override bool RequiredDepthWrite => {module.RequiredDepthWrite.ToString().ToLower()};
     public override bool RequiresSeparatePass => {module.RequiresSeparatePass.ToString().ToLower()};
+    public override MaterialPassPhase RequiredPassPhase => {module.RequiredPassPhase};
     public override int SizeInBytes => sizeof({module.GpuStructName});
 
 {propertiesBuilder.ToString().TrimEnd()}
@@ -387,6 +373,7 @@ public unsafe class {module.ClassName} : ShaderModule
         public string RequiredCullMode { get; set; } = "CullMode.Back";
         public bool RequiredDepthWrite { get; set; }
         public bool RequiresSeparatePass { get; set; }
+        public string RequiredPassPhase { get; set; } = "MaterialPassPhase.ObjectLocal";
         public List<SlangFieldInfo> Fields { get; set; } = new();
         public List<SlangTextureInfo> Textures { get; set; } = new();
     }

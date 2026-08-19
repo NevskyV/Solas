@@ -1,7 +1,10 @@
 using Silk.NET.Core.Native;
+using System.Numerics;
 using Silk.NET.Vulkan;
 using Solas.Render.Components;
 using Solas.Render.Vulkan.Extensions;
+using Solas.Transform;
+using Solas.Transform.MathExtensions;
 using Buffer = Silk.NET.Vulkan.Buffer;
 using ShaderModule = Silk.NET.Vulkan.ShaderModule;
 
@@ -10,6 +13,10 @@ namespace Solas.Render.Vulkan;
 internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
 {
     private ulong _lastShadowContentHash = ulong.MaxValue;
+
+    internal uint LastShadowDepthDrawCount { get; private set; }
+    internal uint LastShadowCasterCulledCount { get; private set; }
+    internal uint LastShadowRecordCount { get; private set; }
 
     internal void Create()
     {
@@ -62,6 +69,9 @@ internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
             return false;
         }
 
+        LastShadowDepthDrawCount = 0;
+        LastShadowCasterCulledCount = 0;
+        LastShadowRecordCount = 0;
         uint shadowRecordIndex = 0;
         uint depthLayerIndex = 0;
         for (var lightIndex = 0; lightIndex < lights.Length; lightIndex++)
@@ -78,16 +88,30 @@ internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
                 var cascadeCount = Math.Min(Math.Max(Ctx.Settings.ShadowCascadeCount, 1u), 6u);
                 for (var cascade = 0u; cascade < cascadeCount; cascade++)
                 {
-                    RenderShadowRecord(commandBuffer, renderObjectIndices, shadowRecordIndex,
+                    var recordCasterIndices = CollectDirectionalCascadeCasters(
+                        renderObjectIndices,
+                        light,
+                        cascade,
+                        cascadeCount);
+                    LastShadowDepthDrawCount += RenderShadowRecord(
+                        commandBuffer,
+                        recordCasterIndices,
+                        shadowRecordIndex,
                         Ctx.ShadowDepthLayerViews[depthLayerIndex]);
+                    LastShadowRecordCount++;
                     shadowRecordIndex++;
                     depthLayerIndex++;
                 }
             }
             else if (lightType == 1u)
             {
-                RenderShadowRecord(commandBuffer, renderObjectIndices, shadowRecordIndex,
+                var recordCasterIndices = CollectSpotCasters(renderObjectIndices, light);
+                LastShadowDepthDrawCount += RenderShadowRecord(
+                    commandBuffer,
+                    recordCasterIndices,
+                    shadowRecordIndex,
                     Ctx.ShadowDepthLayerViews[depthLayerIndex]);
+                LastShadowRecordCount++;
                 shadowRecordIndex++;
                 depthLayerIndex++;
             }
@@ -97,8 +121,13 @@ internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
                 var firstFace = cubeIndex * 6u;
                 for (var face = 0u; face < 6u; face++)
                 {
-                    RenderShadowRecord(commandBuffer, renderObjectIndices, shadowRecordIndex,
+                    var recordCasterIndices = CollectPointFaceCasters(renderObjectIndices, light, face);
+                    LastShadowDepthDrawCount += RenderShadowRecord(
+                        commandBuffer,
+                        recordCasterIndices,
+                        shadowRecordIndex,
                         Ctx.PointShadowFaceViews[firstFace + face]);
+                    LastShadowRecordCount++;
                     shadowRecordIndex++;
                 }
             }
@@ -344,7 +373,150 @@ internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
         }
     }
 
-    private void RenderShadowRecord(CommandBuffer commandBuffer, IReadOnlyList<int> renderObjectIndices,
+    private List<int> CollectDirectionalCascadeCasters(
+        IReadOnlyList<int> candidateIndices,
+        LightGpu light,
+        uint cascadeIndex,
+        uint cascadeCount)
+    {
+        var nearDistance = MathF.Max(Ctx.CameraData.NearClipPlane, 0.001f);
+        var farDistance = MathF.Max(
+            MathF.Min(Ctx.CameraData.FarClipPlane, Ctx.Settings.ShadowMaxDistance),
+            nearDistance + 0.001f);
+        var cascadeNear = ComputeCascadeSplit(cascadeIndex, cascadeCount, nearDistance, farDistance);
+        var cascadeFar = ComputeCascadeSplit(cascadeIndex + 1u, cascadeCount, nearDistance, farDistance);
+        var aspectRatio = (float)Ctx.RenderExtent.Width / Math.Max(Ctx.RenderExtent.Height, 1u);
+        var cameraRotation = Ctx.CameraTransform.Rotation.Value.ToQuaternion();
+        var cameraForward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitZ, cameraRotation));
+        var cameraPosition = Ctx.CameraTransform.Position.Value;
+        var cascadeCenterDepth = (cascadeNear + cascadeFar) * 0.5f;
+        var halfDepth = (cascadeFar - cascadeNear) * 0.5f;
+        float halfWidth;
+        float halfHeight;
+        if (Ctx.CameraData.Type == CameraType.Orthographic)
+        {
+            halfHeight = Ctx.CameraData.Size * 0.5f;
+            halfWidth = halfHeight * aspectRatio;
+        }
+        else
+        {
+            var tanHalfFovY = MathF.Tan(Ctx.CameraData.FieldOfView * MathF.PI / 360.0f);
+            halfHeight = cascadeFar * tanHalfFovY;
+            halfWidth = halfHeight * aspectRatio;
+        }
+
+        var receiverRadius = MathF.Sqrt(halfWidth * halfWidth + halfHeight * halfHeight + halfDepth * halfDepth);
+        var receiverCenter = cameraPosition + cameraForward * cascadeCenterDepth;
+        var lightDirection = Vector3.Normalize(new Vector3(
+            light.PositionOrDirection.X,
+            light.PositionOrDirection.Y,
+            light.PositionOrDirection.Z));
+        var selectedIndices = new List<int>(candidateIndices.Count);
+        foreach (var objectIndex in candidateIndices)
+        {
+            GetObjectBounds(objectIndex, out var worldCenter, out var worldRadius);
+            var delta = worldCenter - receiverCenter;
+            var perpendicular = delta - lightDirection * Vector3.Dot(delta, lightDirection);
+            if (perpendicular.LengthSquared() <= (receiverRadius + worldRadius + 1.0f) *
+                (receiverRadius + worldRadius + 1.0f))
+            {
+                selectedIndices.Add(objectIndex);
+            }
+        }
+
+        LastShadowCasterCulledCount += (uint)(candidateIndices.Count - selectedIndices.Count);
+        return selectedIndices;
+    }
+
+    private List<int> CollectSpotCasters(IReadOnlyList<int> candidateIndices, LightGpu light)
+    {
+        var lightPosition = new Vector3(light.PositionOrDirection.X, light.PositionOrDirection.Y,
+            light.PositionOrDirection.Z);
+        var lightRange = MathF.Max(light.Extra0.W, 0.001f);
+        var selectedIndices = new List<int>(candidateIndices.Count);
+        foreach (var objectIndex in candidateIndices)
+        {
+            GetObjectBounds(objectIndex, out var worldCenter, out var worldRadius);
+            var maximumDistance = lightRange + worldRadius;
+            if (Vector3.DistanceSquared(worldCenter, lightPosition) <= maximumDistance * maximumDistance)
+            {
+                selectedIndices.Add(objectIndex);
+            }
+        }
+
+        LastShadowCasterCulledCount += (uint)(candidateIndices.Count - selectedIndices.Count);
+        return selectedIndices;
+    }
+
+    private List<int> CollectPointFaceCasters(IReadOnlyList<int> candidateIndices, LightGpu light, uint faceIndex)
+    {
+        var lightPosition = new Vector3(light.PositionOrDirection.X, light.PositionOrDirection.Y,
+            light.PositionOrDirection.Z);
+        var lightRange = MathF.Max(light.Extra0.X, 0.001f);
+        var faceDirection = GetPointFaceDirection(faceIndex);
+        var selectedIndices = new List<int>(candidateIndices.Count);
+        foreach (var objectIndex in candidateIndices)
+        {
+            GetObjectBounds(objectIndex, out var worldCenter, out var worldRadius);
+            var toObject = worldCenter - lightPosition;
+            var maximumDistance = lightRange + worldRadius;
+            if (toObject.LengthSquared() > maximumDistance * maximumDistance)
+            {
+                continue;
+            }
+
+            var axialDistance = Vector3.Dot(toObject, faceDirection);
+            if (axialDistance + worldRadius <= 0.0f)
+            {
+                continue;
+            }
+
+            var perpendicular = toObject - faceDirection * axialDistance;
+            var expandedFaceRadius = MathF.Max(axialDistance, 0.0f) + worldRadius * 1.5f;
+            if (perpendicular.LengthSquared() <= expandedFaceRadius * expandedFaceRadius)
+            {
+                selectedIndices.Add(objectIndex);
+            }
+        }
+
+        LastShadowCasterCulledCount += (uint)(candidateIndices.Count - selectedIndices.Count);
+        return selectedIndices;
+    }
+
+    private float ComputeCascadeSplit(uint cascadeIndex, uint cascadeCount, float nearDistance, float farDistance)
+    {
+        var ratio = (float)cascadeIndex / Math.Max(cascadeCount, 1u);
+        var logarithmic = nearDistance * MathF.Pow(farDistance / nearDistance, ratio);
+        var uniform = nearDistance + (farDistance - nearDistance) * ratio;
+        var splitLambda = Math.Clamp(Ctx.Settings.ShadowSplitLambda, 0.0f, 1.0f);
+        return uniform + (logarithmic - uniform) * splitLambda;
+    }
+
+    private void GetObjectBounds(int objectIndex, out Vector3 worldCenter, out float worldRadius)
+    {
+        var renderObject = Ctx.RenderData[objectIndex];
+        var modelMatrix = renderObject.Logic.GetModelMatrix();
+        var localCenter = renderObject.Logic.Mesh?.BoundingCenter ?? Vector3.Zero;
+        var localRadius = renderObject.Logic.Mesh?.BoundingRadius ?? 5.0f;
+        worldCenter = Vector3.Transform(localCenter, modelMatrix);
+        var scale = renderObject.Logic.Entity.GetData<TransformData>()?.Scale.Value ?? Vector3.One;
+        worldRadius = localRadius * MathF.Max(scale.X, MathF.Max(scale.Y, scale.Z));
+    }
+
+    private static Vector3 GetPointFaceDirection(uint faceIndex)
+    {
+        return faceIndex switch
+        {
+            0u => Vector3.UnitX,
+            1u => -Vector3.UnitX,
+            2u => Vector3.UnitY,
+            3u => -Vector3.UnitY,
+            4u => Vector3.UnitZ,
+            _ => -Vector3.UnitZ
+        };
+    }
+
+    private uint RenderShadowRecord(CommandBuffer commandBuffer, IReadOnlyList<int> renderObjectIndices,
         uint shadowRecordIndex, ImageView depthView)
     {
         var clearValue = new ClearValue
@@ -387,6 +559,7 @@ internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
         Ctx.Vk.CmdSetScissor(commandBuffer, 0, 1, &scissor);
         Ctx.Vk.CmdBindPipeline(commandBuffer, PipelineBindPoint.Graphics, Ctx.ShadowDepthRigidPipeline);
 
+        uint drawCount = 0;
         for (var objectIndex = 0; objectIndex < renderObjectIndices.Count; objectIndex++)
         {
             var renderObject = Ctx.RenderData[renderObjectIndices[objectIndex]];
@@ -431,9 +604,11 @@ internal unsafe class VulkanShadowRenderer : VulkanInjectable, IDisposable
                 0,
                 0,
                 0);
+            drawCount++;
         }
 
         Ctx.Vk.CmdEndRendering(commandBuffer);
+        return drawCount;
     }
 
     private void BarrierComputeWritesToShadowConsumers(CommandBuffer commandBuffer)

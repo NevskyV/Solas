@@ -10,7 +10,7 @@ public struct Outline3DParams
 };
 
 [Domain3D]
-[PassState(CullMode::Front, true, true)]
+[PassState(CullMode::Front, true, true, PassPhase::ObjectLocal)]
 public struct Outline3DModifier : IVertexModifier, IFragmentModifier
 {
     public Outline3DParams params;

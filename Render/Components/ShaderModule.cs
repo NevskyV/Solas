@@ -27,6 +27,7 @@ public abstract unsafe class ShaderModule
     public virtual CullMode RequiredCullMode => CullMode.Back;
     public virtual bool RequiredDepthWrite => true;
     public virtual bool RequiresSeparatePass => false;
+    public virtual MaterialPassPhase RequiredPassPhase => MaterialPassPhase.ObjectLocal;
 
     public event Action<ShaderModule, Texture?>? OnTextureUpdated;
 

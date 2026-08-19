@@ -15,6 +15,12 @@ public enum CullMode
     None
 }
 
+public enum PassPhase
+{
+    ObjectLocal,
+    GlobalOverlay
+}
+
 [__AttributeUsage(_AttributeTargets.Struct)]
 public struct Domain2DAttribute {};
 [__AttributeUsage(_AttributeTargets.Struct)]
@@ -30,6 +36,7 @@ public struct PassStateAttribute
     public CullMode cullMode;
     public bool depthWrite;
     public bool separatePass;
+    public PassPhase phase;
 };
 
 public interface IVertexModifier
